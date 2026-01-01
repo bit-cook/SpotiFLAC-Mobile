@@ -133,6 +133,7 @@ class DownloadQueueState {
   final String outputDir;
   final String filenameFormat;
   final bool autoFallback;
+  final int concurrentDownloads; // 1 = sequential, max 3
 
   const DownloadQueueState({
     this.items = const [],
@@ -141,6 +142,7 @@ class DownloadQueueState {
     this.outputDir = '',
     this.filenameFormat = '{artist} - {title}',
     this.autoFallback = true,
+    this.concurrentDownloads = 1,
   });
 
   DownloadQueueState copyWith({
@@ -150,6 +152,7 @@ class DownloadQueueState {
     String? outputDir,
     String? filenameFormat,
     bool? autoFallback,
+    int? concurrentDownloads,
   }) {
     return DownloadQueueState(
       items: items ?? this.items,
@@ -158,12 +161,14 @@ class DownloadQueueState {
       outputDir: outputDir ?? this.outputDir,
       filenameFormat: filenameFormat ?? this.filenameFormat,
       autoFallback: autoFallback ?? this.autoFallback,
+      concurrentDownloads: concurrentDownloads ?? this.concurrentDownloads,
     );
   }
 
   int get queuedCount => items.where((i) => i.status == DownloadStatus.queued || i.status == DownloadStatus.downloading).length;
   int get completedCount => items.where((i) => i.status == DownloadStatus.completed).length;
   int get failedCount => items.where((i) => i.status == DownloadStatus.failed).length;
+  int get activeDownloadsCount => items.where((i) => i.status == DownloadStatus.downloading).length;
 }
 
 // Download Queue Notifier (Riverpod 3.x)
@@ -261,6 +266,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       outputDir: settings.downloadDirectory.isNotEmpty ? settings.downloadDirectory : state.outputDir,
       filenameFormat: settings.filenameFormat,
       autoFallback: settings.autoFallback,
+      concurrentDownloads: settings.concurrentDownloads,
     );
   }
 
@@ -428,153 +434,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
     
     print('[DownloadQueue] Output directory: ${state.outputDir}');
+    print('[DownloadQueue] Concurrent downloads: ${state.concurrentDownloads}');
 
-    while (true) {
-      final nextItem = state.items.firstWhere(
-        (item) => item.status == DownloadStatus.queued,
-        orElse: () => DownloadItem(
-          id: '',
-          track: const Track(id: '', name: '', artistName: '', albumName: '', duration: 0),
-          service: '',
-          createdAt: DateTime.now(),
-        ),
-      );
-
-      if (nextItem.id.isEmpty) {
-        print('[DownloadQueue] No more items to process');
-        break;
-      }
-
-      print('[DownloadQueue] Processing: ${nextItem.track.name} by ${nextItem.track.artistName}');
-      print('[DownloadQueue] Cover URL: ${nextItem.track.coverUrl}');
-      
-      state = state.copyWith(currentDownload: nextItem);
-      updateItemStatus(nextItem.id, DownloadStatus.downloading);
-      
-      // Start progress polling
-      _startProgressPolling(nextItem.id);
-
-      try {
-        Map<String, dynamic> result;
-
-        if (state.autoFallback) {
-          print('[DownloadQueue] Using auto-fallback mode');
-          result = await PlatformBridge.downloadWithFallback(
-            isrc: nextItem.track.isrc ?? '',
-            spotifyId: nextItem.track.id,
-            trackName: nextItem.track.name,
-            artistName: nextItem.track.artistName,
-            albumName: nextItem.track.albumName,
-            albumArtist: nextItem.track.albumArtist,
-            coverUrl: nextItem.track.coverUrl,
-            outputDir: state.outputDir,
-            filenameFormat: state.filenameFormat,
-            trackNumber: nextItem.track.trackNumber ?? 1,
-            discNumber: nextItem.track.discNumber ?? 1,
-            releaseDate: nextItem.track.releaseDate,
-            preferredService: nextItem.service,
-          );
-        } else {
-          result = await PlatformBridge.downloadTrack(
-            isrc: nextItem.track.isrc ?? '',
-            service: nextItem.service,
-            spotifyId: nextItem.track.id,
-            trackName: nextItem.track.name,
-            artistName: nextItem.track.artistName,
-            albumName: nextItem.track.albumName,
-            albumArtist: nextItem.track.albumArtist,
-            coverUrl: nextItem.track.coverUrl,
-            outputDir: state.outputDir,
-            filenameFormat: state.filenameFormat,
-            trackNumber: nextItem.track.trackNumber ?? 1,
-            discNumber: nextItem.track.discNumber ?? 1,
-            releaseDate: nextItem.track.releaseDate,
-          );
-        }
-
-        // Stop progress polling for this item
-        _stopProgressPolling();
-        
-        print('[DownloadQueue] Result: $result');
-        
-        if (result['success'] == true) {
-          var filePath = result['file_path'] as String?;
-          print('[DownloadQueue] Download success, file: $filePath');
-          
-          // Check if file is M4A (DASH stream from Tidal) and needs remuxing to FLAC
-          if (filePath != null && filePath.endsWith('.m4a')) {
-            print('[DownloadQueue] Converting M4A to FLAC...');
-            updateItemStatus(nextItem.id, DownloadStatus.downloading, progress: 0.9);
-            final flacPath = await FFmpegService.convertM4aToFlac(filePath);
-            if (flacPath != null) {
-              filePath = flacPath;
-              print('[DownloadQueue] Converted to: $flacPath');
-              
-              // After conversion, embed metadata and cover to the new FLAC file
-              print('[DownloadQueue] Embedding metadata and cover to converted FLAC...');
-              try {
-                await _embedMetadataAndCover(
-                  flacPath,
-                  nextItem.track,
-                );
-                print('[DownloadQueue] Metadata and cover embedded successfully');
-              } catch (e) {
-                print('[DownloadQueue] Warning: Failed to embed metadata/cover: $e');
-              }
-            }
-          }
-          
-          updateItemStatus(
-            nextItem.id,
-            DownloadStatus.completed,
-            progress: 1.0,
-            filePath: filePath,
-          );
-
-          if (filePath != null) {
-            ref.read(downloadHistoryProvider.notifier).addToHistory(
-              DownloadHistoryItem(
-                id: nextItem.id,
-                trackName: nextItem.track.name,
-                artistName: nextItem.track.artistName,
-                albumName: nextItem.track.albumName,
-                coverUrl: nextItem.track.coverUrl,
-                filePath: filePath,
-                service: result['service'] as String? ?? nextItem.service,
-                downloadedAt: DateTime.now(),
-              ),
-            );
-          }
-        } else {
-          final errorMsg = result['error'] as String? ?? 'Download failed';
-          print('[DownloadQueue] Download failed: $errorMsg');
-          updateItemStatus(
-            nextItem.id,
-            DownloadStatus.failed,
-            error: errorMsg,
-          );
-        }
-        
-        // Increment download counter and cleanup connections periodically
-        _downloadCount++;
-        if (_downloadCount % _cleanupInterval == 0) {
-          print('[DownloadQueue] Cleaning up idle connections (after $_downloadCount downloads)...');
-          try {
-            await PlatformBridge.cleanupConnections();
-          } catch (e) {
-            print('[DownloadQueue] Connection cleanup failed: $e');
-          }
-        }
-      } catch (e, stackTrace) {
-        _stopProgressPolling();
-        print('[DownloadQueue] Exception: $e');
-        print('[DownloadQueue] StackTrace: $stackTrace');
-        updateItemStatus(
-          nextItem.id,
-          DownloadStatus.failed,
-          error: e.toString(),
-        );
-      }
+    // Use parallel processing if concurrentDownloads > 1
+    if (state.concurrentDownloads > 1) {
+      await _processQueueParallel();
+    } else {
+      await _processQueueSequential();
     }
 
     _stopProgressPolling();
@@ -592,6 +458,210 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     
     print('[DownloadQueue] Queue processing finished');
     state = state.copyWith(isProcessing: false, currentDownload: null);
+  }
+
+  /// Sequential download processing (original behavior)
+  Future<void> _processQueueSequential() async {
+    while (true) {
+      final nextItem = state.items.firstWhere(
+        (item) => item.status == DownloadStatus.queued,
+        orElse: () => DownloadItem(
+          id: '',
+          track: const Track(id: '', name: '', artistName: '', albumName: '', duration: 0),
+          service: '',
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      if (nextItem.id.isEmpty) {
+        print('[DownloadQueue] No more items to process');
+        break;
+      }
+
+      await _downloadSingleItem(nextItem);
+    }
+  }
+
+  /// Parallel download processing with worker pool
+  Future<void> _processQueueParallel() async {
+    final maxConcurrent = state.concurrentDownloads;
+    final activeDownloads = <String, Future<void>>{}; // Map item ID to future
+    
+    while (true) {
+      // Get queued items
+      final queuedItems = state.items.where((item) => item.status == DownloadStatus.queued).toList();
+      
+      if (queuedItems.isEmpty && activeDownloads.isEmpty) {
+        print('[DownloadQueue] No more items to process');
+        break;
+      }
+      
+      // Start new downloads up to max concurrent limit
+      while (activeDownloads.length < maxConcurrent && queuedItems.isNotEmpty) {
+        final item = queuedItems.removeAt(0);
+        
+        // Mark as downloading immediately to prevent double-processing
+        updateItemStatus(item.id, DownloadStatus.downloading);
+        
+        // Create the download future
+        final future = _downloadSingleItem(item).whenComplete(() {
+          activeDownloads.remove(item.id);
+        });
+        
+        activeDownloads[item.id] = future;
+        print('[DownloadQueue] Started parallel download: ${item.track.name} (${activeDownloads.length}/$maxConcurrent active)');
+      }
+      
+      // Wait for at least one download to complete before checking for more
+      if (activeDownloads.isNotEmpty) {
+        await Future.any(activeDownloads.values);
+      }
+    }
+    
+    // Wait for all remaining downloads to complete
+    if (activeDownloads.isNotEmpty) {
+      await Future.wait(activeDownloads.values);
+    }
+  }
+
+  /// Download a single item (used by both sequential and parallel processing)
+  Future<void> _downloadSingleItem(DownloadItem item) async {
+    print('[DownloadQueue] Processing: ${item.track.name} by ${item.track.artistName}');
+    print('[DownloadQueue] Cover URL: ${item.track.coverUrl}');
+    
+    // Only set currentDownload for sequential mode (for progress polling)
+    if (state.concurrentDownloads == 1) {
+      state = state.copyWith(currentDownload: item);
+      _startProgressPolling(item.id);
+    }
+    
+    updateItemStatus(item.id, DownloadStatus.downloading);
+
+    try {
+      Map<String, dynamic> result;
+
+      if (state.autoFallback) {
+        print('[DownloadQueue] Using auto-fallback mode');
+        result = await PlatformBridge.downloadWithFallback(
+          isrc: item.track.isrc ?? '',
+          spotifyId: item.track.id,
+          trackName: item.track.name,
+          artistName: item.track.artistName,
+          albumName: item.track.albumName,
+          albumArtist: item.track.albumArtist,
+          coverUrl: item.track.coverUrl,
+          outputDir: state.outputDir,
+          filenameFormat: state.filenameFormat,
+          trackNumber: item.track.trackNumber ?? 1,
+          discNumber: item.track.discNumber ?? 1,
+          releaseDate: item.track.releaseDate,
+          preferredService: item.service,
+        );
+      } else {
+        result = await PlatformBridge.downloadTrack(
+          isrc: item.track.isrc ?? '',
+          service: item.service,
+          spotifyId: item.track.id,
+          trackName: item.track.name,
+          artistName: item.track.artistName,
+          albumName: item.track.albumName,
+          albumArtist: item.track.albumArtist,
+          coverUrl: item.track.coverUrl,
+          outputDir: state.outputDir,
+          filenameFormat: state.filenameFormat,
+          trackNumber: item.track.trackNumber ?? 1,
+          discNumber: item.track.discNumber ?? 1,
+          releaseDate: item.track.releaseDate,
+        );
+      }
+
+      // Stop progress polling for this item (sequential mode only)
+      if (state.concurrentDownloads == 1) {
+        _stopProgressPolling();
+      }
+      
+      print('[DownloadQueue] Result: $result');
+      
+      if (result['success'] == true) {
+        var filePath = result['file_path'] as String?;
+        print('[DownloadQueue] Download success, file: $filePath');
+        
+        // Check if file is M4A (DASH stream from Tidal) and needs remuxing to FLAC
+        if (filePath != null && filePath.endsWith('.m4a')) {
+          print('[DownloadQueue] Converting M4A to FLAC...');
+          updateItemStatus(item.id, DownloadStatus.downloading, progress: 0.9);
+          final flacPath = await FFmpegService.convertM4aToFlac(filePath);
+          if (flacPath != null) {
+            filePath = flacPath;
+            print('[DownloadQueue] Converted to: $flacPath');
+            
+            // After conversion, embed metadata and cover to the new FLAC file
+            print('[DownloadQueue] Embedding metadata and cover to converted FLAC...');
+            try {
+              await _embedMetadataAndCover(
+                flacPath,
+                item.track,
+              );
+              print('[DownloadQueue] Metadata and cover embedded successfully');
+            } catch (e) {
+              print('[DownloadQueue] Warning: Failed to embed metadata/cover: $e');
+            }
+          }
+        }
+        
+        updateItemStatus(
+          item.id,
+          DownloadStatus.completed,
+          progress: 1.0,
+          filePath: filePath,
+        );
+
+        if (filePath != null) {
+          ref.read(downloadHistoryProvider.notifier).addToHistory(
+            DownloadHistoryItem(
+              id: item.id,
+              trackName: item.track.name,
+              artistName: item.track.artistName,
+              albumName: item.track.albumName,
+              coverUrl: item.track.coverUrl,
+              filePath: filePath,
+              service: result['service'] as String? ?? item.service,
+              downloadedAt: DateTime.now(),
+            ),
+          );
+        }
+      } else {
+        final errorMsg = result['error'] as String? ?? 'Download failed';
+        print('[DownloadQueue] Download failed: $errorMsg');
+        updateItemStatus(
+          item.id,
+          DownloadStatus.failed,
+          error: errorMsg,
+        );
+      }
+      
+      // Increment download counter and cleanup connections periodically
+      _downloadCount++;
+      if (_downloadCount % _cleanupInterval == 0) {
+        print('[DownloadQueue] Cleaning up idle connections (after $_downloadCount downloads)...');
+        try {
+          await PlatformBridge.cleanupConnections();
+        } catch (e) {
+          print('[DownloadQueue] Connection cleanup failed: $e');
+        }
+      }
+    } catch (e, stackTrace) {
+      if (state.concurrentDownloads == 1) {
+        _stopProgressPolling();
+      }
+      print('[DownloadQueue] Exception: $e');
+      print('[DownloadQueue] StackTrace: $stackTrace');
+      updateItemStatus(
+        item.id,
+        DownloadStatus.failed,
+        error: e.toString(),
+      );
+    }
   }
 }
 

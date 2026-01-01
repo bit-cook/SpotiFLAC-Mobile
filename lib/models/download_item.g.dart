@@ -7,21 +7,22 @@ part of 'download_item.dart';
 // **************************************************************************
 
 DownloadItem _$DownloadItemFromJson(Map<String, dynamic> json) => DownloadItem(
-      id: json['id'] as String,
-      track: Track.fromJson(json['track'] as Map<String, dynamic>),
-      service: json['service'] as String,
-      status: $enumDecodeNullable(_$DownloadStatusEnumMap, json['status']) ??
-          DownloadStatus.queued,
-      progress: (json['progress'] as num?)?.toDouble() ?? 0.0,
-      filePath: json['filePath'] as String?,
-      error: json['error'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-    );
+  id: json['id'] as String,
+  track: Track.fromJson(json['track'] as Map<String, dynamic>),
+  service: json['service'] as String,
+  status:
+      $enumDecodeNullable(_$DownloadStatusEnumMap, json['status']) ??
+      DownloadStatus.queued,
+  progress: (json['progress'] as num?)?.toDouble() ?? 0.0,
+  filePath: json['filePath'] as String?,
+  error: json['error'] as String?,
+  createdAt: DateTime.parse(json['createdAt'] as String),
+);
 
 Map<String, dynamic> _$DownloadItemToJson(DownloadItem instance) =>
     <String, dynamic>{
       'id': instance.id,
-      'track': instance.track.toJson(),
+      'track': instance.track,
       'service': instance.service,
       'status': _$DownloadStatusEnumMap[instance.status]!,
       'progress': instance.progress,
@@ -37,22 +38,3 @@ const _$DownloadStatusEnumMap = {
   DownloadStatus.failed: 'failed',
   DownloadStatus.skipped: 'skipped',
 };
-
-K? $enumDecodeNullable<K, V>(
-  Map<K, V> enumValues,
-  Object? source, {
-  K? unknownValue,
-}) {
-  if (source == null) {
-    return null;
-  }
-  return enumValues.entries
-      .singleWhere(
-        (e) => e.value == source,
-        orElse: () => throw ArgumentError(
-          '`$source` is not one of the supported values: '
-          '${enumValues.values.join(', ')}',
-        ),
-      )
-      .key;
-}

@@ -12,6 +12,7 @@ class AppSettings {
   final bool embedLyrics;
   final bool maxQualityCover;
   final bool isFirstLaunch;
+  final int concurrentDownloads; // 1 = sequential (default), max 3
 
   const AppSettings({
     this.defaultService = 'tidal',
@@ -22,6 +23,7 @@ class AppSettings {
     this.embedLyrics = true,
     this.maxQualityCover = true,
     this.isFirstLaunch = true,
+    this.concurrentDownloads = 1, // Default: sequential (off)
   });
 
   AppSettings copyWith({
@@ -33,6 +35,7 @@ class AppSettings {
     bool? embedLyrics,
     bool? maxQualityCover,
     bool? isFirstLaunch,
+    int? concurrentDownloads,
   }) {
     return AppSettings(
       defaultService: defaultService ?? this.defaultService,
@@ -43,6 +46,7 @@ class AppSettings {
       embedLyrics: embedLyrics ?? this.embedLyrics,
       maxQualityCover: maxQualityCover ?? this.maxQualityCover,
       isFirstLaunch: isFirstLaunch ?? this.isFirstLaunch,
+      concurrentDownloads: concurrentDownloads ?? this.concurrentDownloads,
     );
   }
 

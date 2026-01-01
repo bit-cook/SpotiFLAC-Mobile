@@ -126,6 +126,16 @@ class SettingsScreen extends ConsumerWidget {
             value: settings.maxQualityCover,
             onChanged: (value) => ref.read(settingsProvider.notifier).setMaxQualityCover(value),
           ),
+
+          // Concurrent Downloads
+          ListTile(
+            leading: Icon(Icons.download_for_offline, color: colorScheme.primary),
+            title: const Text('Concurrent Downloads'),
+            subtitle: Text(settings.concurrentDownloads == 1 
+                ? 'Sequential (1 at a time)' 
+                : '${settings.concurrentDownloads} parallel downloads'),
+            onTap: () => _showConcurrentDownloadsPicker(context, ref, settings.concurrentDownloads),
+          ),
           
           const Divider(),
           
@@ -162,11 +172,11 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: Icon(Icons.info, color: colorScheme.primary),
             title: const Text('About'),
-            subtitle: const Text('SpotiFLAC v1.0.5'),
+            subtitle: const Text('SpotiFLAC v1.1.0'),
             onTap: () => showAboutDialog(
               context: context,
               applicationName: 'SpotiFLAC',
-              applicationVersion: '1.0.5',
+              applicationVersion: '1.1.0',
               applicationLegalese: '© 2024 SpotiFLAC\n\nMobile: zarzet\nOriginal: afkarxyz',
             ),
           ),
@@ -452,6 +462,45 @@ class SettingsScreen extends ConsumerWidget {
     if (result != null) {
       ref.read(settingsProvider.notifier).setDownloadDirectory(result);
     }
+  }
+
+  void _showConcurrentDownloadsPicker(BuildContext context, WidgetRef ref, int current) {
+    final colorScheme = Theme.of(context).colorScheme;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Concurrent Downloads'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildConcurrentOption(context, ref, 1, 'Sequential', 'Download one at a time (recommended)', current, colorScheme),
+            _buildConcurrentOption(context, ref, 2, '2 Parallel', 'Download 2 tracks simultaneously', current, colorScheme),
+            _buildConcurrentOption(context, ref, 3, '3 Parallel', 'Download 3 tracks simultaneously', current, colorScheme),
+            const SizedBox(height: 12),
+            Text(
+              '⚠️ Parallel downloads may trigger rate limiting from streaming services.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.error,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConcurrentOption(BuildContext context, WidgetRef ref, int value, String title, String subtitle, int current, ColorScheme colorScheme) {
+    final isSelected = value == current;
+    return ListTile(
+      title: Text(title),
+      subtitle: Text(subtitle),
+      trailing: isSelected ? Icon(Icons.check, color: colorScheme.primary) : null,
+      onTap: () {
+        ref.read(settingsProvider.notifier).setConcurrentDownloads(value);
+        Navigator.pop(context);
+      },
+    );
   }
 
   Future<void> _launchUrl(String url) async {

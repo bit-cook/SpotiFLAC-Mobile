@@ -7,15 +7,16 @@ part of 'settings.dart';
 // **************************************************************************
 
 AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => AppSettings(
-      defaultService: json['defaultService'] as String? ?? 'tidal',
-      audioQuality: json['audioQuality'] as String? ?? 'LOSSLESS',
-      filenameFormat: json['filenameFormat'] as String? ?? '{title} - {artist}',
-      downloadDirectory: json['downloadDirectory'] as String? ?? '',
-      autoFallback: json['autoFallback'] as bool? ?? true,
-      embedLyrics: json['embedLyrics'] as bool? ?? true,
-      maxQualityCover: json['maxQualityCover'] as bool? ?? true,
-      isFirstLaunch: json['isFirstLaunch'] as bool? ?? true,
-    );
+  defaultService: json['defaultService'] as String? ?? 'tidal',
+  audioQuality: json['audioQuality'] as String? ?? 'LOSSLESS',
+  filenameFormat: json['filenameFormat'] as String? ?? '{title} - {artist}',
+  downloadDirectory: json['downloadDirectory'] as String? ?? '',
+  autoFallback: json['autoFallback'] as bool? ?? true,
+  embedLyrics: json['embedLyrics'] as bool? ?? true,
+  maxQualityCover: json['maxQualityCover'] as bool? ?? true,
+  isFirstLaunch: json['isFirstLaunch'] as bool? ?? true,
+  concurrentDownloads: (json['concurrentDownloads'] as num?)?.toInt() ?? 1,
+);
 
 Map<String, dynamic> _$AppSettingsToJson(AppSettings instance) =>
     <String, dynamic>{
@@ -27,4 +28,5 @@ Map<String, dynamic> _$AppSettingsToJson(AppSettings instance) =>
       'embedLyrics': instance.embedLyrics,
       'maxQualityCover': instance.maxQualityCover,
       'isFirstLaunch': instance.isFirstLaunch,
+      'concurrentDownloads': instance.concurrentDownloads,
     };

@@ -64,6 +64,13 @@ class SettingsNotifier extends Notifier<AppSettings> {
     state = state.copyWith(isFirstLaunch: false);
     _saveSettings();
   }
+
+  void setConcurrentDownloads(int count) {
+    // Clamp between 1 and 3
+    final clamped = count.clamp(1, 3);
+    state = state.copyWith(concurrentDownloads: clamped);
+    _saveSettings();
+  }
 }
 
 final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(
