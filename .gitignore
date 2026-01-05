@@ -13,9 +13,6 @@ Thumbs.db
 # Reference folder (development only)
 referensi/
 
-# Development notes
-COMPARISON_PC_vs_ANDROID.md
-
 # Old spotiflac_android folder (moved to root)
 spotiflac_android/
 
@@ -38,7 +35,7 @@ go_backend/*.xcframework/
 
 # Android
 android/.gradle/
-android/app/libs/
+android/app/libs/gobackend.aar
 android/local.properties
 android/*.iml
 android/key.properties
