@@ -13,6 +13,14 @@ enum DownloadStatus {
   skipped,
 }
 
+/// Error type enum for better error handling
+enum DownloadErrorType {
+  unknown,
+  notFound,    // Track not found on any service
+  rateLimit,   // Rate limited by service
+  network,     // Network/connection error
+}
+
 @JsonSerializable()
 class DownloadItem {
   final String id;
@@ -20,8 +28,10 @@ class DownloadItem {
   final String service;
   final DownloadStatus status;
   final double progress;
+  final double speedMBps; // Download speed in MB/s
   final String? filePath;
   final String? error;
+  final DownloadErrorType? errorType;
   final DateTime createdAt;
   final String? qualityOverride; // Override quality for this specific download
 
@@ -31,8 +41,10 @@ class DownloadItem {
     required this.service,
     this.status = DownloadStatus.queued,
     this.progress = 0.0,
+    this.speedMBps = 0.0,
     this.filePath,
     this.error,
+    this.errorType,
     required this.createdAt,
     this.qualityOverride,
   });
@@ -43,8 +55,10 @@ class DownloadItem {
     String? service,
     DownloadStatus? status,
     double? progress,
+    double? speedMBps,
     String? filePath,
     String? error,
+    DownloadErrorType? errorType,
     DateTime? createdAt,
     String? qualityOverride,
   }) {
@@ -54,11 +68,29 @@ class DownloadItem {
       service: service ?? this.service,
       status: status ?? this.status,
       progress: progress ?? this.progress,
+      speedMBps: speedMBps ?? this.speedMBps,
       filePath: filePath ?? this.filePath,
       error: error ?? this.error,
+      errorType: errorType ?? this.errorType,
       createdAt: createdAt ?? this.createdAt,
       qualityOverride: qualityOverride ?? this.qualityOverride,
     );
+  }
+
+  /// Get user-friendly error message based on error type
+  String get errorMessage {
+    if (error == null) return '';
+    
+    switch (errorType) {
+      case DownloadErrorType.notFound:
+        return 'Song not found on any service';
+      case DownloadErrorType.rateLimit:
+        return 'Rate limit reached, try again later';
+      case DownloadErrorType.network:
+        return 'Connection failed, check your internet';
+      default:
+        return error ?? 'An error occurred';
+    }
   }
 
   factory DownloadItem.fromJson(Map<String, dynamic> json) =>

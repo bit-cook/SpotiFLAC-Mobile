@@ -495,6 +495,17 @@ func (c *SpotifyMetadataClient) fetchAlbum(ctx context.Context, albumID, token s
 	}
 	c.cacheMu.RUnlock()
 
+	// Track item structure for pagination
+	type trackItem struct {
+		ID          string      `json:"id"`
+		Name        string      `json:"name"`
+		DurationMS  int         `json:"duration_ms"`
+		TrackNumber int         `json:"track_number"`
+		DiscNumber  int         `json:"disc_number"`
+		ExternalURL externalURL `json:"external_urls"`
+		Artists     []artist    `json:"artists"`
+	}
+
 	var data struct {
 		Name        string   `json:"name"`
 		ReleaseDate string   `json:"release_date"`
@@ -502,15 +513,8 @@ func (c *SpotifyMetadataClient) fetchAlbum(ctx context.Context, albumID, token s
 		Images      []image  `json:"images"`
 		Artists     []artist `json:"artists"`
 		Tracks      struct {
-			Items []struct {
-				ID          string      `json:"id"`
-				Name        string      `json:"name"`
-				DurationMS  int         `json:"duration_ms"`
-				TrackNumber int         `json:"track_number"`
-				DiscNumber  int         `json:"disc_number"`
-				ExternalURL externalURL `json:"external_urls"`
-				Artists     []artist    `json:"artists"`
-			} `json:"items"`
+			Items []trackItem `json:"items"`
+			Next  string      `json:"next"`
 		} `json:"tracks"`
 	}
 
@@ -527,10 +531,38 @@ func (c *SpotifyMetadataClient) fetchAlbum(ctx context.Context, albumID, token s
 		Images:      albumImage,
 	}
 
-	tracks := make([]AlbumTrackMetadata, 0, len(data.Tracks.Items))
-	for _, item := range data.Tracks.Items {
-		// Fetch ISRC for each track
-		isrc := c.fetchTrackISRC(ctx, item.ID, token)
+	// Collect all tracks (including paginated)
+	allTrackItems := data.Tracks.Items
+	nextURL := data.Tracks.Next
+	
+	// Fetch remaining tracks using pagination (no limit)
+	for nextURL != "" {
+		var pageData struct {
+			Items []trackItem `json:"items"`
+			Next  string      `json:"next"`
+		}
+		if err := c.getJSON(ctx, nextURL, token, &pageData); err != nil {
+			fmt.Printf("[Spotify] Warning: failed to fetch album tracks page: %v\n", err)
+			break
+		}
+		allTrackItems = append(allTrackItems, pageData.Items...)
+		nextURL = pageData.Next
+	}
+
+	fmt.Printf("[Spotify] Album has %d tracks (total: %d)\n", len(allTrackItems), data.TotalTracks)
+
+	// Collect track IDs for parallel ISRC fetching
+	trackIDs := make([]string, len(allTrackItems))
+	for i, item := range allTrackItems {
+		trackIDs[i] = item.ID
+	}
+
+	// Fetch ISRCs in parallel for ALL tracks (like Deezer implementation)
+	isrcMap := c.fetchISRCsParallel(ctx, trackIDs, token)
+
+	tracks := make([]AlbumTrackMetadata, 0, len(allTrackItems))
+	for _, item := range allTrackItems {
+		isrc := isrcMap[item.ID]
 		
 		tracks = append(tracks, AlbumTrackMetadata{
 			SpotifyID:   item.ID,
@@ -564,6 +596,47 @@ func (c *SpotifyMetadataClient) fetchAlbum(ctx context.Context, albumID, token s
 	c.cacheMu.Unlock()
 
 	return result, nil
+}
+
+// fetchISRCsParallel fetches ISRCs for multiple tracks in parallel
+// Similar to Deezer implementation for consistency
+func (c *SpotifyMetadataClient) fetchISRCsParallel(ctx context.Context, trackIDs []string, token string) map[string]string {
+	const maxParallelISRC = 10 // Max concurrent ISRC fetches
+	
+	result := make(map[string]string)
+	var resultMu sync.Mutex
+	
+	if len(trackIDs) == 0 {
+		return result
+	}
+	
+	// Use semaphore to limit concurrent requests
+	sem := make(chan struct{}, maxParallelISRC)
+	var wg sync.WaitGroup
+	
+	for _, trackID := range trackIDs {
+		wg.Add(1)
+		go func(id string) {
+			defer wg.Done()
+			
+			// Acquire semaphore
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				return
+			}
+			
+			isrc := c.fetchTrackISRC(ctx, id, token)
+			
+			resultMu.Lock()
+			result[id] = isrc
+			resultMu.Unlock()
+		}(trackID)
+	}
+	
+	wg.Wait()
+	return result
 }
 
 func (c *SpotifyMetadataClient) fetchPlaylist(ctx context.Context, playlistID, token string) (*PlaylistResponsePayload, error) {
@@ -620,11 +693,10 @@ func (c *SpotifyMetadataClient) fetchPlaylist(ctx context.Context, playlistID, t
 		})
 	}
 
-	// Fetch remaining tracks using pagination (up to 1000 tracks max)
+	// Fetch remaining tracks using pagination (NO LIMIT - fetch all tracks)
 	nextURL := data.Tracks.Next
-	maxTracks := 1000
 	
-	for nextURL != "" && len(tracks) < maxTracks {
+	for nextURL != "" {
 		var pageData struct {
 			Items []struct {
 				Track *trackFull `json:"track"`
@@ -641,9 +713,6 @@ func (c *SpotifyMetadataClient) fetchPlaylist(ctx context.Context, playlistID, t
 		for _, item := range pageData.Items {
 			if item.Track == nil {
 				continue
-			}
-			if len(tracks) >= maxTracks {
-				break
 			}
 			tracks = append(tracks, AlbumTrackMetadata{
 				SpotifyID:   item.Track.ID,
@@ -835,8 +904,16 @@ func (c *SpotifyMetadataClient) getJSON(ctx context.Context, endpoint, token str
 		return err
 	}
 
+	// Set headers (same as PC version baseHeaders)
 	req.Header.Set("User-Agent", c.userAgent)
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	req.Header.Set("sec-ch-ua-platform", "\"Windows\"")
+	req.Header.Set("sec-fetch-dest", "empty")
+	req.Header.Set("sec-fetch-mode", "cors")
+	req.Header.Set("sec-fetch-site", "same-origin")
+	req.Header.Set("Referer", "https://open.spotify.com/")
+	req.Header.Set("Origin", "https://open.spotify.com")
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -863,13 +940,23 @@ func (c *SpotifyMetadataClient) randomUserAgent() string {
 	c.rngMu.Lock()
 	defer c.rngMu.Unlock()
 
-	chromeMajor := 80 + c.rng.Intn(25)
-	chromeBuild := 3000 + c.rng.Intn(1500)
-	chromePatch := 60 + c.rng.Intn(65)
+	// Use Mac User-Agent format (same as PC version)
+	macMajor := c.rng.Intn(4) + 11    // 11-14
+	macMinor := c.rng.Intn(5) + 4     // 4-8
+	webkitMajor := c.rng.Intn(7) + 530 // 530-536
+	webkitMinor := c.rng.Intn(7) + 30  // 30-36
+	chromeMajor := c.rng.Intn(25) + 80 // 80-104
+	chromeBuild := c.rng.Intn(1500) + 3000 // 3000-4499
+	chromePatch := c.rng.Intn(65) + 60 // 60-124
+	safariMajor := c.rng.Intn(7) + 530 // 530-536
+	safariMinor := c.rng.Intn(6) + 30  // 30-35
 
 	return fmt.Sprintf(
-		"Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%d.0.%d.%d Mobile Safari/537.36",
+		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_%d_%d) AppleWebKit/%d.%d (KHTML, like Gecko) Chrome/%d.0.%d.%d Safari/%d.%d",
+		macMajor, macMinor,
+		webkitMajor, webkitMinor,
 		chromeMajor, chromeBuild, chromePatch,
+		safariMajor, safariMinor,
 	)
 }
 

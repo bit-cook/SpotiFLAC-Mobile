@@ -143,18 +143,32 @@ type DownloadResponse struct {
 	Message       string `json:"message"`
 	FilePath      string `json:"file_path,omitempty"`
 	Error         string `json:"error,omitempty"`
+	ErrorType     string `json:"error_type,omitempty"` // "not_found", "rate_limit", "network", "unknown"
 	AlreadyExists bool   `json:"already_exists,omitempty"`
 	// Actual quality info from the source
 	ActualBitDepth   int    `json:"actual_bit_depth,omitempty"`
 	ActualSampleRate int    `json:"actual_sample_rate,omitempty"`
 	Service          string `json:"service,omitempty"` // Actual service used (for fallback)
+	Title            string `json:"title,omitempty"`
+	Artist           string `json:"artist,omitempty"`
+	Album            string `json:"album,omitempty"`
+	ReleaseDate      string `json:"release_date,omitempty"`
+	TrackNumber      int    `json:"track_number,omitempty"`
+	DiscNumber       int    `json:"disc_number,omitempty"`
 }
 
 // DownloadResult is a generic result type for all downloaders
+// DownloadResult is a generic result type for all downloaders
 type DownloadResult struct {
-	FilePath   string
-	BitDepth   int
-	SampleRate int
+	FilePath    string
+	BitDepth    int
+	SampleRate  int
+	Title       string
+	Artist      string
+	Album       string
+	ReleaseDate string
+	TrackNumber int
+	DiscNumber  int
 }
 
 // DownloadTrack downloads a track from the specified service
@@ -181,9 +195,15 @@ func DownloadTrack(requestJSON string) (string, error) {
 		tidalResult, tidalErr := downloadFromTidal(req)
 		if tidalErr == nil {
 			result = DownloadResult{
-				FilePath:   tidalResult.FilePath,
-				BitDepth:   tidalResult.BitDepth,
-				SampleRate: tidalResult.SampleRate,
+				FilePath:    tidalResult.FilePath,
+				BitDepth:    tidalResult.BitDepth,
+				SampleRate:  tidalResult.SampleRate,
+				Title:       tidalResult.Title,
+				Artist:      tidalResult.Artist,
+				Album:       tidalResult.Album,
+				ReleaseDate: tidalResult.ReleaseDate,
+				TrackNumber: tidalResult.TrackNumber,
+				DiscNumber:  tidalResult.DiscNumber,
 			}
 		}
 		err = tidalErr
@@ -191,9 +211,15 @@ func DownloadTrack(requestJSON string) (string, error) {
 		qobuzResult, qobuzErr := downloadFromQobuz(req)
 		if qobuzErr == nil {
 			result = DownloadResult{
-				FilePath:   qobuzResult.FilePath,
-				BitDepth:   qobuzResult.BitDepth,
-				SampleRate: qobuzResult.SampleRate,
+				FilePath:    qobuzResult.FilePath,
+				BitDepth:    qobuzResult.BitDepth,
+				SampleRate:  qobuzResult.SampleRate,
+				Title:       qobuzResult.Title,
+				Artist:      qobuzResult.Artist,
+				Album:       qobuzResult.Album,
+				ReleaseDate: qobuzResult.ReleaseDate,
+				TrackNumber: qobuzResult.TrackNumber,
+				DiscNumber:  qobuzResult.DiscNumber,
 			}
 		}
 		err = qobuzErr
@@ -201,9 +227,15 @@ func DownloadTrack(requestJSON string) (string, error) {
 		amazonResult, amazonErr := downloadFromAmazon(req)
 		if amazonErr == nil {
 			result = DownloadResult{
-				FilePath:   amazonResult.FilePath,
-				BitDepth:   amazonResult.BitDepth,
-				SampleRate: amazonResult.SampleRate,
+				FilePath:    amazonResult.FilePath,
+				BitDepth:    amazonResult.BitDepth,
+				SampleRate:  amazonResult.SampleRate,
+				Title:       amazonResult.Title,
+				Artist:      amazonResult.Artist,
+				Album:       amazonResult.Album,
+				ReleaseDate: amazonResult.ReleaseDate,
+				TrackNumber: amazonResult.TrackNumber,
+				DiscNumber:  amazonResult.DiscNumber,
 			}
 		}
 		err = amazonErr
@@ -254,6 +286,12 @@ func DownloadTrack(requestJSON string) (string, error) {
 		ActualBitDepth:   result.BitDepth,
 		ActualSampleRate: result.SampleRate,
 		Service:          req.Service,
+		Title:            result.Title,
+		Artist:           result.Artist,
+		Album:            result.Album,
+		ReleaseDate:      result.ReleaseDate,
+		TrackNumber:      result.TrackNumber,
+		DiscNumber:       result.DiscNumber,
 	}
 	
 	jsonBytes, _ := json.Marshal(resp)
@@ -279,7 +317,7 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 	allServices := []string{"qobuz", "tidal", "amazon"}
 	preferredService := req.Service
 	if preferredService == "" {
-		preferredService = "qobuz"
+		preferredService = "tidal"
 	}
 	
 	fmt.Printf("[DownloadWithFallback] Preferred service from request: '%s'\n", req.Service)
@@ -308,10 +346,18 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 			tidalResult, tidalErr := downloadFromTidal(req)
 			if tidalErr == nil {
 				result = DownloadResult{
-					FilePath:   tidalResult.FilePath,
-					BitDepth:   tidalResult.BitDepth,
-					SampleRate: tidalResult.SampleRate,
+					FilePath:    tidalResult.FilePath,
+					BitDepth:    tidalResult.BitDepth,
+					SampleRate:  tidalResult.SampleRate,
+					Title:       tidalResult.Title,
+					Artist:      tidalResult.Artist,
+					Album:       tidalResult.Album,
+					ReleaseDate: tidalResult.ReleaseDate,
+					TrackNumber: tidalResult.TrackNumber,
+					DiscNumber:  tidalResult.DiscNumber,
 				}
+			} else {
+				fmt.Printf("[DownloadWithFallback] Tidal error: %v\n", tidalErr)
 			}
 			err = tidalErr
 		case "qobuz":
@@ -322,16 +368,26 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 					BitDepth:   qobuzResult.BitDepth,
 					SampleRate: qobuzResult.SampleRate,
 				}
+			} else {
+				fmt.Printf("[DownloadWithFallback] Qobuz error: %v\n", qobuzErr)
 			}
 			err = qobuzErr
 		case "amazon":
 			amazonResult, amazonErr := downloadFromAmazon(req)
 			if amazonErr == nil {
 				result = DownloadResult{
-					FilePath:   amazonResult.FilePath,
-					BitDepth:   amazonResult.BitDepth,
-					SampleRate: amazonResult.SampleRate,
+					FilePath:    amazonResult.FilePath,
+					BitDepth:    amazonResult.BitDepth,
+					SampleRate:  amazonResult.SampleRate,
+					Title:       amazonResult.Title,
+					Artist:      amazonResult.Artist,
+					Album:       amazonResult.Album,
+					ReleaseDate: amazonResult.ReleaseDate,
+					TrackNumber: amazonResult.TrackNumber,
+					DiscNumber:  amazonResult.DiscNumber,
 				}
+			} else {
+				fmt.Printf("[DownloadWithFallback] Amazon error: %v\n", amazonErr)
 			}
 			err = amazonErr
 		}
@@ -443,6 +499,26 @@ func CheckDuplicate(outputDir, isrc string) (string, error) {
 	return string(jsonBytes), nil
 }
 
+// CheckDuplicatesBatch checks multiple files for duplicates in parallel
+// Uses ISRC index for fast lookup (builds index once, checks all tracks)
+// tracksJSON format: [{"isrc": "...", "track_name": "...", "artist_name": "..."}, ...]
+// Returns JSON array of results
+func CheckDuplicatesBatch(outputDir, tracksJSON string) (string, error) {
+	return CheckFilesExistParallel(outputDir, tracksJSON)
+}
+
+// PreBuildDuplicateIndex pre-builds the ISRC index for a directory
+// Call this when entering album/playlist screen for faster duplicate checking
+func PreBuildDuplicateIndex(outputDir string) error {
+	return PreBuildISRCIndex(outputDir)
+}
+
+// InvalidateDuplicateIndex clears the ISRC index cache for a directory
+// Call this when files are deleted or moved
+func InvalidateDuplicateIndex(outputDir string) {
+	InvalidateISRCCache(outputDir)
+}
+
 // BuildFilename builds a filename from template and metadata
 func BuildFilename(template string, metadataJSON string) (string, error) {
 	var metadata map[string]interface{}
@@ -483,7 +559,7 @@ func FetchLyrics(spotifyID, trackName, artistName string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// GetLyricsLRC fetches lyrics and converts to LRC format string
+// GetLyricsLRC fetches lyrics and converts to LRC format string with metadata headers
 // First tries to extract from file, then falls back to fetching from internet
 func GetLyricsLRC(spotifyID, trackName, artistName string, filePath string) (string, error) {
 	// Try to extract from file first (much faster)
@@ -501,7 +577,8 @@ func GetLyricsLRC(spotifyID, trackName, artistName string, filePath string) (str
 		return "", err
 	}
 
-	lrcContent := convertToLRC(lyricsData)
+	// Convert to LRC format with metadata headers (like PC version)
+	lrcContent := convertToLRCWithMetadata(lyricsData, trackName, artistName)
 	return lrcContent, nil
 }
 
@@ -768,10 +845,88 @@ func GetSpotifyMetadataWithDeezerFallback(spotifyURL string) (string, error) {
 	return "", fmt.Errorf("spotify rate limited. Playlists are user-specific and require Spotify API")
 }
 
+// ==================== SONGLINK DEEZER SUPPORT ====================
+
+// CheckAvailabilityFromDeezerID checks track availability using Deezer track ID as source
+// Returns JSON with availability info for Spotify, Tidal, Amazon, etc.
+func CheckAvailabilityFromDeezerID(deezerTrackID string) (string, error) {
+	client := NewSongLinkClient()
+	availability, err := client.CheckAvailabilityFromDeezer(deezerTrackID)
+	if err != nil {
+		return "", err
+	}
+	
+	jsonBytes, err := json.Marshal(availability)
+	if err != nil {
+		return "", err
+	}
+	
+	return string(jsonBytes), nil
+}
+
+// CheckAvailabilityByPlatformID checks track availability using any platform as source
+// platform: "spotify", "deezer", "tidal", "amazonMusic", "appleMusic", "youtube"
+// entityType: "song" or "album"
+// entityID: the ID on that platform
+func CheckAvailabilityByPlatformID(platform, entityType, entityID string) (string, error) {
+	client := NewSongLinkClient()
+	availability, err := client.CheckAvailabilityByPlatform(platform, entityType, entityID)
+	if err != nil {
+		return "", err
+	}
+	
+	jsonBytes, err := json.Marshal(availability)
+	if err != nil {
+		return "", err
+	}
+	
+	return string(jsonBytes), nil
+}
+
+// GetSpotifyIDFromDeezerTrack converts a Deezer track ID to Spotify track ID
+func GetSpotifyIDFromDeezerTrack(deezerTrackID string) (string, error) {
+	client := NewSongLinkClient()
+	return client.GetSpotifyIDFromDeezer(deezerTrackID)
+}
+
+// GetTidalURLFromDeezerTrack converts a Deezer track ID to Tidal URL
+func GetTidalURLFromDeezerTrack(deezerTrackID string) (string, error) {
+	client := NewSongLinkClient()
+	return client.GetTidalURLFromDeezer(deezerTrackID)
+}
+
+// GetAmazonURLFromDeezerTrack converts a Deezer track ID to Amazon Music URL
+func GetAmazonURLFromDeezerTrack(deezerTrackID string) (string, error) {
+	client := NewSongLinkClient()
+	return client.GetAmazonURLFromDeezer(deezerTrackID)
+}
+
 func errorResponse(msg string) (string, error) {
+	// Determine error type based on message
+	errorType := "unknown"
+	lowerMsg := strings.ToLower(msg)
+	
+	if strings.Contains(lowerMsg, "not found") || 
+	   strings.Contains(lowerMsg, "not available") ||
+	   strings.Contains(lowerMsg, "no results") ||
+	   strings.Contains(lowerMsg, "track not found") ||
+	   strings.Contains(lowerMsg, "all services failed") {
+		errorType = "not_found"
+	} else if strings.Contains(lowerMsg, "rate limit") || 
+	          strings.Contains(lowerMsg, "429") ||
+	          strings.Contains(lowerMsg, "too many requests") {
+		errorType = "rate_limit"
+	} else if strings.Contains(lowerMsg, "network") || 
+	          strings.Contains(lowerMsg, "connection") ||
+	          strings.Contains(lowerMsg, "timeout") ||
+	          strings.Contains(lowerMsg, "dial") {
+		errorType = "network"
+	}
+	
 	resp := DownloadResponse{
-		Success: false,
-		Error:   msg,
+		Success:   false,
+		Error:     msg,
+		ErrorType: errorType,
 	}
 	jsonBytes, _ := json.Marshal(resp)
 	return string(jsonBytes), nil

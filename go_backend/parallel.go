@@ -165,7 +165,8 @@ func FetchCoverAndLyricsParallel(
 				fmt.Printf("[Parallel] Lyrics fetch failed: %v\n", err)
 			} else if lyrics != nil && len(lyrics.Lines) > 0 {
 				result.LyricsData = lyrics
-				result.LyricsLRC = convertToLRC(lyrics)
+				// Use LRC with metadata headers (like PC version)
+				result.LyricsLRC = convertToLRCWithMetadata(lyrics, trackName, artistName)
 				fmt.Printf("[Parallel] Lyrics fetched: %d lines\n", len(lyrics.Lines))
 			} else {
 				result.LyricsErr = fmt.Errorf("no lyrics found")

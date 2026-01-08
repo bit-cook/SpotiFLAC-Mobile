@@ -16,6 +16,7 @@ class Track {
   final int? trackNumber;
   final int? discNumber;
   final String? releaseDate;
+  final String? deezerId;
   final ServiceAvailability? availability;
 
   const Track({
@@ -30,6 +31,7 @@ class Track {
     this.trackNumber,
     this.discNumber,
     this.releaseDate,
+    this.deezerId,
     this.availability,
   });
 
@@ -42,17 +44,23 @@ class ServiceAvailability {
   final bool tidal;
   final bool qobuz;
   final bool amazon;
+  final bool deezer;
   final String? tidalUrl;
   final String? qobuzUrl;
   final String? amazonUrl;
+  final String? deezerUrl;
+  final String? deezerId;
 
   const ServiceAvailability({
     this.tidal = false,
     this.qobuz = false,
     this.amazon = false,
+    this.deezer = false,
     this.tidalUrl,
     this.qobuzUrl,
     this.amazonUrl,
+    this.deezerUrl,
+    this.deezerId,
   });
 
   factory ServiceAvailability.fromJson(Map<String, dynamic> json) =>

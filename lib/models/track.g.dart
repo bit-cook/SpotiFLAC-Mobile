@@ -18,6 +18,7 @@ Track _$TrackFromJson(Map<String, dynamic> json) => Track(
   trackNumber: (json['trackNumber'] as num?)?.toInt(),
   discNumber: (json['discNumber'] as num?)?.toInt(),
   releaseDate: json['releaseDate'] as String?,
+  deezerId: json['deezerId'] as String?,
   availability: json['availability'] == null
       ? null
       : ServiceAvailability.fromJson(
@@ -37,6 +38,7 @@ Map<String, dynamic> _$TrackToJson(Track instance) => <String, dynamic>{
   'trackNumber': instance.trackNumber,
   'discNumber': instance.discNumber,
   'releaseDate': instance.releaseDate,
+  'deezerId': instance.deezerId,
   'availability': instance.availability,
 };
 
@@ -45,9 +47,12 @@ ServiceAvailability _$ServiceAvailabilityFromJson(Map<String, dynamic> json) =>
       tidal: json['tidal'] as bool? ?? false,
       qobuz: json['qobuz'] as bool? ?? false,
       amazon: json['amazon'] as bool? ?? false,
+      deezer: json['deezer'] as bool? ?? false,
       tidalUrl: json['tidalUrl'] as String?,
       qobuzUrl: json['qobuzUrl'] as String?,
       amazonUrl: json['amazonUrl'] as String?,
+      deezerUrl: json['deezerUrl'] as String?,
+      deezerId: json['deezerId'] as String?,
     );
 
 Map<String, dynamic> _$ServiceAvailabilityToJson(
@@ -56,7 +61,10 @@ Map<String, dynamic> _$ServiceAvailabilityToJson(
   'tidal': instance.tidal,
   'qobuz': instance.qobuz,
   'amazon': instance.amazon,
+  'deezer': instance.deezer,
   'tidalUrl': instance.tidalUrl,
   'qobuzUrl': instance.qobuzUrl,
   'amazonUrl': instance.amazonUrl,
+  'deezerUrl': instance.deezerUrl,
+  'deezerId': instance.deezerId,
 };

@@ -12,25 +12,59 @@ import (
 
 // HTTP utility functions for consistent request handling across all downloaders
 
-// User-Agent pool for Android Chrome browsers
-var userAgentTemplates = []string{
-	"Mozilla/5.0 (Linux; Android %d; SM-G%d) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%d.0.%d.%d Mobile Safari/537.36",
-	"Mozilla/5.0 (Linux; Android %d; Pixel %d) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%d.0.%d.%d Mobile Safari/537.36",
-	"Mozilla/5.0 (Linux; Android %d; SM-A%d) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%d.0.%d.%d Mobile Safari/537.36",
-	"Mozilla/5.0 (Linux; Android %d; Redmi Note %d) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%d.0.%d.%d Mobile Safari/537.36",
+// getRandomUserAgent generates a random Windows Chrome User-Agent string
+// Uses same format as PC version (referensi/backend/spotify_metadata.go) for better API compatibility
+func getRandomUserAgent() string {
+	// Windows 10/11 Chrome format - same as PC version for maximum compatibility
+	// Some APIs may block mobile User-Agents, so we use desktop format
+	winMajor := rand.Intn(2) + 10  // Windows 10 or 11
+	
+	chromeVersion := rand.Intn(25) + 100 // Chrome 100-124
+	chromeBuild := rand.Intn(1500) + 3000 // Build 3000-4500
+	chromePatch := rand.Intn(65) + 60 // Patch 60-125
+	
+	return fmt.Sprintf(
+		"Mozilla/5.0 (Windows NT %d.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%d.0.%d.%d Safari/537.36",
+		winMajor,
+		chromeVersion,
+		chromeBuild,
+		chromePatch,
+	)
 }
 
-// getRandomUserAgent generates a random browser-like User-Agent string (Android Chrome format)
-func getRandomUserAgent() string {
-	template := userAgentTemplates[rand.Intn(len(userAgentTemplates))]
+// getRandomMacUserAgent generates a random Mac Chrome User-Agent string
+// Alternative format matching referensi/backend/spotify_metadata.go exactly
+func getRandomMacUserAgent() string {
+	macMajor := rand.Intn(4) + 11  // macOS 11-14
+	macMinor := rand.Intn(5) + 4   // Minor 4-8
+	webkitMajor := rand.Intn(7) + 530
+	webkitMinor := rand.Intn(7) + 30
+	chromeMajor := rand.Intn(25) + 80
+	chromeBuild := rand.Intn(1500) + 3000
+	chromePatch := rand.Intn(65) + 60
+	safariMajor := rand.Intn(7) + 530
+	safariMinor := rand.Intn(6) + 30
 
-	androidVersion := rand.Intn(5) + 10 // Android 10-14
-	deviceModel := rand.Intn(900) + 100 // Random model number
-	chromeVersion := rand.Intn(25) + 100 // Chrome 100-124
-	chromeBuild := rand.Intn(5000) + 5000
-	chromePatch := rand.Intn(200) + 100
+	return fmt.Sprintf(
+		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_%d_%d) AppleWebKit/%d.%d (KHTML, like Gecko) Chrome/%d.0.%d.%d Safari/%d.%d",
+		macMajor,
+		macMinor,
+		webkitMajor,
+		webkitMinor,
+		chromeMajor,
+		chromeBuild,
+		chromePatch,
+		safariMajor,
+		safariMinor,
+	)
+}
 
-	return fmt.Sprintf(template, androidVersion, deviceModel, chromeVersion, chromeBuild, chromePatch)
+// getRandomDesktopUserAgent randomly picks between Windows and Mac User-Agent
+func getRandomDesktopUserAgent() string {
+	if rand.Intn(2) == 0 {
+		return getRandomUserAgent() // Windows
+	}
+	return getRandomMacUserAgent() // Mac
 }
 
 // Default timeout values

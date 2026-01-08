@@ -3,6 +3,7 @@ package gobackend
 import (
 	"encoding/json"
 	"sync"
+	"time"
 )
 
 // DownloadProgress represents current download progress
@@ -23,6 +24,7 @@ type ItemProgress struct {
 	BytesTotal    int64   `json:"bytes_total"`
 	BytesReceived int64   `json:"bytes_received"`
 	Progress      float64 `json:"progress"` // 0.0 to 1.0
+	SpeedMBps     float64 `json:"speed_mbps"` // Download speed in MB/s
 	IsDownloading bool    `json:"is_downloading"`
 	Status        string  `json:"status"` // "downloading", "finalizing", "completed"
 }
@@ -124,6 +126,20 @@ func SetItemBytesReceived(itemID string, received int64) {
 	}
 }
 
+// SetItemBytesReceivedWithSpeed sets bytes received and speed for an item
+func SetItemBytesReceivedWithSpeed(itemID string, received int64, speedMBps float64) {
+	multiMu.Lock()
+	defer multiMu.Unlock()
+
+	if item, ok := multiProgress.Items[itemID]; ok {
+		item.BytesReceived = received
+		item.SpeedMBps = speedMBps
+		if item.BytesTotal > 0 {
+			item.Progress = float64(received) / float64(item.BytesTotal)
+		}
+	}
+}
+
 // CompleteItemProgress marks an item as complete
 func CompleteItemProgress(itemID string) {
 	multiMu.Lock()
@@ -199,22 +215,29 @@ type ItemProgressWriter struct {
 	writer       interface{ Write([]byte) (int, error) }
 	itemID       string
 	current      int64
-	lastReported int64 // Track last reported bytes for threshold-based updates
+	lastReported int64     // Track last reported bytes for threshold-based updates
+	startTime    time.Time // Track start time for speed calculation
+	lastTime     time.Time // Track last update time for speed calculation
+	lastBytes    int64     // Track bytes at last speed calculation
 }
 
 const progressUpdateThreshold = 64 * 1024 // Update progress every 64KB
 
 // NewItemProgressWriter creates a new progress writer for a specific item
 func NewItemProgressWriter(w interface{ Write([]byte) (int, error) }, itemID string) *ItemProgressWriter {
+	now := time.Now()
 	return &ItemProgressWriter{
 		writer:       w,
 		itemID:       itemID,
 		current:      0,
 		lastReported: 0,
+		startTime:    now,
+		lastTime:     now,
+		lastBytes:    0,
 	}
 }
 
-// Write implements io.Writer with threshold-based progress updates
+// Write implements io.Writer with threshold-based progress updates and speed tracking
 func (pw *ItemProgressWriter) Write(p []byte) (int, error) {
 	n, err := pw.writer.Write(p)
 	if err != nil {
@@ -225,8 +248,19 @@ func (pw *ItemProgressWriter) Write(p []byte) (int, error) {
 	// Update progress when we've received at least 64KB since last update
 	// Also update on first write to show download has started
 	if pw.lastReported == 0 || pw.current-pw.lastReported >= progressUpdateThreshold {
-		SetItemBytesReceived(pw.itemID, pw.current)
+		// Calculate speed (MB/s) based on bytes received since last update
+		now := time.Now()
+		elapsed := now.Sub(pw.lastTime).Seconds()
+		var speedMBps float64
+		if elapsed > 0 {
+			bytesInInterval := pw.current - pw.lastBytes
+			speedMBps = float64(bytesInInterval) / (1024 * 1024) / elapsed
+		}
+		
+		SetItemBytesReceivedWithSpeed(pw.itemID, pw.current, speedMBps)
 		pw.lastReported = pw.current
+		pw.lastTime = now
+		pw.lastBytes = pw.current
 	}
 	return n, nil
 }

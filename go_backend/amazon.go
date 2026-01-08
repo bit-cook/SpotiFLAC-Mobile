@@ -17,14 +17,18 @@ import (
 
 // AmazonDownloader handles Amazon Music downloads using DoubleDouble service (same as PC)
 type AmazonDownloader struct {
-	client  *http.Client
-	regions []string // us, eu regions for DoubleDouble service
+	client           *http.Client
+	regions          []string // us, eu regions for DoubleDouble service
+	lastAPICallTime  time.Time // Rate limiting: track last API call
+	apiCallCount     int       // Rate limiting: counter per minute
+	apiCallResetTime time.Time // Rate limiting: reset time
 }
 
 var (
 	// Global Amazon downloader instance for connection reuse
 	globalAmazonDownloader *AmazonDownloader
 	amazonDownloaderOnce   sync.Once
+	amazonRateLimitMu      sync.Mutex // Mutex for rate limiting
 )
 
 // DoubleDoubleSubmitResponse is the response from DoubleDouble submit endpoint
@@ -105,11 +109,53 @@ func amazonIsASCIIString(s string) bool {
 func NewAmazonDownloader() *AmazonDownloader {
 	amazonDownloaderOnce.Do(func() {
 		globalAmazonDownloader = &AmazonDownloader{
-			client:  NewHTTPClientWithTimeout(120 * time.Second), // 120s timeout like PC
-			regions: []string{"us", "eu"},                        // Same regions as PC
+			client:           NewHTTPClientWithTimeout(120 * time.Second), // 120s timeout like PC
+			regions:          []string{"us", "eu"},                        // Same regions as PC
+			apiCallResetTime: time.Now(),
 		}
 	})
 	return globalAmazonDownloader
+}
+
+// waitForRateLimit implements rate limiting similar to PC version
+// Max 9 requests per minute with 7 second delay between requests
+func (a *AmazonDownloader) waitForRateLimit() {
+	amazonRateLimitMu.Lock()
+	defer amazonRateLimitMu.Unlock()
+
+	now := time.Now()
+	
+	// Reset counter every minute
+	if now.Sub(a.apiCallResetTime) >= time.Minute {
+		a.apiCallCount = 0
+		a.apiCallResetTime = now
+	}
+
+	// If we've hit the limit (9 requests per minute), wait until next minute
+	if a.apiCallCount >= 9 {
+		waitTime := time.Minute - now.Sub(a.apiCallResetTime)
+		if waitTime > 0 {
+			fmt.Printf("[Amazon] Rate limit reached, waiting %v...\n", waitTime.Round(time.Second))
+			time.Sleep(waitTime)
+			a.apiCallCount = 0
+			a.apiCallResetTime = time.Now()
+		}
+	}
+
+	// Add delay between requests (7 seconds like PC version)
+	if !a.lastAPICallTime.IsZero() {
+		timeSinceLastCall := now.Sub(a.lastAPICallTime)
+		minDelay := 7 * time.Second
+		if timeSinceLastCall < minDelay {
+			waitTime := minDelay - timeSinceLastCall
+			fmt.Printf("[Amazon] Rate limiting: waiting %v...\n", waitTime.Round(time.Second))
+			time.Sleep(waitTime)
+		}
+	}
+
+	// Update tracking
+	a.lastAPICallTime = time.Now()
+	a.apiCallCount++
 }
 
 // GetAvailableAPIs returns list of available DoubleDouble regions
@@ -140,9 +186,12 @@ func (a *AmazonDownloader) downloadFromDoubleDoubleService(amazonURL, outputDir 
 		serviceDomain, _ := base64.StdEncoding.DecodeString("LmRvdWJsZWRvdWJsZS50b3A=") // .doubledouble.top
 		baseURL := fmt.Sprintf("%s%s%s", string(serviceBase), region, string(serviceDomain))
 
-		// Step 1: Submit download request
+		// Step 1: Submit download request with rate limiting
 		encodedURL := url.QueryEscape(amazonURL)
 		submitURL := fmt.Sprintf("%s/dl?url=%s", baseURL, encodedURL)
+
+		// Apply rate limiting before request (like PC version)
+		a.waitForRateLimit()
 
 		req, err := http.NewRequest("GET", submitURL, nil)
 		if err != nil {
@@ -153,15 +202,43 @@ func (a *AmazonDownloader) downloadFromDoubleDoubleService(amazonURL, outputDir 
 		req.Header.Set("User-Agent", getRandomUserAgent())
 
 		fmt.Println("[Amazon] Submitting download request...")
-		resp, err := a.client.Do(req)
-		if err != nil {
-			lastError = fmt.Errorf("failed to submit request: %w", err)
-			continue
+		
+		// Retry logic for 429 errors (like PC version: 3 retries with 15s wait)
+		var resp *http.Response
+		maxRetries := 3
+		for retry := 0; retry < maxRetries; retry++ {
+			resp, err = a.client.Do(req)
+			if err != nil {
+				lastError = fmt.Errorf("failed to submit request: %w", err)
+				break
+			}
+
+			if resp.StatusCode == 429 { // Too Many Requests
+				resp.Body.Close()
+				if retry < maxRetries-1 {
+					waitTime := 15 * time.Second
+					fmt.Printf("[Amazon] Rate limited (429), waiting %v before retry %d/%d...\n", waitTime, retry+2, maxRetries)
+					time.Sleep(waitTime)
+					continue
+				}
+				lastError = fmt.Errorf("API rate limit exceeded after %d retries", maxRetries)
+				break
+			}
+
+			if resp.StatusCode != 200 {
+				resp.Body.Close()
+				lastError = fmt.Errorf("submit failed with status %d", resp.StatusCode)
+				break
+			}
+
+			// Success - break retry loop
+			break
 		}
 
-		if resp.StatusCode != 200 {
-			resp.Body.Close()
-			lastError = fmt.Errorf("submit failed with status %d", resp.StatusCode)
+		if err != nil || lastError != nil {
+			if resp != nil {
+				resp.Body.Close()
+			}
 			continue
 		}
 
@@ -348,9 +425,15 @@ func (a *AmazonDownloader) DownloadFile(downloadURL, outputPath, itemID string) 
 
 // AmazonDownloadResult contains download result with quality info
 type AmazonDownloadResult struct {
-	FilePath   string
-	BitDepth   int
-	SampleRate int
+	FilePath    string
+	BitDepth    int
+	SampleRate  int
+	Title       string
+	Artist      string
+	Album       string
+	ReleaseDate string
+	TrackNumber int
+	DiscNumber  int
 }
 
 // downloadFromAmazon downloads a track using the request parameters
@@ -365,7 +448,22 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 
 	// Get Amazon URL from SongLink
 	songlink := NewSongLinkClient()
-	availability, err := songlink.CheckTrackAvailability(req.SpotifyID, req.ISRC)
+	var availability *TrackAvailability
+	var err error
+	
+	// Check if SpotifyID is actually a Deezer ID (format: "deezer:xxxxx")
+	if strings.HasPrefix(req.SpotifyID, "deezer:") {
+		// Extract Deezer ID and use Deezer-based lookup
+		deezerID := strings.TrimPrefix(req.SpotifyID, "deezer:")
+		fmt.Printf("[Amazon] Using Deezer ID for SongLink lookup: %s\n", deezerID)
+		availability, err = songlink.CheckAvailabilityFromDeezer(deezerID)
+	} else if req.SpotifyID != "" {
+		// Use Spotify ID
+		availability, err = songlink.CheckTrackAvailability(req.SpotifyID, req.ISRC)
+	} else {
+		return AmazonDownloadResult{}, fmt.Errorf("no valid Spotify or Deezer ID provided for Amazon lookup")
+	}
+	
 	if err != nil {
 		return AmazonDownloadResult{}, fmt.Errorf("failed to check Amazon availability via SongLink: %w", err)
 	}
@@ -491,6 +589,8 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 	quality, err := GetAudioQuality(outputPath)
 	if err != nil {
 		fmt.Printf("[Amazon] Warning: couldn't read quality from file: %v\n", err)
+		// Add to ISRC index for fast duplicate checking
+		AddToISRCIndex(req.OutputDir, req.ISRC, outputPath)
 		// Return 0 to indicate unknown quality
 		return AmazonDownloadResult{
 			FilePath:   outputPath,
@@ -500,9 +600,19 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 	}
 	
 	fmt.Printf("[Amazon] Actual quality: %d-bit/%dHz\n", quality.BitDepth, quality.SampleRate)
+
+	// Add to ISRC index for fast duplicate checking
+	AddToISRCIndex(req.OutputDir, req.ISRC, outputPath)
+
 	return AmazonDownloadResult{
-		FilePath:   outputPath,
-		BitDepth:   quality.BitDepth,
-		SampleRate: quality.SampleRate,
+		FilePath:    outputPath,
+		BitDepth:    quality.BitDepth,
+		SampleRate:  quality.SampleRate,
+		Title:       req.TrackName,
+		Artist:      req.ArtistName,
+		Album:       req.AlbumName,
+		ReleaseDate: req.ReleaseDate,
+		TrackNumber: req.TrackNumber,
+		DiscNumber:  req.DiscNumber,
 	}, nil
 }

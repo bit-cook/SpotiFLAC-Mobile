@@ -331,8 +331,11 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                             ),
                           ),
                           const SizedBox(width: 8),
+                          // Show percentage and speed
                           Text(
-                            '${(item.progress * 100).toStringAsFixed(0)}%',
+                            item.speedMBps > 0 
+                                ? '${(item.progress * 100).toStringAsFixed(0)}% • ${item.speedMBps.toStringAsFixed(1)} MB/s'
+                                : '${(item.progress * 100).toStringAsFixed(0)}%',
                             style: Theme.of(context).textTheme.labelSmall?.copyWith(
                               color: colorScheme.primary,
                               fontWeight: FontWeight.bold,
@@ -344,7 +347,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                     if (item.status == DownloadStatus.failed) ...[
                       const SizedBox(height: 4),
                       Text(
-                        item.error ?? 'Download failed',
+                        item.errorMessage, // Use user-friendly error message
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(

@@ -105,6 +105,16 @@ func qobuzIsASCIIString(s string) bool {
 	return true
 }
 
+// containsQueryQobuz checks if a query already exists in the list
+func containsQueryQobuz(queries []string, query string) bool {
+	for _, q := range queries {
+		if q == query {
+			return true
+		}
+	}
+	return false
+}
+
 // NewQobuzDownloader creates a new Qobuz downloader (returns singleton for connection reuse)
 func NewQobuzDownloader() *QobuzDownloader {
 	qobuzDownloaderOnce.Do(func() {
@@ -270,10 +280,11 @@ func (q *QobuzDownloader) SearchTrackByMetadata(trackName, artistName string) (*
 }
 
 // SearchTrackByMetadataWithDuration searches for a track with duration verification
+// Now includes romaji conversion for Japanese text (same as Tidal)
 func (q *QobuzDownloader) SearchTrackByMetadataWithDuration(trackName, artistName string, expectedDurationSec int) (*QobuzTrack, error) {
 	apiBase, _ := base64.StdEncoding.DecodeString("aHR0cHM6Ly93d3cucW9idXouY29tL2FwaS5qc29uLzAuMi90cmFjay9zZWFyY2g/cXVlcnk9")
 
-	// Try multiple search strategies
+	// Try multiple search strategies (same as Tidal/PC version)
 	queries := []string{}
 
 	// Strategy 1: Artist + Track name
@@ -286,10 +297,54 @@ func (q *QobuzDownloader) SearchTrackByMetadataWithDuration(trackName, artistNam
 		queries = append(queries, trackName)
 	}
 
+	// Strategy 3: Romaji versions if Japanese detected
+	if ContainsJapanese(trackName) || ContainsJapanese(artistName) {
+		// Convert to romaji (hiragana/katakana only, kanji stays)
+		romajiTrack := JapaneseToRomaji(trackName)
+		romajiArtist := JapaneseToRomaji(artistName)
+
+		// Clean and remove ALL non-ASCII characters (including kanji)
+		cleanRomajiTrack := CleanToASCII(romajiTrack)
+		cleanRomajiArtist := CleanToASCII(romajiArtist)
+
+		// Artist + Track romaji (cleaned to ASCII only)
+		if cleanRomajiArtist != "" && cleanRomajiTrack != "" {
+			romajiQuery := cleanRomajiArtist + " " + cleanRomajiTrack
+			if !containsQueryQobuz(queries, romajiQuery) {
+				queries = append(queries, romajiQuery)
+				fmt.Printf("[Qobuz] Japanese detected, adding romaji query: %s\n", romajiQuery)
+			}
+		}
+
+		// Track romaji only (cleaned)
+		if cleanRomajiTrack != "" && cleanRomajiTrack != trackName {
+			if !containsQueryQobuz(queries, cleanRomajiTrack) {
+				queries = append(queries, cleanRomajiTrack)
+			}
+		}
+	}
+
+	// Strategy 4: Artist only as last resort
+	if artistName != "" {
+		artistOnly := CleanToASCII(JapaneseToRomaji(artistName))
+		if artistOnly != "" && !containsQueryQobuz(queries, artistOnly) {
+			queries = append(queries, artistOnly)
+		}
+	}
+
 	var allTracks []QobuzTrack
+	searchedQueries := make(map[string]bool)
 
 	for _, query := range queries {
-		searchURL := fmt.Sprintf("%s%s&limit=50&app_id=%s", string(apiBase), url.QueryEscape(query), q.appID)
+		cleanQuery := strings.TrimSpace(query)
+		if cleanQuery == "" || searchedQueries[cleanQuery] {
+			continue
+		}
+		searchedQueries[cleanQuery] = true
+
+		fmt.Printf("[Qobuz] Searching for: %s\n", cleanQuery)
+
+		searchURL := fmt.Sprintf("%s%s&limit=50&app_id=%s", string(apiBase), url.QueryEscape(cleanQuery), q.appID)
 
 		req, err := http.NewRequest("GET", searchURL, nil)
 		if err != nil {
@@ -298,6 +353,7 @@ func (q *QobuzDownloader) SearchTrackByMetadataWithDuration(trackName, artistNam
 
 		resp, err := DoRequestWithUserAgent(q.client, req)
 		if err != nil {
+			fmt.Printf("[Qobuz] Search error for '%s': %v\n", cleanQuery, err)
 			continue
 		}
 
@@ -318,6 +374,7 @@ func (q *QobuzDownloader) SearchTrackByMetadataWithDuration(trackName, artistNam
 		resp.Body.Close()
 
 		if len(result.Tracks.Items) > 0 {
+			fmt.Printf("[Qobuz] Found %d results for '%s'\n", len(result.Tracks.Items), cleanQuery)
 			allTracks = append(allTracks, result.Tracks.Items...)
 		}
 	}
@@ -526,9 +583,15 @@ func (q *QobuzDownloader) DownloadFile(downloadURL, outputPath, itemID string) e
 
 // QobuzDownloadResult contains download result with quality info
 type QobuzDownloadResult struct {
-	FilePath   string
-	BitDepth   int
-	SampleRate int
+	FilePath    string
+	BitDepth    int
+	SampleRate  int
+	Title       string
+	Artist      string
+	Album       string
+	ReleaseDate string
+	TrackNumber int
+	DiscNumber  int
 }
 
 // downloadFromQobuz downloads a track using the request parameters
@@ -668,16 +731,17 @@ func downloadFromQobuz(req DownloadRequest) (QobuzDownloadResult, error) {
 	}
 
 	// Embed metadata using parallel-fetched cover data
+	// Use metadata from the actual Qobuz track found (more accurate than request)
 	metadata := Metadata{
-		Title:       req.TrackName,
-		Artist:      req.ArtistName,
-		Album:       req.AlbumName,
-		AlbumArtist: req.AlbumArtist,
-		Date:        req.ReleaseDate,
-		TrackNumber: req.TrackNumber,
+		Title:       track.Title,
+		Artist:      track.Performer.Name,
+		Album:       track.Album.Title,
+		AlbumArtist: req.AlbumArtist, // Qobuz track struct might not have this handy, keep req or check album struct
+		Date:        track.Album.ReleaseDate,
+		TrackNumber: track.TrackNumber,
 		TotalTracks: req.TotalTracks,
-		DiscNumber:  req.DiscNumber,
-		ISRC:        req.ISRC,
+		DiscNumber:  req.DiscNumber, // QobuzTrack struct usually doesn't have disc info in simple search result
+		ISRC:        track.ISRC,
 	}
 
 	// Use cover data from parallel fetch
@@ -703,9 +767,18 @@ func downloadFromQobuz(req DownloadRequest) (QobuzDownloadResult, error) {
 		fmt.Println("[Qobuz] No lyrics available from parallel fetch")
 	}
 
+	// Add to ISRC index for fast duplicate checking
+	AddToISRCIndex(req.OutputDir, req.ISRC, outputPath)
+
 	return QobuzDownloadResult{
-		FilePath:   outputPath,
-		BitDepth:   actualBitDepth,
-		SampleRate: actualSampleRate,
+		FilePath:    outputPath,
+		BitDepth:    actualBitDepth,
+		SampleRate:  actualSampleRate,
+		Title:       track.Title,
+		Artist:      track.Performer.Name,
+		Album:       track.Album.Title,
+		ReleaseDate: track.Album.ReleaseDate,
+		TrackNumber: track.TrackNumber,
+		DiscNumber:  req.DiscNumber, // Qobuz track struct limitations
 	}, nil
 }

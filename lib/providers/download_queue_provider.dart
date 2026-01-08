@@ -371,6 +371,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           final itemProgress = entry.value as Map<String, dynamic>;
           final bytesReceived = itemProgress['bytes_received'] as int? ?? 0;
           final bytesTotal = itemProgress['bytes_total'] as int? ?? 0;
+          final speedMBps = (itemProgress['speed_mbps'] as num?)?.toDouble() ?? 0.0;
           final isDownloading = itemProgress['is_downloading'] as bool? ?? false;
           final status = itemProgress['status'] as String? ?? 'downloading';
           
@@ -389,14 +390,29 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             continue;
           }
           
-          if (isDownloading && bytesTotal > 0) {
-            final percentage = bytesReceived / bytesTotal;
-            updateProgress(itemId, percentage);
+          // Use progress from backend if available (handles both explicit progress and byte-based)
+          final progressFromBackend = (itemProgress['progress'] as num?)?.toDouble() ?? 0.0;
+          
+          if (isDownloading) {
+            double percentage = 0.0;
+            if (bytesTotal > 0) {
+               // Calculate from bytes if available for precision
+               percentage = bytesReceived / bytesTotal;
+            } else {
+               // Fallback to backend-reported progress (e.g. for DASH segments)
+               percentage = progressFromBackend;
+            }
             
-            // Log progress for each item
+            updateProgress(itemId, percentage, speedMBps: speedMBps);
+            
+            // Log progress for each item with speed
             final mbReceived = bytesReceived / (1024 * 1024);
             final mbTotal = bytesTotal / (1024 * 1024);
-            _log.d('Progress [$itemId]: ${(percentage * 100).toStringAsFixed(1)}% (${mbReceived.toStringAsFixed(2)}/${mbTotal.toStringAsFixed(2)} MB)');
+            if (bytesTotal > 0) {
+              _log.d('Progress [$itemId]: ${(percentage * 100).toStringAsFixed(1)}% (${mbReceived.toStringAsFixed(2)}/${mbTotal.toStringAsFixed(2)} MB) @ ${speedMBps.toStringAsFixed(2)} MB/s');
+            } else {
+              _log.d('Progress [$itemId]: ${(percentage * 100).toStringAsFixed(1)}% (DASH segments/unknown size) @ ${speedMBps.toStringAsFixed(2)} MB/s');
+            }
           }
         }
         
@@ -427,11 +443,22 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                 ? downloadingItems.first.track.artistName 
                 : 'Downloading...';
             
+            // Calculate notification progress values
+            int notifProgress = bytesReceived;
+            int notifTotal = bytesTotal;
+            
+            if (bytesTotal <= 0) {
+              // Fallback to percentage for DASH/unknown size
+              final progressPercent = (firstProgress['progress'] as num?)?.toDouble() ?? 0.0;
+              notifProgress = (progressPercent * 100).toInt();
+              notifTotal = 100;
+            }
+            
             _notificationService.showDownloadProgress(
               trackName: trackName,
               artistName: artistName,
-              progress: bytesReceived,
-              total: bytesTotal > 0 ? bytesTotal : 1,
+              progress: notifProgress,
+              total: notifTotal > 0 ? notifTotal : 1,
             );
             
             // Update foreground service notification (Android)
@@ -439,8 +466,8 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
               PlatformBridge.updateDownloadServiceProgress(
                 trackName: downloadingItems.first.track.name,
                 artistName: downloadingItems.first.track.artistName,
-                progress: bytesReceived,
-                total: bytesTotal > 0 ? bytesTotal : 1,
+                progress: notifProgress,
+                total: notifTotal > 0 ? notifTotal : 1,
                 queueCount: state.queuedCount,
               ).catchError((_) {}); // Ignore errors
             }
@@ -609,14 +636,16 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
-  void updateItemStatus(String id, DownloadStatus status, {double? progress, String? filePath, String? error}) {
+  void updateItemStatus(String id, DownloadStatus status, {double? progress, double? speedMBps, String? filePath, String? error, DownloadErrorType? errorType}) {
     final items = state.items.map((item) {
       if (item.id == id) {
         return item.copyWith(
           status: status,
           progress: progress ?? item.progress,
+          speedMBps: speedMBps ?? item.speedMBps,
           filePath: filePath,
           error: error,
+          errorType: errorType,
         );
       }
       return item;
@@ -632,8 +661,8 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
-  void updateProgress(String id, double progress) {
-    updateItemStatus(id, DownloadStatus.downloading, progress: progress);
+  void updateProgress(String id, double progress, {double? speedMBps}) {
+    updateItemStatus(id, DownloadStatus.downloading, progress: progress, speedMBps: speedMBps);
   }
 
   void cancelItem(String id) {
@@ -732,18 +761,21 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     // Download cover first
     String? coverPath;
     if (track.coverUrl != null && track.coverUrl!.isNotEmpty) {
-      coverPath = '$flacPath.cover.jpg';
       try {
+        final tempDir = await getTemporaryDirectory();
+        final uniqueId = DateTime.now().millisecondsSinceEpoch;
+        coverPath = '${tempDir.path}/cover_$uniqueId.jpg';
+        
         // Download cover using HTTP
         final httpClient = HttpClient();
         final request = await httpClient.getUrl(Uri.parse(track.coverUrl!));
         final response = await request.close();
         if (response.statusCode == 200) {
-          final file = File(coverPath);
+          final file = File(coverPath!);
           final sink = file.openWrite();
           await response.pipe(sink);
           await sink.close();
-          _log.d('Cover downloaded to: $coverPath');
+          _log.d('Cover downloaded to temp: $coverPath');
         } else {
           _log.w('Failed to download cover: HTTP ${response.statusCode}');
           coverPath = null;
@@ -757,20 +789,85 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
     // Use Go backend to embed metadata
     try {
-      // For now, we'll use FFmpeg to embed cover since Go backend expects to download the file
-      // FFmpeg can embed cover art to FLAC
-      if (coverPath != null && await File(coverPath).exists()) {
-        final result = await FFmpegService.embedCover(flacPath, coverPath);
+      // Use FFmpeg to embed cover art AND text metadata
+      // FFmpeg can embed cover art to FLAC and also set tags
+      
+      // Construct metadata map
+      final metadata = <String, String>{
+        'TITLE': track.name,
+        'ARTIST': track.artistName,
+        'ALBUM': track.albumName,
+      };
+      
+      if (track.albumArtist != null) {
+        metadata['ALBUMARTIST'] = track.albumArtist!;
+      }
+      
+      if (track.trackNumber != null) {
+        metadata['TRACKNUMBER'] = track.trackNumber.toString();
+        metadata['TRACK'] = track.trackNumber.toString(); // Compatibility
+      }
+      
+      if (track.discNumber != null) {
+        metadata['DISCNUMBER'] = track.discNumber.toString();
+        metadata['DISC'] = track.discNumber.toString(); // Compatibility
+      }
+      
+      if (track.releaseDate != null) {
+        metadata['DATE'] = track.releaseDate!;
+        metadata['YEAR'] = track.releaseDate!.split('-').first;
+      }
+      
+      if (track.isrc != null) {
+        metadata['ISRC'] = track.isrc!;
+      }
+
+      // Fetch Lyrics (Critical for M4A->FLAC conversion parity)
+      // Since we are in the Flutter context, we can call the bridge to get lyrics
+      // This ensures even converted files have lyrics embedded if available
+      try {
+        final lrcContent = await PlatformBridge.getLyricsLRC(
+          track.id, // spotifyID
+          track.name,
+          track.artistName,
+          filePath: '', // No local file path yet (processed in memory)
+        );
         
-        if (result != null) {
-          _log.d('Cover embedded via FFmpeg');
-        } else {
-          _log.w('FFmpeg cover embed failed');
+        if (lrcContent != null && lrcContent.isNotEmpty) {
+          metadata['LYRICS'] = lrcContent;
+          metadata['UNSYNCEDLYRICS'] = lrcContent; // Fallback for some players
+          _log.d('Lyrics fetched for embedding (${lrcContent.length} chars)');
         }
-        
-        // Clean up cover file
+      } catch (e) {
+         _log.w('Failed to fetch lyrics for embedding: $e');
+      }
+      
+      _log.d('Generating tags for FLAC: $metadata');
+      
+      // Perform embedding (cover + text metadata)
+      // Note: FFmpegService.embedMetadata handles safe temp file creation
+      final result = await FFmpegService.embedMetadata(
+        flacPath: flacPath,
+        coverPath: coverPath != null && await File(coverPath).exists() ? coverPath : null,
+        metadata: metadata,
+      );
+      
+      if (result != null) {
+        _log.d('Metadata and cover embedded via FFmpeg');
+      } else {
+        _log.w('FFmpeg metadata/cover embed failed');
+      }
+      
+      // Clean up cover file if it exists
+      if (coverPath != null) {
         try {
-          await File(coverPath).delete();
+          final coverFile = File(coverPath);
+          if (await coverFile.exists()) {
+             // In Android 10+ scoped storage, we can't easily delete if we didn't create it 
+             // in this session or if it's not in our app dir. 
+             // But coverPath is typically in temp dir now.
+            await coverFile.delete();
+          }
         } catch (_) {}
       }
     } catch (e) {
@@ -992,7 +1089,49 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     try {
       // Get folder organization setting and build output directory
       final settings = ref.read(settingsProvider);
-      final outputDir = await _buildOutputDir(item.track, settings.folderOrganization);
+      
+      // Metadata Enrichment:
+      // If track number is missing/0 (common from Search results), fetch full metadata
+      // This ensures the downloaded file has correct tags (Track, Disc, Year)
+      Track trackToDownload = item.track;
+      if (trackToDownload.trackNumber == null || trackToDownload.trackNumber == 0) {
+        try {
+          if (trackToDownload.id.startsWith('deezer:')) {
+            _log.d('Enriching incomplete metadata for Deezer track: ${trackToDownload.name}');
+            final rawId = trackToDownload.id.split(':')[1];
+            final fullData = await PlatformBridge.getDeezerMetadata('track', rawId);
+            
+            if (fullData.containsKey('track')) {
+               final fullTrack = Track.fromJson(fullData['track'] as Map<String, dynamic>);
+               // Merge with existing (keep override quality/service if any, but update metadata)
+               trackToDownload = Track(
+                 id: fullTrack.id.isNotEmpty ? fullTrack.id : trackToDownload.id,
+                 name: fullTrack.name,
+                 artistName: fullTrack.artistName,
+                 albumName: fullTrack.albumName,
+                 albumArtist: fullTrack.albumArtist,
+                 coverUrl: fullTrack.coverUrl,
+                 duration: fullTrack.duration,
+                 isrc: fullTrack.isrc ?? trackToDownload.isrc,
+                 trackNumber: fullTrack.trackNumber,
+                 discNumber: fullTrack.discNumber,
+                 releaseDate: fullTrack.releaseDate,
+                 deezerId: fullTrack.deezerId,
+                 availability: trackToDownload.availability,
+               );
+               _log.d('Metadata enriched: Track ${trackToDownload.trackNumber}, Disc ${trackToDownload.discNumber}, Year ${trackToDownload.releaseDate}');
+               
+               // Update item in state with enriched track
+               // This is important so the UI (and history) reflects the enriched data
+               // We don't perform a full `updateItemStatus` here to avoid UI flicker, just local var
+            }
+          }
+        } catch (e) {
+          _log.w('Failed to enrich metadata: $e');
+        }
+      }
+      
+      final outputDir = await _buildOutputDir(trackToDownload, settings.folderOrganization);
       
       // Use quality override if set, otherwise use default from settings
       final quality = item.qualityOverride ?? state.audioQuality;
@@ -1004,41 +1143,41 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         _log.d('Quality: $quality${item.qualityOverride != null ? ' (override)' : ''}');
         _log.d('Output dir: $outputDir');
         result = await PlatformBridge.downloadWithFallback(
-          isrc: item.track.isrc ?? '',
-          spotifyId: item.track.id,
-          trackName: item.track.name,
-          artistName: item.track.artistName,
-          albumName: item.track.albumName,
-          albumArtist: item.track.albumArtist,
-          coverUrl: item.track.coverUrl,
+          isrc: trackToDownload.isrc ?? '',
+          spotifyId: trackToDownload.id,
+          trackName: trackToDownload.name,
+          artistName: trackToDownload.artistName,
+          albumName: trackToDownload.albumName,
+          albumArtist: trackToDownload.albumArtist,
+          coverUrl: trackToDownload.coverUrl,
           outputDir: outputDir,
           filenameFormat: state.filenameFormat,
           quality: quality,
-          trackNumber: item.track.trackNumber ?? 1,
-          discNumber: item.track.discNumber ?? 1,
-          releaseDate: item.track.releaseDate,
+          trackNumber: trackToDownload.trackNumber ?? 1,
+          discNumber: trackToDownload.discNumber ?? 1,
+          releaseDate: trackToDownload.releaseDate,
           preferredService: item.service,
           itemId: item.id, // Pass item ID for progress tracking
-          durationMs: item.track.duration, // Duration in ms for verification
+          durationMs: trackToDownload.duration, // Duration in ms for verification
         );
       } else {
         result = await PlatformBridge.downloadTrack(
-          isrc: item.track.isrc ?? '',
+          isrc: trackToDownload.isrc ?? '',
           service: item.service,
-          spotifyId: item.track.id,
-          trackName: item.track.name,
-          artistName: item.track.artistName,
-          albumName: item.track.albumName,
-          albumArtist: item.track.albumArtist,
-          coverUrl: item.track.coverUrl,
+          spotifyId: trackToDownload.id,
+          trackName: trackToDownload.name,
+          artistName: trackToDownload.artistName,
+          albumName: trackToDownload.albumName,
+          albumArtist: trackToDownload.albumArtist,
+          coverUrl: trackToDownload.coverUrl,
           outputDir: outputDir,
           filenameFormat: state.filenameFormat,
           quality: quality,
-          trackNumber: item.track.trackNumber ?? 1,
-          discNumber: item.track.discNumber ?? 1,
-          releaseDate: item.track.releaseDate,
+          trackNumber: trackToDownload.trackNumber ?? 1,
+          discNumber: trackToDownload.discNumber ?? 1,
+          releaseDate: trackToDownload.releaseDate,
           itemId: item.id, // Pass item ID for progress tracking
-          durationMs: item.track.duration, // Duration in ms for verification
+          durationMs: trackToDownload.duration, // Duration in ms for verification
         );
       }
       
@@ -1082,26 +1221,74 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           _log.i('Actual quality: $actualQuality');
         }
         
-        // Check if file is M4A (DASH stream from Tidal) and needs remuxing to FLAC
-        if (filePath != null && filePath.endsWith('.m4a')) {
-          _log.d('Converting M4A to FLAC...');
-          updateItemStatus(item.id, DownloadStatus.downloading, progress: 0.9);
-          final flacPath = await FFmpegService.convertM4aToFlac(filePath);
-          if (flacPath != null) {
-            filePath = flacPath;
-            _log.d('Converted to: $flacPath');
-            
-            // After conversion, embed metadata and cover to the new FLAC file
-            _log.d('Embedding metadata and cover to converted FLAC...');
-            try {
-              await _embedMetadataAndCover(
-                flacPath,
-                item.track,
-              );
-              _log.d('Metadata and cover embedded successfully');
-            } catch (e) {
-              _log.w('Warning: Failed to embed metadata/cover: $e');
+        // M4A files from Tidal DASH streams - try to convert to FLAC
+        // M4A files from Tidal DASH streams - try to convert to FLAC
+        if (filePath != null && filePath!.endsWith('.m4a')) {
+          _log.d('M4A file detected (Hi-Res DASH stream), attempting conversion to FLAC...');
+          
+          try {
+            final file = File(filePath!);
+            if (!await file.exists()) {
+               _log.e('File does not exist at path: $filePath');
+            } else {
+              final length = await file.length();
+              _log.i('File size before conversion: ${length / 1024} KB');
+              
+              if (length < 1024) {
+                 _log.w('File is too small (<1KB), skipping conversion. Download might be corrupt.');
+              } else {
+                updateItemStatus(item.id, DownloadStatus.downloading, progress: 0.95);
+                final flacPath = await FFmpegService.convertM4aToFlac(filePath!);
+                
+                if (flacPath != null) {
+                  filePath = flacPath;
+                  _log.d('Converted to FLAC: $flacPath');
+                  
+                  // After conversion, embed metadata and cover to the new FLAC file
+                  _log.d('Embedding metadata and cover to converted FLAC...');
+                  try {
+                    // Update track with actual metadata from backend result (if available)
+                    // This creates the most accurate metadata possible (from the service itself)
+                    Track finalTrack = trackToDownload;
+                    if (result.containsKey('track_number') || result.containsKey('release_date')) {
+                       _log.d('Using metadata from backend response for embedding');
+                       final backendTrackNum = result['track_number'] as int?;
+                       final backendDiscNum = result['disc_number'] as int?;
+                       final backendYear = result['release_date'] as String?;
+                       final backendAlbum = result['album'] as String?;
+                       
+                       // Create updated track object
+                       finalTrack = Track(
+                         id: trackToDownload.id,
+                         name: trackToDownload.name,
+                         artistName: trackToDownload.artistName,
+                         albumName: backendAlbum ?? trackToDownload.albumName,
+                         albumArtist: trackToDownload.albumArtist,
+                         coverUrl: trackToDownload.coverUrl,
+                         duration: trackToDownload.duration,
+                         isrc: trackToDownload.isrc,
+                         trackNumber: (backendTrackNum != null && backendTrackNum > 0) ? backendTrackNum : trackToDownload.trackNumber,
+                         discNumber: (backendDiscNum != null && backendDiscNum > 0) ? backendDiscNum : trackToDownload.discNumber,
+                         releaseDate: backendYear ?? trackToDownload.releaseDate,
+                         deezerId: trackToDownload.deezerId,
+                         availability: trackToDownload.availability,
+                       );
+                    }
+
+                    // Use enriched/updated track for metadata embedding
+                    await _embedMetadataAndCover(flacPath, finalTrack);
+                    _log.d('Metadata and cover embedded successfully');
+                  } catch (e) {
+                    _log.w('Warning: Failed to embed metadata/cover: $e');
+                  }
+                } else {
+                  _log.w('FFmpeg conversion returned null, keeping M4A file');
+                }
+              }
             }
+          } catch (e) {
+            _log.w('FFmpeg conversion process failed: $e, keeping M4A file');
+            // Keep the M4A file if conversion fails
           }
         }
         
@@ -1143,12 +1330,20 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         );
 
         if (filePath != null) {
+          // Extract updated metadata from backend result if available
+          final backendTitle = result['title'] as String?;
+          final backendArtist = result['artist'] as String?;
+          final backendAlbum = result['album'] as String?;
+          final backendYear = result['release_date'] as String?;
+          final backendTrackNum = result['track_number'] as int?;
+          final backendDiscNum = result['disc_number'] as int?;
+
           ref.read(downloadHistoryProvider.notifier).addToHistory(
             DownloadHistoryItem(
               id: item.id,
-              trackName: item.track.name,
-              artistName: item.track.artistName,
-              albumName: item.track.albumName,
+              trackName: (backendTitle != null && backendTitle.isNotEmpty) ? backendTitle : item.track.name,
+              artistName: (backendArtist != null && backendArtist.isNotEmpty) ? backendArtist : item.track.artistName,
+              albumName: (backendAlbum != null && backendAlbum.isNotEmpty) ? backendAlbum : item.track.albumName,
               albumArtist: item.track.albumArtist,
               coverUrl: item.track.coverUrl,
               filePath: filePath,
@@ -1157,10 +1352,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
               // Additional metadata
               isrc: item.track.isrc,
               spotifyId: item.track.id,
-              trackNumber: item.track.trackNumber,
-              discNumber: item.track.discNumber,
+              trackNumber: (backendTrackNum != null && backendTrackNum > 0) ? backendTrackNum : item.track.trackNumber,
+              discNumber: (backendDiscNum != null && backendDiscNum > 0) ? backendDiscNum : item.track.discNumber,
               duration: item.track.duration,
-              releaseDate: item.track.releaseDate,
+              releaseDate: (backendYear != null && backendYear.isNotEmpty) ? backendYear : item.track.releaseDate,
               quality: actualQuality,
             ),
           );
@@ -1170,11 +1365,30 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         }
       } else {
         final errorMsg = result['error'] as String? ?? 'Download failed';
-        _log.e('Download failed: $errorMsg');
+        final errorTypeStr = result['error_type'] as String? ?? 'unknown';
+        
+        // Convert error type string to enum
+        DownloadErrorType errorType;
+        switch (errorTypeStr) {
+          case 'not_found':
+            errorType = DownloadErrorType.notFound;
+            break;
+          case 'rate_limit':
+            errorType = DownloadErrorType.rateLimit;
+            break;
+          case 'network':
+            errorType = DownloadErrorType.network;
+            break;
+          default:
+            errorType = DownloadErrorType.unknown;
+        }
+        
+        _log.e('Download failed: $errorMsg (type: $errorTypeStr)');
         updateItemStatus(
           item.id,
           DownloadStatus.failed,
           error: errorMsg,
+          errorType: errorType,
         );
         _failedInSession++;
       }
@@ -1191,10 +1405,22 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       }
     } catch (e, stackTrace) {
       _log.e('Exception: $e', e, stackTrace);
+      
+      String errorMsg = e.toString();
+      DownloadErrorType errorType = DownloadErrorType.unknown;
+
+      // Check for specific Deezer fallback error
+      if (errorMsg.contains('could not find Deezer equivalent') || 
+          errorMsg.contains('track not found on Deezer')) {
+         errorMsg = 'Track not found on Deezer (Metadata Unavailable)';
+         errorType = DownloadErrorType.notFound;
+      }
+
       updateItemStatus(
         item.id,
         DownloadStatus.failed,
-        error: e.toString(),
+        error: errorMsg,
+        errorType: errorType,
       );
       _failedInSession++;
     }

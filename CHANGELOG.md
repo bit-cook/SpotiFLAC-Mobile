@@ -1,18 +1,94 @@
 # Changelog
 
-## [2.1.5] - 2026-01-08
+## [2.1.6] - 2026-01-08
 
 ### Added
+
+- **Metadata Enrichment**: Automatically fetches full track details if metadata is incomplete (e.g., Track Number 0)
+  - Fixes missing Track Number, Disc Number, and Year for tracks added from Search results
+  - Ensures accurate tagging for Deezer/Tidal downloads
+- **ISRC Index Building**: Fast duplicate checking with cached ISRC index
+
+  - Scans download folder once and builds index of all ISRCs
+  - 5 minute cache TTL for optimal performance
+  - Parallel duplicate checking for album/playlist tracks
+  - Auto-adds new downloads to index (no rebuild needed)
+
+- **Japanese to Romaji Search**: Better search results for Japanese tracks
+
+  - Converts Hiragana/Katakana to Romaji for Tidal/Qobuz search
+  - 4 fallback search strategies (like PC version):
+    1. Original text (artist + track)
+    2. Romaji converted (artist + track)
+    3. ASCII-only cleaned version
+    4. Artist name only as last resort
+  - Handles combination characters (きゃ →kya, シャ →sha, etc.)
+
+- **SongLink Deezer Support**: Query SongLink using Deezer ID as source
+
+  - `CheckAvailabilityFromDeezer()` - find track on other platforms using Deezer ID
+  - `CheckAvailabilityByPlatform()` - generic function for any platform
+  - `GetSpotifyIDFromDeezer()`, `GetTidalURLFromDeezer()`, `GetAmazonURLFromDeezer()`
+  - Useful when starting from Deezer metadata
+
+- **LRC Metadata Headers**: Lyrics now include metadata headers
+
+  - `[ti:Track Name]` - track title
+  - `[ar:Artist Name]` - artist name
+  - `[by:SpotiFLAC-Mobile]` - generator tag
+
+- **Download Error Types**: Better error categorization for UI
+
+  - `not_found` - track not available on any service
+  - `rate_limit` - API rate limit exceeded
+  - `network` - connection/timeout errors
+  - `unknown` - other errors
+
+- **Amazon Rate Limiting**: Proper rate limiting for Amazon via SongLink
+  - 7 second minimum delay between requests
+  - Max 9 requests per minute
+  - 3x retry with 15s wait on 429 rate limit
+
+### Fixed
+
+- **SongLink 400 Error**: Added validation for empty Spotify ID
+
+  - Specific error messages for 400, 404, 429 status codes
+  - Better error handling for invalid track IDs
+
+- **gomobile Compatibility**: Fixed `ISRCIndex.Lookup()` signature
+  - Changed from `(string, bool)` to `(string, error)` for gomobile binding
+
+### Technical
+
+- New file: `go_backend/romaji.go` with Japanese to Romaji conversion
+- New file: `go_backend/duplicate.go` with ISRC index building
+- Updated `go_backend/tidal.go` and `go_backend/qobuz.go` with romaji search strategies
+- Updated `go_backend/songlink.go` with Deezer support functions
+- Updated `go_backend/exports.go` with new export functions for Flutter
+- Updated `go_backend/lyrics.go` with `convertToLRCWithMetadata()`
+- Updated `go_backend/progress.go` with `SpeedMBps` field
+- Updated `lib/models/download_item.dart` with `DownloadErrorType` enum
+- Updated `lib/screens/queue_tab.dart` with speed display and error messages
+
+---
+
+## [2.1.6-preview] - 2026-01-08
+
+### Added
+
 - **Deezer as Alternative Metadata Source**: Choose between Deezer or Spotify for search
+
   - Configure in Settings > Options > Spotify API > Search Source
   - Default is Deezer for better reliability
   - Spotify URLs are always supported regardless of this setting
+
 - **Automatic Deezer Fallback for Spotify URLs**: When Spotify API is rate limited (429), automatically falls back to Deezer
   - Uses SongLink/Odesli API to convert Spotify track/album ID to Deezer ID
   - Fetches metadata from Deezer instead
-  - Works for tracks and albums (playlists are user-specific, artists require Spotify API)
 
 ### Changed
+
 - **Default Download Service**: Changed from Tidal to Qobuz
   - Fallback order is now: Qobuz → Tidal → Amazon
 - **Deezer API Updated to v2.0**: More reliable and complete metadata
@@ -20,6 +96,7 @@
   - Search results now fetch full track info to include ISRC
 
 ### Fixed
+
 - **Progress Bar Not Updating**: Fixed bug where download progress jumped from 1% directly to 100%
   - Progress now updates smoothly every 64KB of data received
   - First progress update happens immediately when download starts
@@ -28,18 +105,17 @@
   - Incomplete files are automatically deleted and error is reported
   - Applies to all services: Tidal, Qobuz, and Amazon
 - **ISRC Not Available from Deezer Search**: Search results now fetch full track details to get ISRC
-  - Improves track matching accuracy when downloading
 
 ### Technical
-- New settings field: `metadataSource` in `lib/models/settings.dart`
-- New UI: Search Source selector in Options Settings page
-- Improved `ItemProgressWriter` with threshold-based progress updates
-- Download functions now properly handle network interruptions
-- Deezer API base URL changed to `https://api.deezer.com/2.0`
 
-## [2.1.0] - 2026-01-06
+- Settings migration for existing users to set Deezer as default metadata source
+
+---
+
+## [2.1.5] - 2026-01-08
 
 ### Added
+
 - **Service Switcher in Quality Picker**: Choose download service (Tidal/Qobuz/Amazon) directly when selecting quality
   - Service selector chips appear above quality options
   - Defaults to your preferred service from settings
@@ -55,6 +131,7 @@
   - Configure in Settings > Options > App
 
 ### Changed
+
 - **Reduced APK Size**: Replaced FFmpeg plugin with custom AAR containing only required codecs
   - arm64 APK: 46.6 MB (previously 51 MB)
   - arm32 APK: 59 MB (previously 64 MB)
@@ -64,6 +141,7 @@
   - Separate iOS build configuration with ffmpeg_kit_flutter plugin
 
 ### Fixed
+
 - **Retry Failed Downloads**: Fixed issue where retrying failed downloads sometimes did nothing
   - Now properly handles retry when queue processing has finished
   - Also allows retrying skipped (cancelled) downloads
@@ -75,6 +153,7 @@
   - Files saved to app Documents folder are accessible via iOS Files app
 
 ### Performance
+
 - **Download Speed Optimizations**: Significant improvements to download initialization and throughput
   - Token caching for Tidal (eliminates redundant auth requests)
   - Singleton pattern for all downloaders (HTTP connection reuse)
@@ -90,6 +169,7 @@
 ## [2.1.0-preview2] - 2026-01-06
 
 ### Added
+
 - **Service Switcher in Quality Picker**: Choose download service (Tidal/Qobuz/Amazon) directly when selecting quality
   - Service selector chips appear above quality options
   - Defaults to your preferred service from settings
@@ -105,6 +185,7 @@
   - Configure in Settings > Options > App
 
 ### Fixed
+
 - **Retry Failed Downloads**: Fixed issue where retrying failed downloads sometimes did nothing
   - Now properly handles retry when queue processing has finished
   - Also allows retrying skipped (cancelled) downloads
@@ -116,6 +197,7 @@
 ## [2.1.0-preview] - 2026-01-06
 
 ### Performance
+
 - **Download Speed Optimizations**: Significant improvements to download initialization and throughput
   - Token caching for Tidal (eliminates redundant auth requests)
   - Singleton pattern for all downloaders (HTTP connection reuse)
@@ -129,6 +211,7 @@
 - **Amazon Music Optimizations**: Same optimizations now applied to Amazon downloader
 
 ### Technical
+
 - New `go_backend/parallel.go` with `TrackIDCache`, `FetchCoverAndLyricsParallel()`, `PreWarmTrackCache()`
 - Flutter: `_preWarmCacheForTracks()` in `track_provider.dart`
 - New method channels: `preWarmTrackCache`, `getTrackCacheSize`, `clearTrackCache`
@@ -136,6 +219,7 @@
 ## [2.0.7-preview2] - 2026-01-06
 
 ### Fixed
+
 - **iOS Directory Picker**: Fixed unable to select download folder on iOS
   - iOS limitation: Empty folders cannot be selected via document picker
   - Added "App Documents Folder" option as recommended default
@@ -145,6 +229,7 @@
 ## [2.0.7-preview] - 2026-01-05
 
 ### Changed
+
 - **Reduced APK Size**: Replaced FFmpeg plugin with custom AAR containing only required codecs
   - arm64 APK: 46.6 MB (previously 51 MB)
   - arm32 APK: 59 MB (previously 64 MB)
@@ -152,6 +237,7 @@
   - Removed x86/x86_64 architectures (emulator only)
 
 ### Technical
+
 - Custom FFmpeg AAR with arm64-v8a and armeabi-v7a only
 - Native MethodChannel bridge for FFmpeg operations
 - Separate iOS build configuration with ffmpeg_kit_flutter plugin
@@ -159,6 +245,7 @@
 ## [2.0.6] - 2026-01-05
 
 ### Fixed
+
 - **Duration Display Bug**: Fixed duration showing incorrect values like "4135:53" instead of "4:14"
   - `duration_ms` (milliseconds) was being stored directly without conversion to seconds
   - Now properly converts milliseconds to seconds before display
@@ -178,14 +265,17 @@
 ## [2.0.5] - 2026-01-05
 
 ### Added
+
 - **Large Playlist Support**: Playlists with up to 1000 tracks are now fully fetched (was limited to 100)
 
 ### Fixed
+
 - **Wrong Track Download**: Fixed issue where tracks with same ISRC but different versions (e.g., short/instrumental vs full version) would download the wrong track. Now verifies duration matches before downloading (30 second tolerance).
 
 ## [2.0.4] - 2026-01-04
 
 ### Fixed
+
 - **Android 11 Storage Permission**: Fixed "Permission denied" error on Android 11 (API 30) devices
   - Added `MANAGE_EXTERNAL_STORAGE` permission for Android 11-12
   - Shows explanation dialog before opening system settings
@@ -193,6 +283,7 @@
 ## [2.0.3] - 2026-01-03
 
 ### Added
+
 - **Custom Spotify API Credentials**: Set your own Spotify Client ID and Secret in Settings > Options to avoid rate limiting
   - Toggle to enable/disable custom credentials without deleting them
   - Material Expressive 3 bottom sheet UI for entering credentials
@@ -200,9 +291,11 @@
 - **Rate Limit Error UI**: Shows friendly error card when API rate limit (429) is hit on Home, Artist, and Album screens
 
 ### Changed
+
 - **Search on Enter Only**: Removed auto-search debounce, now only searches when pressing Enter key (saves API calls)
 
 ### Fixed
+
 - **Download Cancel**: Fixed cancelled downloads still completing in background and appearing in history. Cancelled files are now properly deleted.
 - **Search Keyboard Dismiss**: Fixed keyboard randomly dismissing and navigating back when starting to search
 - **Back Button During Search**: Back button now properly dismisses keyboard first before clearing search
@@ -212,6 +305,7 @@
 ## [2.0.2] - 2026-01-03
 
 ### Added
+
 - **Actual Quality Display**: Shows real audio quality (bit depth/sample rate) after download
   - Quality badge on download history items (e.g., "24-bit", "16-bit")
   - Full quality info in Track Metadata screen (e.g., "24-bit/96kHz")
@@ -220,13 +314,16 @@
 - **Instant Lyrics Loading**: Lyrics now load from embedded file first (instant) before falling back to internet fetch
 
 ### Fixed
+
 - **Fallback Service Display**: Fixed download history showing wrong service when fallback occurs (e.g., showing "TIDAL" when actually downloaded from "QOBUZ")
 - **Open in Spotify**: Fixed "Open in Spotify" button not opening Spotify app correctly
 
 ### Removed
+
 - **Romaji Conversion**: Removed Japanese lyrics to romaji conversion feature (Kanji not supported, results were incomplete)
 
 ### Technical
+
 - Go backend now returns `actual_bit_depth` and `actual_sample_rate` in download response
 - Go backend now returns `service` field indicating actual service used (important for fallback)
 - Tidal API v2 response provides exact quality info
@@ -236,18 +333,21 @@
 ## [2.0.1] - 2026-01-03
 
 ### Added
+
 - **Quality Picker Track Info**: Shows track name, artist, and cover in quality picker
   - Tap to expand long track titles
   - Expand icon only shows when title is truncated
   - Ripple effect follows rounded corners including drag handle
 
 ### Changed
+
 - **Unified Progress Tracking System**: Deprecated legacy single-download progress
   - All downloads now use item-based progress tracking
   - Fixes duplicate notification bug when finalizing
   - Cleaner codebase with single progress system
 
 ### Fixed
+
 - **Duplicate Notification Bug**: Fixed issue where "Finalizing" and "Downloading" notifications appeared simultaneously
 - **Update Notification Stuck**: Fixed notification staying at 100% after download completes
 - **Quality Picker Consistency**: Unified quality picker UI across all screens (Home, Album, Playlist)
@@ -257,6 +357,7 @@
 ## [2.0.0] - 2026-01-03
 
 ### Added
+
 - **Artist Search Results**: Search now shows artists alongside tracks
   - Horizontal scrollable artist cards with circular avatars
   - Tap artist to view their discography
@@ -277,11 +378,12 @@
   - Stable users won't receive update notifications for preview versions
 
 ### Changed
+
 - **Instant Navigation UX**: Navigate to Artist/Album screens immediately
   - Header (name, cover) shows instantly from available data
   - Content (albums/tracks) loads in background inside the screen
   - Second visit to same artist/album is instant from Flutter cache
-- **Search Results UI Redesign**: 
+- **Search Results UI Redesign**:
   - Removed "Download All" button from search results
   - Added "Songs" section header (matches "Artists" header style)
   - Track list now in grouped card with rounded corners (like Settings)
@@ -304,6 +406,7 @@
 - **Ask Before Download Default**: Now enabled by default for better UX
 
 ### Fixed
+
 - **Artist Profile Images**: Fixed artist images not showing in search results (field name mismatch)
 - **Album Card Overflow**: Fixed 5px overflow in artist discography album cards
 - **Optimized Rebuilds**: Each track item only rebuilds when its own status changes
@@ -314,6 +417,7 @@
 ## [1.6.3] - 2026-01-03
 
 ### Added
+
 - **Predictive Back Navigation**: Support for Android 14+ predictive back gesture with smooth animations
 - **Separate Detail Screens**: Album, Artist, and Playlist now open as dedicated screens with Material Expressive 3 design
   - Collapsing header with cover art and gradient overlay
@@ -323,6 +427,7 @@
 - **Double-Tap to Exit**: Press back twice to exit app when at home screen (replaces exit dialog)
 
 ### Changed
+
 - **Navigation Architecture**: Refactored from state-based to screen-based navigation
   - Album/Artist/Playlist URLs navigate to dedicated screens via `Navigator.push()`
   - Enables native predictive back gesture animations
@@ -332,17 +437,21 @@
 ## [1.6.2] - 2026-01-02
 
 ### Added
+
 - **HTTPS-Only Downloads**: APK downloads and update checks now enforce HTTPS-only connections for security
 
 ### Changed
+
 - **Home Tab Rename**: Renamed "Search" tab to "Home" with home icon
 - **Branding**: Changed idle screen title from "Search Music" to "SpotiFLAC"
 - **About Page Redesign**: New Material Expressive 3 grouped layout with app header, contributors section with GitHub avatars, and organized links
 
 ### Fixed
+
 - **Play Button Flash**: Fixed play button briefly showing red error icon on app start (now uses optimistic rendering)
 
 ### Performance
+
 - **Optimized State Management**: Use `.select()` for Riverpod providers to prevent unnecessary widget rebuilds
 - **List Keys**: Added keys to all list builders for efficient list updates and reordering
 - **Request Cancellation**: Outdated API requests are ignored when new search/fetch is triggered
@@ -354,12 +463,14 @@
 ## [1.6.1] - 2026-01-02
 
 ### Added
+
 - **Background Download Service**: Downloads now continue running when app is in background
   - Foreground service with wake lock prevents Android from killing downloads
   - Persistent notification shows download progress
   - No more "connection abort" errors when switching apps
 
 ### Fixed
+
 - **Share Intent App Restart**: Fixed download queue being lost when sharing from Spotify while downloads are in progress
   - Download queue is now persisted to storage and automatically restored on app restart
   - Interrupted downloads (marked as "downloading") are reset to "queued" and auto-resumed
@@ -368,11 +479,13 @@
 - **Back Button During Loading**: Back button no longer clears state while loading shared URL
 
 ### Changed
+
 - **Kotlin**: Upgraded from 2.2.20 to 2.3.0 for better plugin compatibility
 
 ## [1.6.0] - 2026-01-02
 
 ### Added
+
 - **Manual Quality Selection**: New option to choose audio quality before each download
   - Toggle "Ask Before Download" in Download Settings
   - When enabled, shows quality picker (Lossless, Hi-Res, Hi-Res Max) before downloading
@@ -387,12 +500,14 @@
 - **Share Audio File**: Share downloaded tracks to other apps from Track Metadata screen
 
 ### Fixed
+
 - **Update Checker**: Fixed version comparison for versions with suffix (e.g., `1.5.0-hotfix6`)
   - Users on hotfix versions now properly receive update notifications
   - Handles `-hotfix`, `-beta`, `-rc` suffixes correctly
 - **Settings Ripple Effect**: Fixed splash/ripple effect to properly clip within rounded card corners
 
 ### Changed
+
 - **Settings UI Redesign**: New Android-style grouped settings with connected cards
   - Items in same group are connected with rounded card container
   - Section headers outside cards for clear visual hierarchy
@@ -401,6 +516,7 @@
 - **Consistent Header Position**: Fixed Search tab header alignment to match History and Settings tabs
 
 ### Improved
+
 - **Code Quality**: Replaced all `print()` statements with structured logging using `logger` package
 - **Dependencies Updated**:
   - `share_plus`: 10.1.4 → 12.0.1
@@ -410,6 +526,7 @@
 ## [1.5.5] - 2026-01-02
 
 ### Added
+
 - **Share to App**: Share Spotify links directly from Spotify app or browser to SpotiFLAC
   - Supports track, album, playlist, and artist URLs
   - Auto-fetches metadata when link is shared
@@ -436,6 +553,7 @@
 - **Exit Confirmation**: Dialog prompt when pressing back to exit app (only at root)
 
 ### Changed
+
 - **Downloads Tab Renamed to History**: Better reflects the tab's purpose
   - Shows download queue at top when active
   - Completed downloads auto-move to history section
@@ -446,11 +564,13 @@
   - Only shows exit dialog when truly at root
 
 ### Fixed
+
 - **Download Progress**: Fixed progress stuck at 0% when using item-based progress tracking (affected sequential downloads after multi-download feature was added)
 - **Artist View State**: Fixed UI state not clearing properly when switching between artist and album views
 - **Share Intent Timing**: Fixed shared URLs not being processed when app was cold-started from share intent
 
 ### Improved
+
 - **Cleaner UI for Returning Users**: Helper text "Supports: Track, Album, Playlist URLs" now only shows for new users and hides after first search
 - **Cleaner Home Tab**: Removed redundant "Recent Downloads" section, renamed to "Search" tab
 - **Centered Search Bar**: Search bar now appears centered on screen when empty, moves to top when results are shown - easier to reach on large phones
@@ -459,26 +579,31 @@
 ## [1.5.0-hotfix6] - 2026-01-02
 
 ### Fixed
+
 - **App Signing**: Use r0adkll/sign-android-release GitHub Action for reliable signing
 
 ## [1.5.0-hotfix5] - 2026-01-02
 
 ### Fixed
+
 - **App Signing**: Use key.properties as per Flutter official documentation
 
 ## [1.5.0-hotfix4] - 2026-01-02
 
 ### Fixed
+
 - **App Signing**: Create keystore.properties in workflow for Gradle
 
 ## [1.5.0-hotfix] - 2026-01-02
 
 ### Important Notice
+
 We apologize for the inconvenience. Previous releases were signed with different keys, causing "package conflicts" errors when upgrading. Starting from this version, all releases will use a consistent signing key.
 
 **If you're upgrading from v1.5.0 or earlier, please uninstall the app first before installing this version.** This is a one-time requirement. Future updates will work seamlessly without uninstalling.
 
 ### Added
+
 - **In-App Update**: Download and install updates directly from the app
   - Progress bar shows download status
   - Automatic device architecture detection (arm64/arm32)
@@ -486,11 +611,13 @@ We apologize for the inconvenience. Previous releases were signed with different
 - **Consistent App Signing**: All future releases will use the same signing key
 
 ### Fixed
+
 - **Update Checker**: Now downloads APK directly instead of opening browser
 
 ## [1.5.0] - 2026-01-02
 
 ### Added
+
 - **Download Progress Notification**: Shows notification with download progress percentage while downloading
   - Progress bar in notification during download
   - Completion notification when track finishes
@@ -514,6 +641,7 @@ We apologize for the inconvenience. Previous releases were signed with different
   - Downloads correct APK for your device
 
 ### Changed
+
 - **Recent Downloads**: Now shows up to 10 items (was 5) for better scrolling
 - **Queue UI Redesign**: Card-based layout with clearer status indicators
   - Removed global pause/resume in favor of per-item controls
@@ -538,6 +666,7 @@ We apologize for the inconvenience. Previous releases were signed with different
   - "Add Music" button for quick access
 
 ### Technical
+
 - Added `flutter_local_notifications` package for notifications
 - Added notification permission request in setup screen for Android 13+
 - Enabled core library desugaring for all Android subprojects
@@ -546,6 +675,7 @@ We apologize for the inconvenience. Previous releases were signed with different
 - Updated platform channel handlers for both Android (Kotlin) and iOS (Swift)
 
 ### Performance
+
 - Optimized SliverAppBar: Removed LayoutBuilder that was called every frame during scroll
 - Optimized image caching: Added `memCacheWidth/Height` to CachedNetworkImage for memory efficiency
 - Optimized state management: Use `select()` to only rebuild when specific state changes
@@ -554,6 +684,7 @@ We apologize for the inconvenience. Previous releases were signed with different
 ## [1.2.0] - 2026-01-02
 
 ### Added
+
 - **Track Metadata Screen**: New detailed metadata view when tapping on downloaded tracks
   - Material Expressive 3 design with cover art header and gradient
   - Hero animation from list to detail view
@@ -566,12 +697,14 @@ We apologize for the inconvenience. Previous releases were signed with different
 - **Hi-Res Lossless MAX**: New highest quality option for maximum audio fidelity
 
 ### Fixed
+
 - **Hi-Res Quality Bug**: Fixed issue where Hi-Res downloads were stuck at Lossless quality
   - Users on previous versions are recommended to upgrade to get proper Hi-Res downloads
 - **Settings Navigation Bug**: Fixed issue where changing settings (like audio quality) would navigate back to Home tab
 - **Tidal Badge Color**: Fixed unreadable Tidal service badge (was too bright cyan, now darker blue)
 
 ### Changed
+
 - **Recent Downloads**: Tapping on a track now opens metadata screen instead of playing directly
   - Play button still available for quick playback
 - **Download History Model**: Extended with additional metadata fields (albumArtist, isrc, spotifyId, trackNumber, discNumber, duration, releaseDate, quality)
@@ -580,30 +713,34 @@ We apologize for the inconvenience. Previous releases were signed with different
 ## [1.1.2] - 2026-01-01
 
 ### Added
+
 - **Update Checker**: Automatic check for new versions from GitHub releases
   - Shows changelog in update dialog
   - Option to disable update notifications
 - **Release Changelog**: GitHub releases now include full changelog
 
 ### Changed
+
 - Updated version to 1.1.2
 
 ## [1.1.1] - 2026-01-01
 
 ### Fixed
+
 - **About Dialog**: Custom About dialog with cleaner layout
 - **Setup Screen**: Fixed step indicator line alignment
 - **Warning Text**: Fixed parallel downloads warning to use Material theme colors
 - **Copyright Year**: Updated to 2026
 
 ### Changed
+
 - Removed Theme Preview from Settings
 - Added MIT License
-
 
 ## [1.1.0] - 2026-01-01
 
 ### Added
+
 - **Parallel Downloads**: Download up to 3 tracks simultaneously (configurable in Settings)
   - Default: Sequential (1 at a time) for stability
   - Options: 1, 2, or 3 concurrent downloads
@@ -614,15 +751,18 @@ We apologize for the inconvenience. Previous releases were signed with different
 - **Connection Cleanup**: Automatic cleanup of idle connections every 50 downloads and at queue end
 
 ### Fixed
+
 - **Download Progress Bug**: Fixed 0% → 100% jump by adding proper progress tracking for BTS format downloads
 - **TCP Connection Exhaustion**: Fixed slow downloads after ~300 tracks by implementing connection pooling and periodic cleanup
 - **Trailing Space in Names**: Fixed download failures when playlist/album/track names have trailing spaces
 - **History Loss on Debug**: History no longer disappears when sideloading via `flutter run --debug`
 
 ### Changed
+
 - Updated version to 1.1.0
 
 ### Technical Details
+
 - Added `concurrentDownloads` field to `AppSettings` model (default: 1, max: 3)
 - Implemented worker pool pattern in `DownloadQueueNotifier` for parallel processing
 - Added `SetCurrentFile()`, `SetBytesTotal()`, and `ProgressWriter` for BTS downloads in Go backend
@@ -631,6 +771,7 @@ We apologize for the inconvenience. Previous releases were signed with different
 - Added `CleanupConnections()` export for Flutter to call via method channel
 
 ## [1.0.5] - Previous Release
+
 - Material Expressive 3 UI
 - Dynamic color support
 - Swipe navigation with PageView

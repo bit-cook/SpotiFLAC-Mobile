@@ -248,6 +248,8 @@ func msToLRCTimestamp(ms int64) string {
 	return fmt.Sprintf("[%02d:%02d.%02d]", minutes, seconds, centiseconds)
 }
 
+// convertToLRC converts lyrics to LRC format string (without metadata headers)
+// Use convertToLRCWithMetadata for full LRC with headers
 func convertToLRC(lyrics *LyricsResponse) string {
 	if lyrics == nil || len(lyrics.Lines) == 0 {
 		return ""
@@ -264,6 +266,45 @@ func convertToLRC(lyrics *LyricsResponse) string {
 		}
 	} else {
 		for _, line := range lyrics.Lines {
+			builder.WriteString(line.Words)
+			builder.WriteString("\n")
+		}
+	}
+
+	return builder.String()
+}
+
+// convertToLRCWithMetadata converts lyrics to LRC format with metadata headers
+// Includes [ti:], [ar:], [by:] headers
+func convertToLRCWithMetadata(lyrics *LyricsResponse, trackName, artistName string) string {
+	if lyrics == nil || len(lyrics.Lines) == 0 {
+		return ""
+	}
+
+	var builder strings.Builder
+
+	// Add metadata headers
+	builder.WriteString(fmt.Sprintf("[ti:%s]\n", trackName))
+	builder.WriteString(fmt.Sprintf("[ar:%s]\n", artistName))
+	builder.WriteString("[by:SpotiFLAC-Mobile]\n")
+	builder.WriteString("\n")
+
+	// Add lyrics lines
+	if lyrics.SyncType == "LINE_SYNCED" {
+		for _, line := range lyrics.Lines {
+			if line.Words == "" {
+				continue
+			}
+			timestamp := msToLRCTimestamp(line.StartTimeMs)
+			builder.WriteString(timestamp)
+			builder.WriteString(line.Words)
+			builder.WriteString("\n")
+		}
+	} else {
+		for _, line := range lyrics.Lines {
+			if line.Words == "" {
+				continue
+			}
 			builder.WriteString(line.Words)
 			builder.WriteString("\n")
 		}

@@ -21,6 +21,9 @@ const (
 	deezerPlaylistURL = deezerBaseURL + "/playlist/%s"
 	
 	deezerCacheTTL = 10 * time.Minute
+	
+	// Parallel ISRC fetching settings
+	deezerMaxParallelISRC = 10 // Max concurrent ISRC fetches
 )
 
 // DeezerClient handles Deezer API interactions (no auth required)
@@ -29,6 +32,7 @@ type DeezerClient struct {
 	searchCache map[string]*cacheEntry
 	albumCache  map[string]*cacheEntry
 	artistCache map[string]*cacheEntry
+	isrcCache   map[string]string // trackID -> ISRC cache
 	cacheMu     sync.RWMutex
 }
 
@@ -46,6 +50,7 @@ func GetDeezerClient() *DeezerClient {
 			searchCache: make(map[string]*cacheEntry),
 			albumCache:  make(map[string]*cacheEntry),
 			artistCache: make(map[string]*cacheEntry),
+			isrcCache:   make(map[string]string),
 		}
 	})
 	return deezerClient
@@ -60,6 +65,7 @@ type deezerTrack struct {
 	DiskNumber     int    `json:"disk_number"`
 	ISRC           string `json:"isrc"`
 	Link           string `json:"link"`
+	ReleaseDate    string `json:"release_date"` // Sometimes at track level
 	Artist         deezerArtist `json:"artist"`
 	Album          deezerAlbumSimple `json:"album"`
 	Contributors   []deezerArtist `json:"contributors"`
@@ -82,6 +88,52 @@ type deezerAlbumSimple struct {
 	CoverMedium string `json:"cover_medium"`
 	CoverBig    string `json:"cover_big"`
 	CoverXL     string `json:"cover_xl"`
+	ReleaseDate string `json:"release_date"` // Sometimes at album level
+}
+// ... (skip other structs as they are fine/unchanged) ...
+
+// ... (in convertTrack) ...
+func (c *DeezerClient) convertTrack(track deezerTrack) TrackMetadata {
+	artistName := track.Artist.Name
+	if len(track.Contributors) > 0 {
+		names := make([]string, len(track.Contributors))
+		for i, a := range track.Contributors {
+			names[i] = a.Name
+		}
+		artistName = strings.Join(names, ", ")
+	}
+
+	albumImage := track.Album.CoverXL
+	if albumImage == "" {
+		albumImage = track.Album.CoverBig
+	}
+	if albumImage == "" {
+		albumImage = track.Album.CoverMedium
+	}
+	if albumImage == "" {
+		albumImage = track.Album.Cover
+	}
+	
+	// Try to find release date
+	releaseDate := track.ReleaseDate
+	if releaseDate == "" {
+		releaseDate = track.Album.ReleaseDate
+	}
+
+	return TrackMetadata{
+		SpotifyID:   fmt.Sprintf("deezer:%d", track.ID),
+		Artists:     artistName,
+		Name:        track.Title,
+		AlbumName:   track.Album.Title,
+		AlbumArtist: track.Artist.Name,
+		DurationMS:  track.Duration * 1000,
+		Images:      albumImage,
+		ReleaseDate: releaseDate, // Added this
+		TrackNumber: track.TrackPosition,
+		DiscNumber:  track.DiskNumber,
+		ExternalURL: track.Link,
+		ISRC:        track.ISRC,
+	}
 }
 
 type deezerAlbumFull struct {
@@ -128,6 +180,7 @@ type deezerPlaylistFull struct {
 }
 
 // SearchAll searches for tracks and artists on Deezer
+// NOTE: ISRC is NOT fetched during search for performance - use GetTrackISRC when needed for download
 func (c *DeezerClient) SearchAll(ctx context.Context, query string, trackLimit, artistLimit int) (*SearchAllResult, error) {
 	cacheKey := fmt.Sprintf("deezer:all:%s:%d:%d", query, trackLimit, artistLimit)
 	
@@ -143,7 +196,7 @@ func (c *DeezerClient) SearchAll(ctx context.Context, query string, trackLimit, 
 		Artists: make([]SearchArtistResult, 0),
 	}
 
-	// Search tracks
+	// Search tracks - NO ISRC fetch for performance
 	trackURL := fmt.Sprintf("%s/track?q=%s&limit=%d", deezerSearchURL, url.QueryEscape(query), trackLimit)
 	var trackResp struct {
 		Data []deezerTrack `json:"data"`
@@ -153,14 +206,8 @@ func (c *DeezerClient) SearchAll(ctx context.Context, query string, trackLimit, 
 	}
 
 	for _, track := range trackResp.Data {
-		// Fetch full track info to get ISRC (search results don't include ISRC)
-		fullTrack, err := c.fetchFullTrack(ctx, fmt.Sprintf("%d", track.ID))
-		if err == nil && fullTrack != nil {
-			result.Tracks = append(result.Tracks, c.convertTrack(*fullTrack))
-		} else {
-			// Fallback to search result without ISRC
-			result.Tracks = append(result.Tracks, c.convertTrack(track))
-		}
+		// Convert directly without fetching ISRC - much faster
+		result.Tracks = append(result.Tracks, c.convertTrack(track))
 	}
 
 	// Search artists
@@ -206,6 +253,7 @@ func (c *DeezerClient) GetTrack(ctx context.Context, trackID string) (*TrackResp
 }
 
 // GetAlbum fetches album with tracks
+// ISRC is fetched in parallel for better performance
 func (c *DeezerClient) GetAlbum(ctx context.Context, albumID string) (*AlbumResponsePayload, error) {
 	c.cacheMu.RLock()
 	if entry, ok := c.albumCache[albumID]; ok && !entry.isExpired() {
@@ -239,14 +287,13 @@ func (c *DeezerClient) GetAlbum(ctx context.Context, albumID string) (*AlbumResp
 		Images:      albumImage,
 	}
 
+	// Fetch ISRCs in parallel
+	isrcMap := c.fetchISRCsParallel(ctx, album.Tracks.Data)
+
 	tracks := make([]AlbumTrackMetadata, 0, len(album.Tracks.Data))
 	for _, track := range album.Tracks.Data {
-		// Need to fetch full track info for ISRC
-		fullTrack, _ := c.fetchFullTrack(ctx, fmt.Sprintf("%d", track.ID))
-		isrc := ""
-		if fullTrack != nil {
-			isrc = fullTrack.ISRC
-		}
+		trackIDStr := fmt.Sprintf("%d", track.ID)
+		isrc := isrcMap[trackIDStr]
 
 		tracks = append(tracks, AlbumTrackMetadata{
 			SpotifyID:   fmt.Sprintf("deezer:%d", track.ID),
@@ -368,6 +415,7 @@ func (c *DeezerClient) GetArtist(ctx context.Context, artistID string) (*ArtistR
 }
 
 // GetPlaylist fetches playlist with tracks
+// ISRC is fetched in parallel for better performance
 func (c *DeezerClient) GetPlaylist(ctx context.Context, playlistID string) (*PlaylistResponsePayload, error) {
 	playlistURL := fmt.Sprintf(deezerPlaylistURL, playlistID)
 	
@@ -390,6 +438,9 @@ func (c *DeezerClient) GetPlaylist(ctx context.Context, playlistID string) (*Pla
 	info.Owner.Name = playlist.Title
 	info.Owner.Images = playlistImage
 
+	// Fetch ISRCs in parallel
+	isrcMap := c.fetchISRCsParallel(ctx, playlist.Tracks.Data)
+
 	tracks := make([]AlbumTrackMetadata, 0, len(playlist.Tracks.Data))
 	for _, track := range playlist.Tracks.Data {
 		albumImage := track.Album.CoverXL
@@ -400,13 +451,8 @@ func (c *DeezerClient) GetPlaylist(ctx context.Context, playlistID string) (*Pla
 			albumImage = track.Album.CoverMedium
 		}
 
-		// Fetch full track for ISRC
-		fullTrack, _ := c.fetchFullTrack(ctx, fmt.Sprintf("%d", track.ID))
-		isrc := ""
-		releaseDate := ""
-		if fullTrack != nil {
-			isrc = fullTrack.ISRC
-		}
+		trackIDStr := fmt.Sprintf("%d", track.ID)
+		isrc := isrcMap[trackIDStr]
 
 		tracks = append(tracks, AlbumTrackMetadata{
 			SpotifyID:   fmt.Sprintf("deezer:%d", track.ID),
@@ -416,7 +462,7 @@ func (c *DeezerClient) GetPlaylist(ctx context.Context, playlistID string) (*Pla
 			AlbumArtist: track.Artist.Name,
 			DurationMS:  track.Duration * 1000,
 			Images:      albumImage,
-			ReleaseDate: releaseDate,
+			ReleaseDate: "",
 			TrackNumber: track.TrackPosition,
 			DiscNumber:  track.DiskNumber,
 			ExternalURL: track.Link,
@@ -472,41 +518,92 @@ func (c *DeezerClient) fetchFullTrack(ctx context.Context, trackID string) (*dee
 	return &track, nil
 }
 
-func (c *DeezerClient) convertTrack(track deezerTrack) TrackMetadata {
-	artistName := track.Artist.Name
-	if len(track.Contributors) > 0 {
-		names := make([]string, len(track.Contributors))
-		for i, a := range track.Contributors {
-			names[i] = a.Name
+// fetchISRCsParallel fetches ISRCs for multiple tracks in parallel with caching
+func (c *DeezerClient) fetchISRCsParallel(ctx context.Context, tracks []deezerTrack) map[string]string {
+	result := make(map[string]string)
+	var resultMu sync.Mutex
+	
+	// First, check cache for existing ISRCs
+	var tracksToFetch []deezerTrack
+	c.cacheMu.RLock()
+	for _, track := range tracks {
+		trackIDStr := fmt.Sprintf("%d", track.ID)
+		if isrc, ok := c.isrcCache[trackIDStr]; ok {
+			result[trackIDStr] = isrc
+		} else {
+			tracksToFetch = append(tracksToFetch, track)
 		}
-		artistName = strings.Join(names, ", ")
 	}
-
-	albumImage := track.Album.CoverXL
-	if albumImage == "" {
-		albumImage = track.Album.CoverBig
+	c.cacheMu.RUnlock()
+	
+	if len(tracksToFetch) == 0 {
+		return result
 	}
-	if albumImage == "" {
-		albumImage = track.Album.CoverMedium
+	
+	// Use semaphore to limit concurrent requests
+	sem := make(chan struct{}, deezerMaxParallelISRC)
+	var wg sync.WaitGroup
+	
+	for _, track := range tracksToFetch {
+		wg.Add(1)
+		go func(t deezerTrack) {
+			defer wg.Done()
+			
+			// Acquire semaphore
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				return
+			}
+			
+			trackIDStr := fmt.Sprintf("%d", t.ID)
+			fullTrack, err := c.fetchFullTrack(ctx, trackIDStr)
+			if err != nil || fullTrack == nil {
+				return
+			}
+			
+			// Store in result and cache
+			resultMu.Lock()
+			result[trackIDStr] = fullTrack.ISRC
+			resultMu.Unlock()
+			
+			c.cacheMu.Lock()
+			c.isrcCache[trackIDStr] = fullTrack.ISRC
+			c.cacheMu.Unlock()
+		}(track)
 	}
-	if albumImage == "" {
-		albumImage = track.Album.Cover
-	}
-
-	return TrackMetadata{
-		SpotifyID:   fmt.Sprintf("deezer:%d", track.ID),
-		Artists:     artistName,
-		Name:        track.Title,
-		AlbumName:   track.Album.Title,
-		AlbumArtist: track.Artist.Name,
-		DurationMS:  track.Duration * 1000,
-		Images:      albumImage,
-		TrackNumber: track.TrackPosition,
-		DiscNumber:  track.DiskNumber,
-		ExternalURL: track.Link,
-		ISRC:        track.ISRC,
-	}
+	
+	wg.Wait()
+	return result
 }
+
+// GetTrackISRC fetches ISRC for a single track (with caching)
+// Use this when you need ISRC for download
+func (c *DeezerClient) GetTrackISRC(ctx context.Context, trackID string) (string, error) {
+	// Check cache first
+	c.cacheMu.RLock()
+	if isrc, ok := c.isrcCache[trackID]; ok {
+		c.cacheMu.RUnlock()
+		return isrc, nil
+	}
+	c.cacheMu.RUnlock()
+	
+	// Fetch from API
+	fullTrack, err := c.fetchFullTrack(ctx, trackID)
+	if err != nil {
+		return "", err
+	}
+	
+	// Cache the result
+	c.cacheMu.Lock()
+	c.isrcCache[trackID] = fullTrack.ISRC
+	c.cacheMu.Unlock()
+	
+	return fullTrack.ISRC, nil
+}
+
+
 
 func (c *DeezerClient) getBestArtistImage(artist deezerArtist) string {
 	if artist.PictureXL != "" {
