@@ -12,46 +12,44 @@ class AboutPage extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final topPadding = MediaQuery.of(context).padding.top;
 
-    return PopScope(
-      canPop: true,
-      child: Scaffold(
-        body: CustomScrollView(
-          slivers: [
-            // Collapsing App Bar with back button
-            SliverAppBar(
-              expandedHeight: 120 + topPadding,
-              collapsedHeight: kToolbarHeight,
-              floating: false,
-              pinned: true,
-              backgroundColor: colorScheme.surface,
-              surfaceTintColor: Colors.transparent,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.pop(context),
-              ),
-              flexibleSpace: LayoutBuilder(
-                builder: (context, constraints) {
-                  final maxHeight = 120 + topPadding;
-                  final minHeight = kToolbarHeight + topPadding;
-                  final expandRatio = ((constraints.maxHeight - minHeight) / (maxHeight - minHeight)).clamp(0.0, 1.0);
-                  // When collapsed (expandRatio=0): left=56 to avoid back button
-                  // When expanded (expandRatio=1): left=24 for normal padding
-                  final leftPadding = 56 - (32 * expandRatio); // 56 -> 24
-                  return FlexibleSpaceBar(
-                    expandedTitleScale: 1.0,
-                    titlePadding: EdgeInsets.only(left: leftPadding, bottom: 16),
-                    title: Text(
-                      'About',
-                      style: TextStyle(
-                        fontSize: 20 + (8 * expandRatio), // 20 -> 28
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                  );
-                },
-              ),
+    return Scaffold(
+      body: CustomScrollView(
+        slivers: [
+          // Collapsing App Bar with back button
+          SliverAppBar(
+            expandedHeight: 120 + topPadding,
+            collapsedHeight: kToolbarHeight,
+            floating: false,
+            pinned: true,
+            backgroundColor: colorScheme.surface,
+            surfaceTintColor: Colors.transparent,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
             ),
+            flexibleSpace: LayoutBuilder(
+              builder: (context, constraints) {
+                final maxHeight = 120 + topPadding;
+                final minHeight = kToolbarHeight + topPadding;
+                final expandRatio = ((constraints.maxHeight - minHeight) / (maxHeight - minHeight)).clamp(0.0, 1.0);
+                // When collapsed (expandRatio=0): left=56 to avoid back button
+                // When expanded (expandRatio=1): left=24 for normal padding
+                final leftPadding = 56 - (32 * expandRatio); // 56 -> 24
+                return FlexibleSpaceBar(
+                  expandedTitleScale: 1.0,
+                  titlePadding: EdgeInsets.only(left: leftPadding, bottom: 16),
+                  title: Text(
+                    'About',
+                    style: TextStyle(
+                      fontSize: 20 + (8 * expandRatio), // 20 -> 28
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
 
           // App header card with logo and description
           SliverToBoxAdapter(
@@ -219,7 +217,6 @@ class AboutPage extends StatelessWidget {
           // Bottom padding
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
         ],
-      ),
       ),
     );
   }

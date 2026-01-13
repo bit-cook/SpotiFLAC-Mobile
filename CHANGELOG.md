@@ -22,6 +22,7 @@
 ### Fixed
 
 - Extension packages now preserve directory structure (subdirectories supported)
+- Back gesture freeze in settings pages on Android gesture navigation
 
 ---
 

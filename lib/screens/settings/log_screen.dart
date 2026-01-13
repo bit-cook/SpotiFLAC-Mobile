@@ -124,60 +124,58 @@ class _LogScreenState extends State<LogScreen> {
     final topPadding = MediaQuery.of(context).padding.top;
     final logs = _filteredLogs;
 
-    return PopScope(
-      canPop: true,
-      child: Scaffold(
-        body: CustomScrollView(
-          controller: _scrollController,
-          slivers: [
-            // Collapsing App Bar with back button - same as other settings pages
-            SliverAppBar(
-              expandedHeight: 120 + topPadding,
-              collapsedHeight: kToolbarHeight,
-              floating: false,
-              pinned: true,
-              backgroundColor: colorScheme.surface,
-              surfaceTintColor: Colors.transparent,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.pop(context),
+    return Scaffold(
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          // Collapsing App Bar with back button - same as other settings pages
+          SliverAppBar(
+            expandedHeight: 120 + topPadding,
+            collapsedHeight: kToolbarHeight,
+            floating: false,
+            pinned: true,
+            backgroundColor: colorScheme.surface,
+            surfaceTintColor: Colors.transparent,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(_autoScroll ? Icons.vertical_align_bottom : Icons.vertical_align_center),
+                tooltip: _autoScroll ? 'Auto-scroll ON' : 'Auto-scroll OFF',
+                onPressed: () => setState(() => _autoScroll = !_autoScroll),
               ),
-              actions: [
-                IconButton(
-                  icon: Icon(_autoScroll ? Icons.vertical_align_bottom : Icons.vertical_align_center),
-                  tooltip: _autoScroll ? 'Auto-scroll ON' : 'Auto-scroll OFF',
-                  onPressed: () => setState(() => _autoScroll = !_autoScroll),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.copy),
-                  tooltip: 'Copy logs',
-                  onPressed: _copyLogs,
-                ),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert),
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'share':
-                        _shareLogs();
-                        break;
-                      case 'clear':
-                        _clearLogs();
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'share',
-                      child: ListTile(
-                        leading: Icon(Icons.share),
-                        title: Text('Share logs'),
-                        contentPadding: EdgeInsets.zero,
-                      ),
+              IconButton(
+                icon: const Icon(Icons.copy),
+                tooltip: 'Copy logs',
+                onPressed: _copyLogs,
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'share':
+                      _shareLogs();
+                      break;
+                    case 'clear':
+                      _clearLogs();
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'share',
+                    child: ListTile(
+                      leading: Icon(Icons.share),
+                      title: Text('Share logs'),
+                      contentPadding: EdgeInsets.zero,
                     ),
-                    const PopupMenuItem(
-                      value: 'clear',
-                      child: ListTile(
-                        leading: Icon(Icons.delete_outline),
+                  ),
+                  const PopupMenuItem(
+                    value: 'clear',
+                    child: ListTile(
+                      leading: Icon(Icons.delete_outline),
                         title: Text('Clear logs'),
                         contentPadding: EdgeInsets.zero,
                       ),
@@ -380,8 +378,7 @@ class _LogScreenState extends State<LogScreen> {
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
           ],
         ),
-      ),
-    );
+      );
   }
 }
 
