@@ -29,6 +29,12 @@ func (r *ExtensionRuntime) validateDomain(urlStr string) error {
 	}
 
 	domain := parsed.Hostname()
+
+	// Block private/local network access (SSRF protection)
+	if isPrivateIP(domain) {
+		return fmt.Errorf("network access denied: private/local network '%s' not allowed", domain)
+	}
+
 	if !r.manifest.IsDomainAllowed(domain) {
 		return fmt.Errorf("network access denied: domain '%s' not in allowed list", domain)
 	}

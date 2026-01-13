@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/dop251/goja"
 )
@@ -140,8 +141,11 @@ func (p *ExtensionProviderWrapper) SearchTracks(query string, limit int) (*ExtSe
 		})()
 	`, query, limit)
 
-	result, err := p.vm.RunString(script)
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
 	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("searchTracks timeout: extension took too long to respond")
+		}
 		return nil, fmt.Errorf("searchTracks failed: %w", err)
 	}
 
@@ -188,8 +192,11 @@ func (p *ExtensionProviderWrapper) GetTrack(trackID string) (*ExtTrackMetadata, 
 		})()
 	`, trackID)
 
-	result, err := p.vm.RunString(script)
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
 	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("getTrack timeout: extension took too long to respond")
+		}
 		return nil, fmt.Errorf("getTrack failed: %w", err)
 	}
 
@@ -231,8 +238,11 @@ func (p *ExtensionProviderWrapper) GetAlbum(albumID string) (*ExtAlbumMetadata, 
 		})()
 	`, albumID)
 
-	result, err := p.vm.RunString(script)
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
 	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("getAlbum timeout: extension took too long to respond")
+		}
 		return nil, fmt.Errorf("getAlbum failed: %w", err)
 	}
 
@@ -277,8 +287,11 @@ func (p *ExtensionProviderWrapper) GetArtist(artistID string) (*ExtArtistMetadat
 		})()
 	`, artistID)
 
-	result, err := p.vm.RunString(script)
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
 	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("getArtist timeout: extension took too long to respond")
+		}
 		return nil, fmt.Errorf("getArtist failed: %w", err)
 	}
 
@@ -322,8 +335,11 @@ func (p *ExtensionProviderWrapper) CheckAvailability(isrc, trackName, artistName
 		})()
 	`, isrc, trackName, artistName)
 
-	result, err := p.vm.RunString(script)
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
 	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("checkAvailability timeout: extension took too long to respond")
+		}
 		return nil, fmt.Errorf("checkAvailability failed: %w", err)
 	}
 
@@ -364,8 +380,11 @@ func (p *ExtensionProviderWrapper) GetDownloadURL(trackID, quality string) (*Ext
 		})()
 	`, trackID, quality)
 
-	result, err := p.vm.RunString(script)
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
 	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("getDownloadUrl timeout: extension took too long to respond")
+		}
 		return nil, fmt.Errorf("getDownloadUrl failed: %w", err)
 	}
 
@@ -386,6 +405,9 @@ func (p *ExtensionProviderWrapper) GetDownloadURL(trackID, quality string) (*Ext
 
 	return &urlResult, nil
 }
+
+// ExtDownloadTimeout is longer for extension download operations (5 minutes)
+const ExtDownloadTimeout = 5 * time.Minute
 
 // Download downloads a track with progress reporting
 func (p *ExtensionProviderWrapper) Download(trackID, quality, outputPath string, onProgress func(percent int)) (*ExtDownloadResult, error) {
@@ -424,12 +446,19 @@ func (p *ExtensionProviderWrapper) Download(trackID, quality, outputPath string,
 		})()
 	`, trackID, quality, outputPath)
 
-	result, err := p.vm.RunString(script)
+	// Use longer timeout for downloads (5 minutes)
+	result, err := RunWithTimeoutAndRecover(p.vm, script, ExtDownloadTimeout)
 	if err != nil {
+		errMsg := err.Error()
+		errType := "script_error"
+		if IsTimeoutError(err) {
+			errMsg = "download timeout: extension took too long to complete"
+			errType = "timeout"
+		}
 		return &ExtDownloadResult{
 			Success:      false,
-			ErrorMessage: err.Error(),
-			ErrorType:    "script_error",
+			ErrorMessage: errMsg,
+			ErrorType:    errType,
 		}, nil
 	}
 
@@ -947,8 +976,11 @@ func (p *ExtensionProviderWrapper) CustomSearch(query string, options map[string
 		})()
 	`, query, string(optionsJSON))
 
-	result, err := p.vm.RunString(script)
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
 	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("customSearch timeout: extension took too long to respond")
+		}
 		return nil, fmt.Errorf("customSearch failed: %w", err)
 	}
 
@@ -1013,8 +1045,11 @@ func (p *ExtensionProviderWrapper) HandleURL(url string) (*ExtURLHandleResult, e
 		})()
 	`, url)
 
-	result, err := p.vm.RunString(script)
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
 	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("handleUrl timeout: extension took too long to respond")
+		}
 		return nil, fmt.Errorf("handleUrl failed: %w", err)
 	}
 
@@ -1076,8 +1111,11 @@ func (p *ExtensionProviderWrapper) MatchTrack(sourceTrack map[string]interface{}
 		})()
 	`, string(sourceJSON), string(candidatesJSON))
 
-	result, err := p.vm.RunString(script)
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
 	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("matchTrack timeout: extension took too long to respond")
+		}
 		return nil, fmt.Errorf("matchTrack failed: %w", err)
 	}
 
@@ -1111,6 +1149,9 @@ type PostProcessResult struct {
 	SampleRate int `json:"sample_rate,omitempty"`
 }
 
+// PostProcessTimeout is longer for post-processing (2 minutes)
+const PostProcessTimeout = 2 * time.Minute
+
 // PostProcess runs post-processing hooks on a downloaded file
 func (p *ExtensionProviderWrapper) PostProcess(filePath string, metadata map[string]interface{}, hookID string) (*PostProcessResult, error) {
 	if !p.extension.Manifest.HasPostProcessing() {
@@ -1132,11 +1173,15 @@ func (p *ExtensionProviderWrapper) PostProcess(filePath string, metadata map[str
 		})()
 	`, filePath, string(metadataJSON), hookID)
 
-	result, err := p.vm.RunString(script)
+	result, err := RunWithTimeoutAndRecover(p.vm, script, PostProcessTimeout)
 	if err != nil {
+		errMsg := err.Error()
+		if IsTimeoutError(err) {
+			errMsg = "postProcess timeout: extension took too long to complete"
+		}
 		return &PostProcessResult{
 			Success: false,
-			Error:   err.Error(),
+			Error:   errMsg,
 		}, nil
 	}
 

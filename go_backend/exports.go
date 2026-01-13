@@ -208,6 +208,11 @@ func DownloadTrack(requestJSON string) (string, error) {
 	req.AlbumArtist = strings.TrimSpace(req.AlbumArtist)
 	req.OutputDir = strings.TrimSpace(req.OutputDir)
 
+	// Add output directory to allowed download dirs for extensions
+	if req.OutputDir != "" {
+		AddAllowedDownloadDir(req.OutputDir)
+	}
+
 	var result DownloadResult
 	var err error
 
@@ -344,6 +349,11 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 	req.AlbumName = strings.TrimSpace(req.AlbumName)
 	req.AlbumArtist = strings.TrimSpace(req.AlbumArtist)
 	req.OutputDir = strings.TrimSpace(req.OutputDir)
+
+	// Add output directory to allowed download dirs for extensions
+	if req.OutputDir != "" {
+		AddAllowedDownloadDir(req.OutputDir)
+	}
 
 	// Build service order starting with preferred service
 	allServices := []string{"tidal", "qobuz", "amazon"}

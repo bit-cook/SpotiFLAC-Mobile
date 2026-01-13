@@ -29,6 +29,7 @@ const (
 type ExtensionPermissions struct {
 	Network []string `json:"network"` // List of allowed domains
 	Storage bool     `json:"storage"` // Whether extension can use storage API
+	File    bool     `json:"file"`    // Whether extension can use file API
 }
 
 // ExtensionSetting defines a configurable setting for an extension

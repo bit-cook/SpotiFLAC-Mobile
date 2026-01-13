@@ -1,6 +1,7 @@
 package gobackend
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/dop251/goja"
@@ -137,6 +138,9 @@ func TestExtensionRuntime_FileSandbox(t *testing.T) {
 		ID: "test-ext",
 		Manifest: &ExtensionManifest{
 			Name: "test-ext",
+			Permissions: ExtensionPermissions{
+				File: true, // Enable file permission for test
+			},
 		},
 		DataDir: tempDir,
 	}
@@ -165,6 +169,36 @@ func TestExtensionRuntime_FileSandbox(t *testing.T) {
 	}
 	if nestedPath == "" {
 		t.Error("Expected non-empty nested path")
+	}
+
+	// Test absolute path should be blocked (security fix)
+	// Use platform-appropriate absolute path
+	var absPath string
+	if filepath.IsAbs("C:\\Windows\\System32") {
+		absPath = "C:\\Windows\\System32\\test.txt" // Windows
+	} else {
+		absPath = "/etc/passwd" // Unix
+	}
+	_, err = runtime.validatePath(absPath)
+	if err == nil {
+		t.Error("Expected absolute path to be blocked")
+	}
+
+	// Test that extension without file permission is blocked
+	extNoFile := &LoadedExtension{
+		ID: "test-ext-no-file",
+		Manifest: &ExtensionManifest{
+			Name: "test-ext-no-file",
+			Permissions: ExtensionPermissions{
+				File: false, // No file permission
+			},
+		},
+		DataDir: tempDir,
+	}
+	runtimeNoFile := NewExtensionRuntime(extNoFile)
+	_, err = runtimeNoFile.validatePath("test.txt")
+	if err == nil {
+		t.Error("Expected file access to be denied without file permission")
 	}
 }
 
@@ -215,5 +249,81 @@ func TestExtensionRuntime_UtilityFunctions(t *testing.T) {
 	// JSON output may vary in order, just check it's valid
 	if result.String() == "" {
 		t.Error("Expected non-empty JSON string")
+	}
+}
+
+func TestExtensionRuntime_SSRFProtection(t *testing.T) {
+	// Create extension with limited network permissions
+	ext := &LoadedExtension{
+		ID: "test-ext",
+		Manifest: &ExtensionManifest{
+			Name: "test-ext",
+			Permissions: ExtensionPermissions{
+				Network: []string{"api.example.com"},
+			},
+		},
+		DataDir: t.TempDir(),
+	}
+
+	runtime := NewExtensionRuntime(ext)
+
+	// Test that private IPs are blocked (SSRF protection)
+	privateIPs := []string{
+		"http://localhost/admin",
+		"http://127.0.0.1/admin",
+		"http://192.168.1.1/admin",
+		"http://10.0.0.1/admin",
+		"http://172.16.0.1/admin",
+		"http://169.254.169.254/latest/meta-data/", // AWS metadata
+		"http://router.local/admin",
+	}
+
+	for _, url := range privateIPs {
+		err := runtime.validateDomain(url)
+		if err == nil {
+			t.Errorf("Expected private IP/host '%s' to be blocked", url)
+		}
+	}
+
+	// Test that allowed public domain still works
+	if err := runtime.validateDomain("https://api.example.com/path"); err != nil {
+		t.Errorf("Expected api.example.com to be allowed, got error: %v", err)
+	}
+}
+
+func TestIsPrivateIP(t *testing.T) {
+	tests := []struct {
+		host     string
+		expected bool
+	}{
+		// Private IPs should be blocked
+		{"localhost", true},
+		{"127.0.0.1", true},
+		{"127.0.0.2", true},
+		{"10.0.0.1", true},
+		{"10.255.255.255", true},
+		{"172.16.0.1", true},
+		{"172.31.255.255", true},
+		{"192.168.0.1", true},
+		{"192.168.255.255", true},
+		{"169.254.169.254", true}, // AWS metadata
+		{"router.local", true},
+		{"mydevice.local", true},
+
+		// Public IPs should be allowed
+		{"8.8.8.8", false},
+		{"1.1.1.1", false},
+		{"api.example.com", false},
+		{"google.com", false},
+		{"172.15.0.1", false},  // Just outside 172.16-31 range
+		{"172.32.0.1", false},  // Just outside 172.16-31 range
+		{"192.167.0.1", false}, // Not 192.168.x.x
+	}
+
+	for _, tt := range tests {
+		result := isPrivateIP(tt.host)
+		if result != tt.expected {
+			t.Errorf("isPrivateIP(%s) = %v, expected %v", tt.host, result, tt.expected)
+		}
 	}
 }

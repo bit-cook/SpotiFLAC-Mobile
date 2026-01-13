@@ -10,6 +10,9 @@ import (
 	"github.com/dop251/goja"
 )
 
+// Default timeout for JS execution (30 seconds)
+const DefaultJSTimeout = 30 * time.Second
+
 // Global auth state for extensions (stores pending auth codes)
 var (
 	extensionAuthState   = make(map[string]*ExtensionAuthState)
@@ -101,20 +104,88 @@ func NewExtensionRuntime(ext *LoadedExtension) *ExtensionRuntime {
 	// Create a cookie jar for this extension
 	jar, _ := newSimpleCookieJar()
 
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-		Jar:     jar,
-	}
-
-	return &ExtensionRuntime{
+	runtime := &ExtensionRuntime{
 		extensionID: ext.ID,
 		manifest:    ext.Manifest,
 		settings:    make(map[string]interface{}),
-		httpClient:  client,
 		cookieJar:   jar,
 		dataDir:     ext.DataDir,
 		vm:          ext.VM,
 	}
+
+	// Create HTTP client with redirect validation to prevent SSRF via open redirect
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+		Jar:     jar,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			// Validate redirect target domain against allowed domains
+			domain := req.URL.Hostname()
+			if !ext.Manifest.IsDomainAllowed(domain) {
+				GoLog("[Extension:%s] Redirect blocked: domain '%s' not in allowed list\n", ext.ID, domain)
+				return &RedirectBlockedError{Domain: domain}
+			}
+			// Also block redirects to private/local networks (SSRF protection)
+			if isPrivateIP(domain) {
+				GoLog("[Extension:%s] Redirect blocked: private IP '%s'\n", ext.ID, domain)
+				return &RedirectBlockedError{Domain: domain, IsPrivate: true}
+			}
+			// Default redirect limit (10)
+			if len(via) >= 10 {
+				return http.ErrUseLastResponse
+			}
+			return nil
+		},
+	}
+	runtime.httpClient = client
+
+	return runtime
+}
+
+// RedirectBlockedError is returned when a redirect is blocked due to domain validation
+type RedirectBlockedError struct {
+	Domain    string
+	IsPrivate bool
+}
+
+func (e *RedirectBlockedError) Error() string {
+	if e.IsPrivate {
+		return "redirect blocked: private/local network access denied"
+	}
+	return "redirect blocked: domain '" + e.Domain + "' not in allowed list"
+}
+
+// isPrivateIP checks if a hostname resolves to a private/local IP address
+func isPrivateIP(host string) bool {
+	// Block common private network patterns
+	// This is a simple check - for production, consider DNS resolution
+	privatePatterns := []string{
+		"localhost",
+		"127.",
+		"10.",
+		"172.16.", "172.17.", "172.18.", "172.19.",
+		"172.20.", "172.21.", "172.22.", "172.23.",
+		"172.24.", "172.25.", "172.26.", "172.27.",
+		"172.28.", "172.29.", "172.30.", "172.31.",
+		"192.168.",
+		"169.254.", // Link-local
+		"::1",      // IPv6 localhost
+		"fc00:",    // IPv6 private
+		"fe80:",    // IPv6 link-local
+	}
+
+	hostLower := host
+	for _, pattern := range privatePatterns {
+		if hostLower == pattern || len(hostLower) > len(pattern) && hostLower[:len(pattern)] == pattern {
+			return true
+		}
+	}
+
+	// Also block .local domains
+	if len(host) > 6 && host[len(host)-6:] == ".local" {
+		return true
+	}
+
+	return false
 }
 
 // simpleCookieJar is a simple in-memory cookie jar

@@ -702,7 +702,7 @@ func getQobuzDownloadURLParallel(apis []string, trackID int64, quality string) (
 				Error string `json:"error"`
 			}
 			if json.Unmarshal(body, &errorResp) == nil && errorResp.Error != "" {
-				resultChan <- qobuzAPIResult{apiURL: api, err: fmt.Errorf(errorResp.Error), duration: time.Since(reqStart)}
+				resultChan <- qobuzAPIResult{apiURL: api, err: fmt.Errorf("%s", errorResp.Error), duration: time.Since(reqStart)}
 				return
 			}
 

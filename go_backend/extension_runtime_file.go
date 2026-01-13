@@ -8,25 +8,81 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/dop251/goja"
 )
 
 // ==================== File API (Sandboxed) ====================
 
-// validatePath checks if the path is within the extension's data directory
-// For absolute paths (from download queue), it allows them if they're valid
+// List of allowed directories for file operations (set by Go backend for download operations)
+var (
+	allowedDownloadDirs   []string
+	allowedDownloadDirsMu sync.RWMutex
+)
+
+// SetAllowedDownloadDirs sets the list of directories where extensions can write files
+// This should be called by the Go backend when setting up download paths
+func SetAllowedDownloadDirs(dirs []string) {
+	allowedDownloadDirsMu.Lock()
+	defer allowedDownloadDirsMu.Unlock()
+	allowedDownloadDirs = dirs
+	GoLog("[Extension] Allowed download directories set: %v\n", dirs)
+}
+
+// AddAllowedDownloadDir adds a directory to the allowed list
+func AddAllowedDownloadDir(dir string) {
+	allowedDownloadDirsMu.Lock()
+	defer allowedDownloadDirsMu.Unlock()
+	absDir, err := filepath.Abs(dir)
+	if err == nil {
+		allowedDownloadDirs = append(allowedDownloadDirs, absDir)
+	}
+}
+
+// isPathInAllowedDirs checks if an absolute path is within any allowed directory
+func isPathInAllowedDirs(absPath string) bool {
+	allowedDownloadDirsMu.RLock()
+	defer allowedDownloadDirsMu.RUnlock()
+
+	for _, allowedDir := range allowedDownloadDirs {
+		if strings.HasPrefix(absPath, allowedDir) {
+			return true
+		}
+	}
+	return false
+}
+
+// validatePath checks if the path is within the extension's sandbox
+// Security: Absolute paths are BLOCKED unless they're in allowed download directories
+// Extensions should use relative paths for their own data storage
 func (r *ExtensionRuntime) validatePath(path string) (string, error) {
+	// Check if extension has file permission
+	if !r.manifest.Permissions.File {
+		return "", fmt.Errorf("file access denied: extension does not have 'file' permission")
+	}
+
 	// Clean and resolve the path
 	cleanPath := filepath.Clean(path)
 
-	// If path is absolute, allow it (for download queue paths)
-	// This is safe because the Go backend controls what paths are passed
+	// SECURITY: Block absolute paths by default
+	// Only allow if path is in explicitly allowed download directories
 	if filepath.IsAbs(cleanPath) {
-		return cleanPath, nil
+		absPath, err := filepath.Abs(cleanPath)
+		if err != nil {
+			return "", fmt.Errorf("invalid path: %w", err)
+		}
+
+		// Check if path is in allowed download directories
+		if isPathInAllowedDirs(absPath) {
+			return absPath, nil
+		}
+
+		// Block all other absolute paths
+		return "", fmt.Errorf("file access denied: absolute paths are not allowed. Use relative paths within extension sandbox")
 	}
 
-	// For relative paths, join with data directory
+	// For relative paths, join with data directory (extension's sandbox)
 	fullPath := filepath.Join(r.dataDir, cleanPath)
 
 	// Resolve to absolute path
@@ -35,7 +91,7 @@ func (r *ExtensionRuntime) validatePath(path string) (string, error) {
 		return "", fmt.Errorf("invalid path: %w", err)
 	}
 
-	// Ensure path is within data directory
+	// Ensure path is within data directory (prevent path traversal)
 	absDataDir, _ := filepath.Abs(r.dataDir)
 	if !strings.HasPrefix(absPath, absDataDir) {
 		return "", fmt.Errorf("file access denied: path '%s' is outside sandbox", path)

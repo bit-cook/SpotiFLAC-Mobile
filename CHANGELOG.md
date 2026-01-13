@@ -1,6 +1,26 @@
 # Changelog
 
-## [3.0.0-alpha.4] - Upcoming
+## [3.0.0-beta.1] - 2026-01-13
+
+### Security
+
+- Improved extension sandbox security
+
+### Changed
+
+- **Extension Manifest**: New `file` permission required for file operations
+  ```json
+  "permissions": {
+    "network": ["api.example.com"],
+    "storage": true,
+    "file": true
+  }
+  ```
+  Extensions that need to download files must declare `"file": true` in manifest.
+
+---
+
+## [3.0.0-alpha.4] - 2026-01-12
 
 ### Added
 
@@ -15,7 +35,7 @@
 - **Custom URL Handler for Extensions**: Extensions can now register custom URL patterns
   - Handle URLs from YouTube Music, SoundCloud, Bandcamp, etc.
   - Manifest config: `urlHandler: { enabled: true, patterns: ["music.youtube.com"] }`
-  - Implement `handleURL(url)` function in extension to parse and return track metadata
+  - Implement `handleUrl(url)` function in extension to parse and return track metadata
   - SpotiFLAC automatically routes matching URLs to the appropriate extension
   - Supports share intents and paste from clipboard
 
@@ -36,7 +56,7 @@
 
 - Updated `docs/EXTENSION_DEVELOPMENT.md`:
   - Added Custom URL Handler section with examples
-  - Added `handleURL` function documentation
+  - Added `handleUrl` function documentation
   - Added URL pattern examples for YouTube, SoundCloud, Bandcamp
   - Added `utils.hmacSHA1` documentation with TOTP example
 
