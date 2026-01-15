@@ -122,6 +122,8 @@ class _MainShellState extends ConsumerState<MainShell> {
   void _onPageChanged(int index) {
     if (_currentIndex != index) {
       setState(() => _currentIndex = index);
+      // Unfocus any text field when switching tabs to prevent keyboard from appearing
+      FocusScope.of(context).unfocus();
     }
   }
 
@@ -190,7 +192,11 @@ class _MainShellState extends ConsumerState<MainShell> {
     // Build tabs and destinations based on settings
     final tabs = <Widget>[
       const HomeTab(),
-      const QueueTab(),
+      QueueTab(
+        parentPageController: _pageController,
+        parentPageIndex: 1,
+        nextPageIndex: showStore ? 2 : 3,
+      ),
       if (showStore) const StoreTab(),
       const SettingsTab(),
     ];
@@ -254,7 +260,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         body: PageView(
           controller: _pageController,
           onPageChanged: _onPageChanged,
-          physics: const BouncingScrollPhysics(),
+          physics: const ClampingScrollPhysics(),
           children: tabs,
         ),
         bottomNavigationBar: NavigationBar(

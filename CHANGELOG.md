@@ -80,6 +80,13 @@ SpotiFLAC 3.0 introduces a powerful extension system that allows third-party int
 - One-tap install, update, and uninstall
 - Offline cache for browsing without internet
 
+#### Spotify Web Extension
+
+- Available in Extension Store - install and enable in Settings > Extensions
+- Metadata provider using Spotify's internal web player API
+- Download tracks from Daily Mix, Discover Weekly, and other personalized playlists
+- Useful when official Spotify API is rate-limited or unavailable
+
 #### Extension Capabilities
 
 - **Custom Search Providers**
@@ -128,7 +135,30 @@ SpotiFLAC 3.0 introduces a powerful extension system that allows third-party int
   - Qobuz: Both APIs requested simultaneously, first success wins
   - Significantly reduces download URL fetch time
 
+### UI/UX Improvements
+
+- **Swipeable History Filters**: History tab now supports swipe gestures between All, Albums, and Singles filters
+
+  - Swipe left/right to switch between filter tabs
+  - Filter chips sync with swipe position
+  - Smooth edge-to-edge transition: swipe past Singles to go to Store, swipe past All to go to Home
+  - Natural gesture feel - drag connects to parent navigation
+
+  - **Improved File Open Intent**: Play button in History now correctly opens music players only
+  - Added proper MIME type (`audio/flac`, `audio/mpeg`, etc.) when opening downloaded files
+  - Prevents system from showing unrelated apps in the "Open with" dialog
+
 ### Fixed
+
+- **Fixed Tab Edge Overscroll**: Home and Settings tabs now stop at edges instead of bouncing into empty space
+
+- **Fixed Extension Duplicate Load Error**: Extension loading now silently skips already-loaded extensions instead of throwing error
+
+- **Fixed Settings Item Highlight on Swipe**: Settings items no longer highlight when swiping at page edge
+
+- **Fixed Keyboard Appearing on Tab Switch**: Keyboard now auto-dismisses when swiping between tabs
+
+- **Removed Search Source Badges**: Removed "Free" and "API Key" labels from Deezer/Spotify selector in Options
 
 - **Back Gesture Freeze on Android 13+**: Fixed app freeze when using back gesture in settings
 

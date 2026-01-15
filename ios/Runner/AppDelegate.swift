@@ -547,6 +547,47 @@ import Gobackend  // Import Go framework
             if let error = error { throw error }
             return response
             
+        // Extension Store
+        case "initExtensionStore":
+            let args = call.arguments as! [String: Any]
+            let cacheDir = args["cache_dir"] as! String
+            GobackendInitExtensionStoreJSON(cacheDir, &error)
+            if let error = error { throw error }
+            return nil
+            
+        case "getStoreExtensions":
+            let args = call.arguments as! [String: Any]
+            let forceRefresh = args["force_refresh"] as? Bool ?? false
+            let response = GobackendGetStoreExtensionsJSON(forceRefresh, &error)
+            if let error = error { throw error }
+            return response
+            
+        case "searchStoreExtensions":
+            let args = call.arguments as! [String: Any]
+            let query = args["query"] as? String ?? ""
+            let category = args["category"] as? String ?? ""
+            let response = GobackendSearchStoreExtensionsJSON(query, category, &error)
+            if let error = error { throw error }
+            return response
+            
+        case "getStoreCategories":
+            let response = GobackendGetStoreCategoriesJSON(&error)
+            if let error = error { throw error }
+            return response
+            
+        case "downloadStoreExtension":
+            let args = call.arguments as! [String: Any]
+            let extensionId = args["extension_id"] as! String
+            let destDir = args["dest_dir"] as! String
+            let response = GobackendDownloadStoreExtensionJSON(extensionId, destDir, &error)
+            if let error = error { throw error }
+            return response
+            
+        case "clearStoreCache":
+            GobackendClearStoreCacheJSON(&error)
+            if let error = error { throw error }
+            return nil
+            
         default:
             throw NSError(
                 domain: "SpotiFLAC",

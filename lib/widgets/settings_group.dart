@@ -72,7 +72,7 @@ class SettingsItem extends StatelessWidget {
         InkWell(
           onTap: onTap,
           splashColor: colorScheme.primary.withValues(alpha: 0.12),
-          highlightColor: colorScheme.primary.withValues(alpha: 0.08),
+          highlightColor: Colors.transparent,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Row(
@@ -159,7 +159,7 @@ class SettingsSwitchItem extends StatelessWidget {
           child: InkWell(
             onTap: isDisabled ? null : () => onChanged!(!value),
             splashColor: colorScheme.primary.withValues(alpha: 0.12),
-            highlightColor: colorScheme.primary.withValues(alpha: 0.08),
+            highlightColor: Colors.transparent,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               child: Row(

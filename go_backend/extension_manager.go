@@ -456,9 +456,10 @@ func (m *ExtensionManager) loadExtensionFromDirectory(dirPath string) (*LoadedEx
 		return nil, fmt.Errorf("Extension is missing index.js file")
 	}
 
-	// Check if extension already loaded - skip if already exists (for directory loading on startup)
-	if _, exists := m.extensions[manifest.Name]; exists {
-		return nil, fmt.Errorf("Extension '%s' is already loaded", manifest.DisplayName)
+	// Check if extension already loaded - skip silently (for directory loading on startup)
+	if existing, exists := m.extensions[manifest.Name]; exists {
+		GoLog("[Extension] Extension '%s' already loaded, skipping\n", manifest.DisplayName)
+		return existing, nil
 	}
 
 	// Create data directory for extension
