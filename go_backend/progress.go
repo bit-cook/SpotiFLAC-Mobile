@@ -240,6 +240,9 @@ func NewItemProgressWriter(w interface{ Write([]byte) (int, error) }, itemID str
 
 // Write implements io.Writer with threshold-based progress updates and speed tracking
 func (pw *ItemProgressWriter) Write(p []byte) (int, error) {
+	if pw.itemID != "" && isDownloadCancelled(pw.itemID) {
+		return 0, ErrDownloadCancelled
+	}
 	n, err := pw.writer.Write(p)
 	if err != nil {
 		return n, err

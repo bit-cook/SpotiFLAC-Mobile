@@ -277,12 +277,19 @@ class TrackNotifier extends Notifier<TrackState> {
       final hasActiveMetadataExtensions = extensionState.extensions.any(
         (e) => e.enabled && e.hasMetadataProvider,
       );
-      final useExtensions = settings.useExtensionProviders && hasActiveMetadataExtensions;
+      final searchProvider = settings.searchProvider;
+      final useExtensions =
+          settings.useExtensionProviders &&
+          hasActiveMetadataExtensions &&
+          searchProvider != null &&
+          searchProvider.isNotEmpty;
 
       // Use Deezer or Spotify based on settings
       final source = metadataSource ?? 'deezer';
       
-      _log.i('Search started: source=$source, query="$query", useExtensions=$useExtensions');
+      _log.i(
+        'Search started: source=$source, query="$query", useExtensions=$useExtensions',
+      );
       
       Map<String, dynamic> results;
       List<Track> extensionTracks = [];

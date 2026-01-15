@@ -3,6 +3,7 @@ package gobackend
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -835,6 +836,14 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 			}
 
 			if err != nil {
+				if errors.Is(err, ErrDownloadCancelled) {
+					return &DownloadResponse{
+						Success:   false,
+						Error:     "Download cancelled",
+						ErrorType: "cancelled",
+						Service:   req.Source,
+					}, nil
+				}
 				lastErr = err
 			} else if result.ErrorMessage != "" {
 				lastErr = fmt.Errorf("%s", result.ErrorMessage)
@@ -879,6 +888,14 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 				return result, nil
 			}
 			if err != nil {
+				if errors.Is(err, ErrDownloadCancelled) {
+					return &DownloadResponse{
+						Success:   false,
+						Error:     "Download cancelled",
+						ErrorType: "cancelled",
+						Service:   providerID,
+					}, nil
+				}
 				lastErr = err
 				GoLog("[DownloadWithExtensionFallback] %s failed: %v\n", providerID, err)
 			}
@@ -964,6 +981,14 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 			}
 
 			if err != nil {
+				if errors.Is(err, ErrDownloadCancelled) {
+					return &DownloadResponse{
+						Success:   false,
+						Error:     "Download cancelled",
+						ErrorType: "cancelled",
+						Service:   providerID,
+					}, nil
+				}
 				lastErr = err
 			} else if result.ErrorMessage != "" {
 				lastErr = fmt.Errorf("%s", result.ErrorMessage)

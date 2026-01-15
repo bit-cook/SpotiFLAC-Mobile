@@ -120,6 +120,12 @@ import Gobackend  // Import Go framework
             let itemId = args["item_id"] as! String
             GobackendClearItemProgress(itemId)
             return nil
+
+        case "cancelDownload":
+            let args = call.arguments as! [String: Any]
+            let itemId = args["item_id"] as! String
+            GobackendCancelDownload(itemId)
+            return nil
             
         case "setDownloadDirectory":
             let args = call.arguments as! [String: Any]

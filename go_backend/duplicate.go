@@ -103,6 +103,18 @@ func (idx *ISRCIndex) lookup(isrc string) (string, bool) {
 	return path, exists
 }
 
+// remove deletes an ISRC entry from the index (internal use)
+func (idx *ISRCIndex) remove(isrc string) {
+	if isrc == "" {
+		return
+	}
+
+	idx.mu.Lock()
+	defer idx.mu.Unlock()
+
+	delete(idx.index, strings.ToUpper(isrc))
+}
+
 // Lookup checks if an ISRC exists in the index (gomobile compatible)
 // Returns filepath if found, empty string if not found
 func (idx *ISRCIndex) Lookup(isrc string) (string, error) {
@@ -138,7 +150,18 @@ func checkISRCExistsInternal(outputDir, isrc string) (string, bool) {
 
 	// Use index for fast lookup
 	idx := GetISRCIndex(outputDir)
-	return idx.lookup(isrc)
+	filePath, exists := idx.lookup(isrc)
+	if !exists {
+		return "", false
+	}
+
+	if !CheckFileExists(filePath) {
+		// Stale index entry; remove it and return not found.
+		idx.remove(isrc)
+		return "", false
+	}
+
+	return filePath, true
 }
 
 // CheckISRCExists is the exported version for gomobile (returns string, error)

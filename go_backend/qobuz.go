@@ -1,9 +1,11 @@
 package gobackend
 
 import (
+	"context"
 	"bufio"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -864,19 +866,30 @@ func (q *QobuzDownloader) GetDownloadURL(trackID int64, quality string) (string,
 
 // DownloadFile downloads a file from URL with User-Agent and progress tracking
 func (q *QobuzDownloader) DownloadFile(downloadURL, outputPath, itemID string) error {
+	ctx := context.Background()
+
 	// Initialize item progress (required for all downloads)
 	if itemID != "" {
 		StartItemProgress(itemID)
 		defer CompleteItemProgress(itemID)
+		ctx = initDownloadCancel(itemID)
+		defer clearDownloadCancel(itemID)
 	}
 
-	req, err := http.NewRequest("GET", downloadURL, nil)
+	if isDownloadCancelled(itemID) {
+		return ErrDownloadCancelled
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
 	resp, err := DoRequestWithUserAgent(q.client, req)
 	if err != nil {
+		if isDownloadCancelled(itemID) {
+			return ErrDownloadCancelled
+		}
 		return err
 	}
 	defer resp.Body.Close()
@@ -916,6 +929,9 @@ func (q *QobuzDownloader) DownloadFile(downloadURL, outputPath, itemID string) e
 	// Check for any errors
 	if err != nil {
 		os.Remove(outputPath)
+		if isDownloadCancelled(itemID) {
+			return ErrDownloadCancelled
+		}
 		return fmt.Errorf("download interrupted: %w", err)
 	}
 	if flushErr != nil {
@@ -1095,6 +1111,9 @@ func downloadFromQobuz(req DownloadRequest) (QobuzDownloadResult, error) {
 
 	// Download audio file with item ID for progress tracking
 	if err := downloader.DownloadFile(downloadURL, outputPath, req.ItemID); err != nil {
+		if errors.Is(err, ErrDownloadCancelled) {
+			return QobuzDownloadResult{}, ErrDownloadCancelled
+		}
 		return QobuzDownloadResult{}, fmt.Errorf("download failed: %w", err)
 	}
 

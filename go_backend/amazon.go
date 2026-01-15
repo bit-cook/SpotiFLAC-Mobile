@@ -1,9 +1,11 @@
 package gobackend
 
 import (
+	"context"
 	"bufio"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -346,13 +348,21 @@ func (a *AmazonDownloader) downloadFromDoubleDoubleService(amazonURL, _ string) 
 
 // DownloadFile downloads a file from URL with User-Agent and progress tracking
 func (a *AmazonDownloader) DownloadFile(downloadURL, outputPath, itemID string) error {
+	ctx := context.Background()
+
 	// Initialize item progress (required for all downloads)
 	if itemID != "" {
 		StartItemProgress(itemID)
 		defer CompleteItemProgress(itemID)
+		ctx = initDownloadCancel(itemID)
+		defer clearDownloadCancel(itemID)
 	}
 
-	req, err := http.NewRequest("GET", downloadURL, nil)
+	if isDownloadCancelled(itemID) {
+		return ErrDownloadCancelled
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -361,6 +371,9 @@ func (a *AmazonDownloader) DownloadFile(downloadURL, outputPath, itemID string) 
 
 	resp, err := a.client.Do(req)
 	if err != nil {
+		if isDownloadCancelled(itemID) {
+			return ErrDownloadCancelled
+		}
 		return err
 	}
 	defer resp.Body.Close()
@@ -400,6 +413,9 @@ func (a *AmazonDownloader) DownloadFile(downloadURL, outputPath, itemID string) 
 	// Check for any errors
 	if err != nil {
 		os.Remove(outputPath)
+		if isDownloadCancelled(itemID) {
+			return ErrDownloadCancelled
+		}
 		return fmt.Errorf("download interrupted: %w", err)
 	}
 	if flushErr != nil {
@@ -527,6 +543,9 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 
 	// Download audio file with item ID for progress tracking
 	if err := downloader.DownloadFile(downloadURL, outputPath, req.ItemID); err != nil {
+		if errors.Is(err, ErrDownloadCancelled) {
+			return AmazonDownloadResult{}, ErrDownloadCancelled
+		}
 		return AmazonDownloadResult{}, fmt.Errorf("download failed: %w", err)
 	}
 

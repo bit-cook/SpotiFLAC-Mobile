@@ -5,6 +5,7 @@ package gobackend
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -405,7 +406,7 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 					DiscNumber:  tidalResult.DiscNumber,
 					ISRC:        tidalResult.ISRC,
 				}
-			} else {
+			} else if !errors.Is(tidalErr, ErrDownloadCancelled) {
 				GoLog("[DownloadWithFallback] Tidal error: %v\n", tidalErr)
 			}
 			err = tidalErr
@@ -424,7 +425,7 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 					DiscNumber:  qobuzResult.DiscNumber,
 					ISRC:        qobuzResult.ISRC,
 				}
-			} else {
+			} else if !errors.Is(qobuzErr, ErrDownloadCancelled) {
 				GoLog("[DownloadWithFallback] Qobuz error: %v\n", qobuzErr)
 			}
 			err = qobuzErr
@@ -443,10 +444,14 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 					DiscNumber:  amazonResult.DiscNumber,
 					ISRC:        amazonResult.ISRC,
 				}
-			} else {
+			} else if !errors.Is(amazonErr, ErrDownloadCancelled) {
 				GoLog("[DownloadWithFallback] Amazon error: %v\n", amazonErr)
 			}
 			err = amazonErr
+		}
+
+		if err != nil && errors.Is(err, ErrDownloadCancelled) {
+			return errorResponse("Download cancelled")
 		}
 
 		if err == nil {
@@ -540,6 +545,11 @@ func FinishItemProgress(itemID string) {
 // ClearItemProgress removes progress tracking for a specific item
 func ClearItemProgress(itemID string) {
 	RemoveItemProgress(itemID)
+}
+
+// CancelDownload cancels an in-progress download for the given item.
+func CancelDownload(itemID string) {
+	cancelDownload(itemID)
 }
 
 // CleanupConnections closes idle HTTP connections
@@ -1031,6 +1041,8 @@ func errorResponse(msg string) (string, error) {
 		strings.Contains(lowerMsg, "try using vpn") ||
 		strings.Contains(lowerMsg, "change dns") {
 		errorType = "isp_blocked"
+	} else if strings.Contains(lowerMsg, "cancel") {
+		errorType = "cancelled"
 	} else if strings.Contains(lowerMsg, "permission") ||
 		strings.Contains(lowerMsg, "operation not permitted") ||
 		strings.Contains(lowerMsg, "access denied") ||

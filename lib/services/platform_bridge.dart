@@ -199,6 +199,11 @@ class PlatformBridge {
     await _channel.invokeMethod('clearItemProgress', {'item_id': itemId});
   }
 
+  /// Cancel an in-progress download
+  static Future<void> cancelDownload(String itemId) async {
+    await _channel.invokeMethod('cancelDownload', {'item_id': itemId});
+  }
+
   /// Set download directory
   static Future<void> setDownloadDirectory(String path) async {
     await _channel.invokeMethod('setDownloadDirectory', {'path': path});

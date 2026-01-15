@@ -1,7 +1,5 @@
 # Changelog
 
-## [Unreleased]
-
 ## [3.1.0] - 2026-01-19
 
 ### Added
@@ -22,13 +20,13 @@
   - New `getAlbum()`, `getPlaylist()`, and `getArtist()` extension functions
   - New `ExtensionAlbumScreen`, `ExtensionPlaylistScreen`, and `ExtensionArtistScreen` for fetching content from extensions
   - YouTube Music extension updated with album/playlist/artist support
-  - See [Extension Development Guide](docs/EXTENSION_DEVELOPMENT.md#artist-support) for implementation details
 
 - **Odesli (song.link) Integration for YouTube Music Extension**
   - New `enrichTrack()` function to fetch ISRC and external service links
   - Uses Odesli API to convert YouTube Music tracks to Deezer/Tidal/Qobuz/Spotify
   - Enables built-in service fallback for high-quality audio downloads
   - Extension version updated to 1.4.0 with `api.song.link` and `odesli.io` network permissions
+- **Download Cancel**: Canceling a download now stops in-flight built-in provider downloads (Tidal/Qobuz/Amazon) and clears backend progress tracking.
 
 ### Fixed
 
@@ -49,6 +47,13 @@
 - Fixed extension duplicate load error (skip silently instead of throwing error)
 - Fixed keyboard appearing when swiping between tabs (unfocus on page change)
 - Removed "Free"/"API Key" badges from search source selector
+- Fixed cancel action briefly resuming downloads in the queue UI after ~1 second.
+- Fixed cancelled downloads being marked as failed when the backend returns after cancellation.
+- Fixed cancel triggering provider fallback (cancel now stops the download flow immediately).
+- Fixed stale ISRC cache returning deleted files after cancel.
+- Fixed search results mixing extension and built-in artists when using default provider.
+- Fixed audio files opening with non-music apps by passing audio MIME type on open.
+- Fixed album artist showing null/blank by normalizing empty metadata and using artist fallback for tags.
 - **Go Backend: Missing `item_type` and `album_type` fields**
   - Added `ItemType` and `AlbumType` fields to `ExtTrackMetadata` struct
   - Fixed `CustomSearchWithExtensionJSON` - now includes `item_type` and `album_type` in response

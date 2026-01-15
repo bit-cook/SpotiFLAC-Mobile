@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:spotiflac_android/utils/mime_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
@@ -26,6 +27,14 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   String? _lyrics;
   bool _lyricsLoading = false;
   String? _lyricsError;
+
+  String? _normalizeOptionalString(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    if (trimmed.toLowerCase() == 'null') return null;
+    return trimmed;
+  }
 
   @override
   void initState() {
@@ -68,7 +77,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   String get trackName => item.trackName;
   String get artistName => item.artistName;
   String get albumName => item.albumName;
-  String? get albumArtist => item.albumArtist;
+  String? get albumArtist => _normalizeOptionalString(item.albumArtist);
   int? get trackNumber => item.trackNumber;
   int? get discNumber => item.discNumber;
   String? get releaseDate => item.releaseDate;
@@ -970,7 +979,8 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
 
   Future<void> _openFile(BuildContext context, String filePath) async {
     try {
-      final result = await OpenFilex.open(filePath);
+      final mimeType = audioMimeTypeForPath(filePath);
+      final result = await OpenFilex.open(filePath, type: mimeType);
       if (result.type != ResultType.done && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Cannot open: ${result.message}')),

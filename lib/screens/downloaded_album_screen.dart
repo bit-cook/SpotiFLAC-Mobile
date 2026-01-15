@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:spotiflac_android/utils/mime_utils.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/screens/track_metadata_screen.dart';
 
@@ -132,7 +133,8 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
 
   Future<void> _openFile(String filePath) async {
     try {
-      await OpenFilex.open(filePath);
+      final mimeType = audioMimeTypeForPath(filePath);
+      await OpenFilex.open(filePath, type: mimeType);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

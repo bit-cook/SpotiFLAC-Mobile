@@ -18,6 +18,14 @@ import 'package:spotiflac_android/utils/logger.dart';
 final _log = AppLogger('DownloadQueue');
 final _historyLog = AppLogger('DownloadHistory');
 
+String? _normalizeOptionalString(String? value) {
+  if (value == null) return null;
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return null;
+  if (trimmed.toLowerCase() == 'null') return null;
+  return trimmed;
+}
+
 // Download History Item model
 class DownloadHistoryItem {
   final String id;
@@ -89,7 +97,7 @@ class DownloadHistoryItem {
         trackName: json['trackName'] as String,
         artistName: json['artistName'] as String,
         albumName: json['albumName'] as String,
-        albumArtist: json['albumArtist'] as String?,
+        albumArtist: _normalizeOptionalString(json['albumArtist'] as String?),
         coverUrl: json['coverUrl'] as String?,
         filePath: json['filePath'] as String,
         service: json['service'] as String,
@@ -492,6 +500,20 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
         for (final entry in items.entries) {
           final itemId = entry.key;
+          final localItem = state.items
+              .where((i) => i.id == itemId)
+              .firstOrNull;
+          if (localItem == null) {
+            continue;
+          }
+          if (localItem.status == DownloadStatus.skipped) {
+            PlatformBridge.clearItemProgress(itemId).catchError((_) {});
+            continue;
+          }
+          if (localItem.status == DownloadStatus.completed ||
+              localItem.status == DownloadStatus.failed) {
+            continue;
+          }
           final itemProgress = entry.value as Map<String, dynamic>;
           final bytesReceived = itemProgress['bytes_received'] as int? ?? 0;
           final bytesTotal = itemProgress['bytes_total'] as int? ?? 0;
@@ -671,6 +693,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   /// Build output directory based on folder organization setting and separateSingles
   Future<String> _buildOutputDir(Track track, String folderOrganization, {bool separateSingles = false, String albumFolderStructure = 'artist_album'}) async {
     String baseDir = state.outputDir;
+    final albumArtist = _normalizeOptionalString(track.albumArtist) ?? track.artistName;
 
     // If separateSingles is enabled, use Albums/Singles structure
     if (separateSingles) {
@@ -688,7 +711,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       } else {
         // Albums folder structure based on setting
         final albumName = _sanitizeFolderName(track.albumName);
-        final artistName = _sanitizeFolderName(track.albumArtist ?? track.artistName);
+        final artistName = _sanitizeFolderName(albumArtist);
         final year = _extractYear(track.releaseDate);
         String albumPath;
         
@@ -729,7 +752,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     String subPath = '';
     switch (folderOrganization) {
       case 'artist':
-        final artistName = _sanitizeFolderName(track.albumArtist ?? track.artistName);
+        final artistName = _sanitizeFolderName(albumArtist);
         subPath = artistName;
         break;
       case 'album':
@@ -737,7 +760,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         subPath = albumName;
         break;
       case 'artist_album':
-        final artistName = _sanitizeFolderName(track.albumArtist ?? track.artistName);
+        final artistName = _sanitizeFolderName(albumArtist);
         final albumName = _sanitizeFolderName(track.albumName);
         subPath = '$artistName${Platform.pathSeparator}$albumName';
         break;
@@ -874,6 +897,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   }
 
   void updateProgress(String id, double progress, {double? speedMBps}) {
+    final item = state.items.where((i) => i.id == id).firstOrNull;
+    if (item == null ||
+        item.status == DownloadStatus.skipped ||
+        item.status == DownloadStatus.completed ||
+        item.status == DownloadStatus.failed) {
+      return;
+    }
     updateItemStatus(
       id,
       DownloadStatus.downloading,
@@ -884,6 +914,8 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
   void cancelItem(String id) {
     updateItemStatus(id, DownloadStatus.skipped);
+    PlatformBridge.cancelDownload(id).catchError((_) {});
+    PlatformBridge.clearItemProgress(id).catchError((_) {});
   }
 
   void clearCompleted() {
@@ -1002,7 +1034,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         'title': track.name,
         'artist': track.artistName,
         'album': track.albumName,
-        'album_artist': track.albumArtist ?? track.artistName,
+        'album_artist': _normalizeOptionalString(track.albumArtist) ?? track.artistName,
         'track_number': track.trackNumber ?? 1,
         'disc_number': track.discNumber ?? 1,
         'isrc': track.isrc ?? '',
@@ -1105,9 +1137,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         'ALBUM': track.albumName,
       };
 
-      if (track.albumArtist != null) {
-        metadata['ALBUMARTIST'] = track.albumArtist!;
-      }
+      final albumArtist = _normalizeOptionalString(track.albumArtist) ??
+          track.artistName;
+      metadata['ALBUMARTIST'] = albumArtist;
 
       if (track.trackNumber != null) {
         metadata['TRACKNUMBER'] = track.trackNumber.toString();
@@ -1415,6 +1447,15 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     _log.d('Processing: ${item.track.name} by ${item.track.artistName}');
     _log.d('Cover URL: ${item.track.coverUrl}');
 
+    final currentItem = state.items.firstWhere(
+      (i) => i.id == item.id,
+      orElse: () => item,
+    );
+    if (currentItem.status == DownloadStatus.skipped) {
+      _log.i('Download was cancelled before start, skipping');
+      return;
+    }
+
     // Set currentDownload for UI reference
     state = state.copyWith(currentDownload: item);
 
@@ -1505,6 +1546,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       // Log cover URL for debugging CSV import issues
       _log.d('Track coverUrl after enrichment: ${trackToDownload.coverUrl}');
 
+      final normalizedAlbumArtist =
+          _normalizeOptionalString(trackToDownload.albumArtist);
+
       final outputDir = await _buildOutputDir(
         trackToDownload,
         settings.folderOrganization,
@@ -1535,7 +1579,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           trackName: trackToDownload.name,
           artistName: trackToDownload.artistName,
           albumName: trackToDownload.albumName,
-          albumArtist: trackToDownload.albumArtist,
+          albumArtist: normalizedAlbumArtist,
           coverUrl: trackToDownload.coverUrl,
           outputDir: outputDir,
           filenameFormat: state.filenameFormat,
@@ -1559,7 +1603,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           trackName: trackToDownload.name,
           artistName: trackToDownload.artistName,
           albumName: trackToDownload.albumName,
-          albumArtist: trackToDownload.albumArtist,
+          albumArtist: normalizedAlbumArtist,
           coverUrl: trackToDownload.coverUrl,
           outputDir: outputDir,
           filenameFormat: state.filenameFormat,
@@ -1580,7 +1624,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           trackName: trackToDownload.name,
           artistName: trackToDownload.artistName,
           albumName: trackToDownload.albumName,
-          albumArtist: trackToDownload.albumArtist,
+          albumArtist: normalizedAlbumArtist,
           coverUrl: trackToDownload.coverUrl,
           outputDir: outputDir,
           filenameFormat: state.filenameFormat,
@@ -1645,7 +1689,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           _log.i('Actual quality: $actualQuality');
         }
 
-        // M4A files from Tidal DASH streams - try to convert to FLAC
         // M4A files from Tidal DASH streams - try to convert to FLAC
         if (filePath != null && filePath.endsWith('.m4a')) {
           _log.d(
@@ -1715,7 +1758,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                         name: trackToDownload.name,
                         artistName: trackToDownload.artistName,
                         albumName: backendAlbum ?? trackToDownload.albumName,
-                        albumArtist: trackToDownload.albumArtist,
+                        albumArtist: normalizedAlbumArtist,
                         coverUrl: trackToDownload.coverUrl,
                         duration: trackToDownload.duration,
                         isrc: trackToDownload.isrc,
@@ -1806,6 +1849,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           // Log cover URL for debugging
           _log.d('Saving to history - coverUrl: ${trackToDownload.coverUrl}');
 
+          final historyAlbumArtist =
+              (normalizedAlbumArtist != null &&
+                      normalizedAlbumArtist != trackToDownload.artistName)
+                  ? normalizedAlbumArtist
+                  : null;
+
           ref
               .read(downloadHistoryProvider.notifier)
               .addToHistory(
@@ -1820,7 +1869,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                   albumName: (backendAlbum != null && backendAlbum.isNotEmpty)
                       ? backendAlbum
                       : trackToDownload.albumName,
-                  albumArtist: trackToDownload.albumArtist,
+                  albumArtist: historyAlbumArtist,
                   coverUrl: trackToDownload.coverUrl,
                   filePath: filePath,
                   service: result['service'] as String? ?? item.service,
@@ -1849,8 +1898,22 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           removeItem(item.id);
         }
       } else {
+        final itemAfterFailure = state.items.firstWhere(
+          (i) => i.id == item.id,
+          orElse: () => item,
+        );
+        if (itemAfterFailure.status == DownloadStatus.skipped) {
+          _log.i('Download was cancelled, skipping error handling');
+          return;
+        }
+
         final errorMsg = result['error'] as String? ?? 'Download failed';
         final errorTypeStr = result['error_type'] as String? ?? 'unknown';
+        if (errorTypeStr == 'cancelled') {
+          _log.i('Download was cancelled by backend, skipping error handling');
+          updateItemStatus(item.id, DownloadStatus.skipped);
+          return;
+        }
 
         // Convert error type string to enum
         DownloadErrorType errorType;
@@ -1894,6 +1957,15 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         }
       }
     } catch (e, stackTrace) {
+      final itemAfterError = state.items.firstWhere(
+        (i) => i.id == item.id,
+        orElse: () => item,
+      );
+      if (itemAfterError.status == DownloadStatus.skipped) {
+        _log.i('Download was cancelled, skipping error handling');
+        return;
+      }
+
       _log.e('Exception: $e', e, stackTrace);
 
       String errorMsg = e.toString();

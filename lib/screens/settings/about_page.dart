@@ -98,9 +98,9 @@ class AboutPage extends StatelessWidget {
             child: SettingsGroup(
               children: [
                 _ContributorItem(
-                  name: 'uimaxbai',
+                  name: 'binimum',
                   description: 'The creator of QQDL & HiFi API. Without this API, Tidal downloads wouldn\'t exist!',
-                  githubUsername: 'uimaxbai',
+                  githubUsername: 'binimum',
                   showDivider: true,
                 ),
                 _ContributorItem(

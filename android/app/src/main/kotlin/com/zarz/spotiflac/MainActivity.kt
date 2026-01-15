@@ -117,6 +117,13 @@ class MainActivity: FlutterActivity() {
                             }
                             result.success(null)
                         }
+                        "cancelDownload" -> {
+                            val itemId = call.argument<String>("item_id") ?: ""
+                            withContext(Dispatchers.IO) {
+                                Gobackend.cancelDownload(itemId)
+                            }
+                            result.success(null)
+                        }
                         "setDownloadDirectory" -> {
                             val path = call.argument<String>("path") ?: ""
                             withContext(Dispatchers.IO) {

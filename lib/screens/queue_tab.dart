@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:spotiflac_android/utils/mime_utils.dart';
 import 'package:spotiflac_android/models/download_item.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
@@ -172,7 +173,8 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   Future<void> _openFile(String filePath) async {
     final cleanPath = _cleanFilePath(filePath);
     try {
-      await OpenFilex.open(cleanPath);
+      final mimeType = audioMimeTypeForPath(cleanPath);
+      await OpenFilex.open(cleanPath, type: mimeType);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
