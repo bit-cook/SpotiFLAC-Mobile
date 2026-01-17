@@ -33,7 +33,6 @@ func EmbedMetadata(filePath string, metadata Metadata, coverPath string) error {
 		return fmt.Errorf("failed to parse FLAC file: %w", err)
 	}
 
-	// Find or create vorbis comment block
 	var cmtIdx int = -1
 	var cmt *flacvorbis.MetaDataBlockVorbisComment
 
@@ -123,7 +122,6 @@ func EmbedMetadata(filePath string, metadata Metadata, coverPath string) error {
 		}
 	}
 
-	// Save file
 	return f.Save(filePath)
 }
 
@@ -403,7 +401,6 @@ func GetAudioQuality(filePath string) (AudioQuality, error) {
 	}
 	defer file.Close()
 
-	// Read first 4 bytes to detect file type
 	marker := make([]byte, 4)
 	if _, err := file.Read(marker); err != nil {
 		return AudioQuality{}, fmt.Errorf("failed to read marker: %w", err)
@@ -429,13 +426,10 @@ func GetAudioQuality(filePath string) (AudioQuality, error) {
 			return AudioQuality{}, fmt.Errorf("failed to read STREAMINFO: %w", err)
 		}
 
-		// Parse sample rate (20 bits starting at byte 10)
 		sampleRate := (int(streamInfo[10]) << 12) | (int(streamInfo[11]) << 4) | (int(streamInfo[12]) >> 4)
 
-		// Parse bits per sample (5 bits)
 		bitsPerSample := ((int(streamInfo[12]) & 0x01) << 4) | (int(streamInfo[13]) >> 4) + 1
 
-		// Parse total samples (36 bits: 4 bits from byte 13, all of bytes 14-17)
 		totalSamples := int64(streamInfo[13]&0x0F)<<32 |
 			int64(streamInfo[14])<<24 |
 			int64(streamInfo[15])<<16 |
@@ -449,17 +443,14 @@ func GetAudioQuality(filePath string) (AudioQuality, error) {
 		}, nil
 	}
 
-	// Check if it's an M4A/MP4 file (starts with size + "ftyp")
-	// First 4 bytes are size, next 4 should be "ftyp"
-	file.Seek(0, 0) // Reset to beginning
+	file.Seek(0, 0)
 	header8 := make([]byte, 8)
 	if _, err := file.Read(header8); err != nil {
 		return AudioQuality{}, fmt.Errorf("failed to read header: %w", err)
 	}
 
 	if string(header8[4:8]) == "ftyp" {
-		// It's an M4A/MP4 file, use M4A quality reader
-		file.Close() // Close before calling GetM4AQuality which opens the file again
+		file.Close()
 		return GetM4AQuality(filePath)
 	}
 
@@ -471,9 +462,7 @@ func GetAudioQuality(filePath string) (AudioQuality, error) {
 // ========================================
 
 // EmbedM4AMetadata embeds metadata into an M4A file using iTunes-style atoms
-// This is a simplified implementation that writes metadata to the file
 func EmbedM4AMetadata(filePath string, metadata Metadata, coverData []byte) error {
-	// Read the entire file
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to read M4A file: %w", err)
@@ -485,11 +474,9 @@ func EmbedM4AMetadata(filePath string, metadata Metadata, coverData []byte) erro
 		return fmt.Errorf("moov atom not found in M4A file")
 	}
 
-	// Find udta atom inside moov, or create one
 	moovSize := int(uint32(data[moovPos])<<24 | uint32(data[moovPos+1])<<16 | uint32(data[moovPos+2])<<8 | uint32(data[moovPos+3]))
 	udtaPos := findAtom(data, "udta", moovPos+8)
 
-	// Build new metadata atoms
 	metaAtom := buildMetaAtom(metadata, coverData)
 
 	var newData []byte
@@ -499,13 +486,11 @@ func EmbedM4AMetadata(filePath string, metadata Metadata, coverData []byte) erro
 		metaPos := findAtom(data, "meta", udtaPos+8)
 
 		if metaPos >= 0 && metaPos < udtaPos+udtaSize {
-			// Replace existing meta atom
 			metaSize := int(uint32(data[metaPos])<<24 | uint32(data[metaPos+1])<<16 | uint32(data[metaPos+2])<<8 | uint32(data[metaPos+3]))
 			newData = append(newData, data[:metaPos]...)
 			newData = append(newData, metaAtom...)
 			newData = append(newData, data[metaPos+metaSize:]...)
 		} else {
-			// Add meta atom to udta
 			newUdtaContent := append(data[udtaPos+8:udtaPos+udtaSize], metaAtom...)
 			newUdtaSize := 8 + len(newUdtaContent)
 			newUdta := make([]byte, 4)
@@ -521,7 +506,6 @@ func EmbedM4AMetadata(filePath string, metadata Metadata, coverData []byte) erro
 			newData = append(newData, data[udtaPos+udtaSize:]...)
 		}
 	} else {
-		// Create new udta with meta
 		udtaContent := metaAtom
 		udtaSize := 8 + len(udtaContent)
 		newUdta := make([]byte, 4)
@@ -532,7 +516,6 @@ func EmbedM4AMetadata(filePath string, metadata Metadata, coverData []byte) erro
 		newUdta = append(newUdta, []byte("udta")...)
 		newUdta = append(newUdta, udtaContent...)
 
-		// Insert udta at end of moov
 		insertPos := moovPos + moovSize
 		newData = append(newData, data[:insertPos]...)
 		newData = append(newData, newUdta...)
@@ -546,7 +529,6 @@ func EmbedM4AMetadata(filePath string, metadata Metadata, coverData []byte) erro
 	newData[moovPos+2] = byte(newMoovSize >> 8)
 	newData[moovPos+3] = byte(newMoovSize)
 
-	// Write back to file
 	if err := os.WriteFile(filePath, newData, 0644); err != nil {
 		return fmt.Errorf("failed to write M4A file: %w", err)
 	}
@@ -573,7 +555,6 @@ func findAtom(data []byte, name string, offset int) int {
 
 // buildMetaAtom builds a complete meta atom with ilst containing metadata
 func buildMetaAtom(metadata Metadata, coverData []byte) []byte {
-	// Build ilst content
 	var ilst []byte
 
 	// ©nam - Title
@@ -631,7 +612,6 @@ func buildMetaAtom(metadata Metadata, coverData []byte) []byte {
 	ilstAtom = append(ilstAtom, []byte("ilst")...)
 	ilstAtom = append(ilstAtom, ilst...)
 
-	// Build hdlr atom (required for meta)
 	hdlr := []byte{
 		0, 0, 0, 33, // size = 33
 		'h', 'd', 'l', 'r',
@@ -788,18 +768,13 @@ func GetM4AQuality(filePath string) (AudioQuality, error) {
 		return AudioQuality{}, fmt.Errorf("moov atom not found")
 	}
 
-	// Search for mp4a or alac atom which contains audio info
-	// This is a simplified search - real implementation would traverse the atom tree
 	for i := moovPos; i < len(data)-20; i++ {
 		if string(data[i:i+4]) == "mp4a" || string(data[i:i+4]) == "alac" {
-			// Sample rate is at offset 22-23 from atom start (16-bit big-endian)
 			if i+24 < len(data) {
 				sampleRate := int(data[i+22])<<8 | int(data[i+23])
-				// For AAC, bit depth is typically 16
 				bitDepth := 16
 				if string(data[i:i+4]) == "alac" {
-					// ALAC can have higher bit depth, check esds or alac specific data
-					bitDepth = 24 // Assume 24-bit for ALAC
+					bitDepth = 24
 				}
 				return AudioQuality{BitDepth: bitDepth, SampleRate: sampleRate}, nil
 			}

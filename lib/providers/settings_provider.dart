@@ -53,7 +53,6 @@ class SettingsNotifier extends Notifier<AppSettings> {
 
   /// Apply current Spotify credentials to Go backend
   Future<void> _applySpotifyCredentials() async {
-    // Only apply if both fields are set
     if (state.spotifyClientId.isNotEmpty && 
         state.spotifyClientSecret.isNotEmpty) {
       await PlatformBridge.setSpotifyCredentials(
@@ -197,7 +196,6 @@ class SettingsNotifier extends Notifier<AppSettings> {
   void setEnableLogging(bool enabled) {
     state = state.copyWith(enableLogging: enabled);
     _saveSettings();
-    // Sync logging state to LogBuffer
     LogBuffer.loggingEnabled = enabled;
   }
 

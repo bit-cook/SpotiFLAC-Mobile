@@ -257,7 +257,6 @@ class TrackNotifier extends Notifier<TrackState> {
           playlistName: owner?['name'] as String?,
           coverUrl: owner?['images'] as String?,
         );
-        // Pre-warm cache for playlist tracks in background
         _preWarmCacheForTracks(tracks);
       } else if (type == 'artist') {
         final artistInfo = metadata['artist_info'] as Map<String, dynamic>;
@@ -279,7 +278,6 @@ class TrackNotifier extends Notifier<TrackState> {
   }
 
   Future<void> search(String query, {String? metadataSource}) async {
-    // Increment request ID to cancel any pending requests
     final requestId = ++_currentRequestId;
 
     // Preserve hasSearchText during search
@@ -345,10 +343,8 @@ class TrackNotifier extends Notifier<TrackState> {
       
       _log.d('Raw results: ${trackList.length} tracks, ${artistList.length} artists');
       
-      // Parse tracks with error handling per item
       final tracks = <Track>[];
       
-      // Add extension tracks first (they have priority)
       tracks.addAll(extensionTracks);
       
       final existingIsrcs = extensionTracks
@@ -404,7 +400,6 @@ class TrackNotifier extends Notifier<TrackState> {
 
   /// Perform custom search using a specific extension
   Future<void> customSearch(String extensionId, String query, {Map<String, dynamic>? options}) async {
-    // Increment request ID to cancel any pending requests
     final requestId = ++_currentRequestId;
 
     // Preserve hasSearchText during search
@@ -484,7 +479,6 @@ class TrackNotifier extends Notifier<TrackState> {
       tracks[index] = updatedTrack;
       state = state.copyWith(tracks: tracks);
     } catch (e) {
-      // Silently fail availability check
     }
   }
 
@@ -536,7 +530,6 @@ class TrackNotifier extends Notifier<TrackState> {
   }
 
   Track _parseSearchTrack(Map<String, dynamic> data, {String? source}) {
-    // Handle duration_ms which might be int or double
     int durationMs = 0;
     final durationValue = data['duration_ms'];
     if (durationValue is int) {
@@ -591,11 +584,9 @@ class TrackNotifier extends Notifier<TrackState> {
   /// Pre-warm track ID cache for faster downloads
   /// Runs in background, doesn't block UI
   void _preWarmCacheForTracks(List<Track> tracks) {
-    // Only pre-warm if we have tracks with ISRC
     final tracksWithIsrc = tracks.where((t) => t.isrc != null && t.isrc!.isNotEmpty).toList();
     if (tracksWithIsrc.isEmpty) return;
 
-    // Build request list for Go backend
     final cacheRequests = tracksWithIsrc.map((t) => {
       'isrc': t.isrc!,
       'track_name': t.name,

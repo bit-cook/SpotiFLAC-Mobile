@@ -38,7 +38,6 @@ class AppearanceSettingsPage extends ConsumerWidget {
             ),
           ),
 
-            // Preview Section
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -211,7 +210,6 @@ class _ThemePreviewCard extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    // Fake Album Art
                     Container(
                       width: 108,
                       height: 108,
@@ -627,7 +625,6 @@ class _ViewModeChip extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Unselected chips need contrast with card background
     final unselectedColor = isDark
         ? Color.alphaBlend(
             Colors.white.withValues(alpha: 0.05),

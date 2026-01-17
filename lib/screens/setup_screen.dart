@@ -76,7 +76,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         debugPrint('[Permission] Android 11-12 check: MANAGE_EXTERNAL_STORAGE=$manageStatus');
         storageGranted = manageStatus.isGranted;
       } else {
-        // Android 10 and below: Use legacy storage permission
         final storageStatus = await Permission.storage.status;
         debugPrint('[Permission] Android 10- check: STORAGE=$storageStatus');
         storageGranted = storageStatus.isGranted;
@@ -183,7 +182,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
           allGranted = manageStatus.isGranted;
           
         } else {
-          // Android 10 and below: Use legacy storage permission
           final status = await Permission.storage.request();
           allGranted = status.isGranted;
           
@@ -920,7 +918,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                     ),
                     const SizedBox(height: 16),
                     
-                    // Info banner
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(

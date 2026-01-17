@@ -38,7 +38,6 @@ class ShareIntentService {
     final initialMedia = await ReceiveSharingIntent.instance.getInitialMedia();
     if (initialMedia.isNotEmpty) {
       _handleSharedMedia(initialMedia, isInitial: true);
-      // Tell the library that we are done processing the intent
       ReceiveSharingIntent.instance.reset();
     }
   }

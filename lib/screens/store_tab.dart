@@ -508,7 +508,7 @@ class _ExtensionItem extends StatelessWidget {
                             child: Text(
                               extension.displayName,
                               style: Theme.of(context).textTheme.bodyLarge
-                                  ?.copyWith(fontWeight: FontWeight.w500                              ),
+                                  ?.copyWith(fontWeight: FontWeight.w500),
                             ),
                           ),
                           Container(

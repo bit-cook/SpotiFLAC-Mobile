@@ -200,11 +200,9 @@ class RecentAccessNotifier extends Notifier<RecentAccessState> {
   }
 
   void _recordAccess(RecentAccessItem item) {
-    // Debug log
     // ignore: avoid_print
     print('[RecentAccess] Recording: ${item.type.name} - ${item.name} (${item.id})');
     
-    // Remove any existing entry with same unique key
     final updatedItems = state.items
         .where((e) => e.uniqueKey != item.uniqueKey)
         .toList();

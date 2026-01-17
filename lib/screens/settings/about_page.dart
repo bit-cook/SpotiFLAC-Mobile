@@ -51,7 +51,6 @@ class AboutPage extends StatelessWidget {
             ),
           ),
 
-          // App header card with logo and description
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -208,7 +207,6 @@ class AboutPage extends StatelessWidget {
             ),
           ),
 
-          // Bottom padding
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
         ],
       ),
@@ -240,8 +238,6 @@ class _AppHeaderCard extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          // App logo
-          // App logo
           Container(
             width: 88,
             height: 88,

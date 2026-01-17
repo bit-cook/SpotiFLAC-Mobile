@@ -57,7 +57,6 @@ class FFmpegService {
         inputPath.split(Platform.pathSeparator).last.replaceAll('.flac', '');
     final outputDir = '$dir${Platform.pathSeparator}MP3';
 
-    // Create output directory
     await Directory(outputDir).create(recursive: true);
 
     final outputPath = '$outputDir${Platform.pathSeparator}$baseName.mp3';
@@ -175,18 +174,14 @@ class FFmpegService {
 
     if (result.success) {
       try {
-        // Copy temp output back to original location (replace)
         final tempFile = File(tempOutput);
         final originalFile = File(flacPath);
         
         if (await tempFile.exists()) {
-             // Delete original file
              if (await originalFile.exists()) {
                await originalFile.delete();
              }
-             // Copy temp file to original location
              await tempFile.copy(flacPath);
-             // Delete temp file
              await tempFile.delete();
              
              return flacPath;

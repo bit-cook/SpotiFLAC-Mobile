@@ -290,7 +290,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
               ],
             ),
             
-            // File status
             if (!fileExists) ...[
               const SizedBox(height: 12),
               Container(
@@ -806,7 +805,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   }
 
   String _cleanLrcForDisplay(String lrc) {
-    // Remove LRC timestamps [mm:ss.xx] for cleaner display
     final lines = lrc.split('\n');
     final cleanLines = <String>[];
     final timestampPattern = RegExp(r'^\[\d{2}:\d{2}\.\d{2,3}\]');

@@ -296,7 +296,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
 
     switch (filterMode) {
       case 'albums':
-        // Album = more than 1 track from same album in history
         return items.where((item) {
           final key =
               '${item.albumName}|${item.albumArtist ?? item.artistName}';
@@ -379,7 +378,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       albumKeys.add(key);
     }
 
-    // Count albums with more than 1 track
     int count = 0;
     for (final key in albumKeys) {
       final trackCount = items
@@ -412,7 +410,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
 
   @override
   Widget build(BuildContext context) {
-    // Initialize page controller on first build
     _initializePageController();
 
     final queueItems = ref.watch(downloadQueueProvider.select((s) => s.items));
@@ -490,7 +487,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                 ),
               ),
 
-              // Pause/Resume controls
               if ((isProcessing || queuedCount > 0) &&
                   (queueItems.length > 1 || isPaused))
                 SliverToBoxAdapter(
@@ -536,10 +532,9 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                         ),
                       ),
                     ),
-                  ),
                 ),
+              ),
 
-              // Queue header
               if (queueItems.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
@@ -550,10 +545,9 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
                 ),
+              ),
 
-              // Queue list
               if (queueItems.isNotEmpty)
                 SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
@@ -618,7 +612,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                 if (notification is OverscrollNotification) {
                   final overscroll = notification.overscroll;
                   
-                  // At first page and overscrolling to the left -> push parent toward Home
                   if (page == 0 && overscroll < 0) {
                     final currentOffset = parentController.offset;
                     final targetOffset = (currentOffset + overscroll).clamp(
@@ -629,7 +622,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                     return true;
                   }
                   
-                  // At last page and overscrolling to the right -> push parent toward next tab
                   if (page == 2 && overscroll > 0) {
                     final currentOffset = parentController.offset;
                     final targetOffset = (currentOffset + overscroll).clamp(
@@ -641,32 +633,26 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                   }
                 }
 
-                // Snap parent to nearest page when scroll ends
                 if (notification is ScrollEndNotification) {
                   if (page == 0 || page == 2) {
                     final currentPage = parentController.page ?? widget.parentPageIndex.toDouble();
                     final historyPage = widget.parentPageIndex.toDouble();
                     final offset = currentPage - historyPage;
                     
-                    // Only snap if we've moved the parent
                     if (offset.abs() > 0.01) {
-                      // Use 0.3 threshold (30%)
                       if (offset < -0.3) {
-                        // Swiped enough toward Home - animate to Home
                         parentController.animateToPage(
                           widget.parentPageIndex - 1,
                           duration: const Duration(milliseconds: 250),
                           curve: Curves.easeOutCubic,
                         );
                       } else if (offset > 0.3) {
-                        // Swiped enough toward next tab - animate to next
                         parentController.animateToPage(
                           widget.nextPageIndex ?? (widget.parentPageIndex + 1),
                           duration: const Duration(milliseconds: 250),
                           curve: Curves.easeOutCubic,
                         );
                       } else {
-                        // Not enough - instant jump back (no animation)
                         parentController.jumpToPage(widget.parentPageIndex);
                       }
                     }
@@ -680,7 +666,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                 physics: const ClampingScrollPhysics(),
                 onPageChanged: _onFilterPageChanged,
                 children: [
-                  // All tab
                   _buildFilterContent(
                     context: context,
                     colorScheme: colorScheme,
@@ -690,7 +675,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                     queueItems: queueItems,
                     groupedAlbums: groupedAlbums,
                   ),
-                  // Albums tab
                   _buildFilterContent(
                     context: context,
                     colorScheme: colorScheme,
@@ -700,7 +684,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                     queueItems: queueItems,
                     groupedAlbums: groupedAlbums,
                   ),
-                  // Singles tab
                   _buildFilterContent(
                     context: context,
                     colorScheme: colorScheme,
@@ -715,7 +698,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             ),
           ),
 
-          // Bottom Selection Action Bar
           AnimatedPositioned(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeOutCubic,
@@ -748,7 +730,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
 
     return CustomScrollView(
       slivers: [
-        // History section header
         if (historyItems.isNotEmpty &&
             queueItems.isEmpty &&
             filterMode != 'albums')
@@ -779,7 +760,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             ),
           ),
 
-        // Albums section header (when Albums filter is selected)
         if (groupedAlbums.isNotEmpty &&
             queueItems.isEmpty &&
             filterMode == 'albums')
@@ -795,7 +775,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             ),
           ),
 
-        // History section header when queue has items
         if (historyItems.isNotEmpty && queueItems.isNotEmpty)
           SliverToBoxAdapter(
             child: Padding(
@@ -831,7 +810,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             ),
           ),
 
-        // History - Grid or List (for All and Singles filter)
         if (historyItems.isNotEmpty && filterMode != 'albums')
           historyViewMode == 'grid'
               ? SliverPadding(
@@ -871,10 +849,9 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                         colorScheme,
                       ),
                     );
-                  }, childCount: historyItems.length),
-                ),
+                  }, childCount: historyItems.length                ),
+              ),
 
-        // Empty state
         if (queueItems.isEmpty &&
             historyItems.isEmpty &&
             (filterMode != 'albums' || groupedAlbums.isEmpty))
@@ -887,7 +864,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             ),
           )
         else
-          // Add bottom padding when selection mode is active to avoid overlap with bottom bar
           SliverToBoxAdapter(
             child: SizedBox(height: _isSelectionMode ? 100 : 16),
           ),
@@ -956,7 +932,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Album cover with track count badge
           Expanded(
             child: Stack(
               children: [
@@ -982,7 +957,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                           ),
                         ),
                 ),
-                // Track count badge
                 Positioned(
                   right: 8,
                   bottom: 8,
@@ -1020,16 +994,14 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             ),
           ),
           const SizedBox(height: 8),
-          // Album name
           Text(
             album.albumName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(
               context,
-            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600            ),
           ),
-          // Artist name
           Text(
             album.artistName,
             maxLines: 1,
@@ -1084,10 +1056,8 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                 ),
               ),
 
-              // Selection info row
               Row(
                 children: [
-                  // Close button
                   IconButton.filledTonal(
                     onPressed: _exitSelectionMode,
                     icon: const Icon(Icons.close),
@@ -1141,7 +1111,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
 
               const SizedBox(height: 16),
 
-              // Delete button
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
@@ -1449,7 +1418,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                             ),
                     ),
                   ),
-                  // Quality badge
                   if (item.quality != null && item.quality!.contains('bit'))
                     Positioned(
                       left: 4,
@@ -1478,7 +1446,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                         ),
                       ),
                     ),
-                  // Play button
                   if (fileExists && !_isSelectionMode)
                     Positioned(
                       right: 4,
@@ -1499,7 +1466,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                         ),
                       ),
                     ),
-                  // Error indicator
                   if (!fileExists && !_isSelectionMode)
                     Positioned(
                       right: 4,
@@ -1517,7 +1483,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                         ),
                       ),
                     ),
-                  // Selection overlay
                   if (_isSelectionMode)
                     Positioned.fill(
                       child: Container(
@@ -1550,7 +1515,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
               ),
             ],
           ),
-          // Selection checkbox
           if (_isSelectionMode)
             Positioned(
               right: 4,
@@ -1618,7 +1582,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              // Selection checkbox
               if (_isSelectionMode) ...[
                 Container(
                   width: 24,
@@ -1645,7 +1608,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                 ),
                 const SizedBox(width: 12),
               ],
-              // Cover art
               item.coverUrl != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(8),
@@ -1672,7 +1634,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                     ),
               const SizedBox(width: 12),
 
-              // Track info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1740,7 +1701,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
               ),
               const SizedBox(width: 8),
 
-              // Action buttons (hide in selection mode)
               if (!_isSelectionMode)
                 Row(
                   mainAxisSize: MainAxisSize.min,

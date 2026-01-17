@@ -211,7 +211,6 @@ class _LogScreenState extends State<LogScreen> {
             SliverToBoxAdapter(
               child: SettingsGroup(
                 children: [
-                  // Level filter
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     child: Row(
@@ -309,7 +308,6 @@ class _LogScreenState extends State<LogScreen> {
               ),
             ),
 
-            // Log entries section
             SliverToBoxAdapter(
               child: SettingsSectionHeader(
                 title: _selectedLevel != 'ALL' || _searchQuery.isNotEmpty 
@@ -628,7 +626,6 @@ class _LogSummaryCard extends StatelessWidget {
       final errorLower = (log.error ?? '').toLowerCase();
       final combined = '$msgLower $errorLower';
 
-      // Check for ISP blocking (detected by Go backend)
       if (combined.contains('isp blocking') ||
           combined.contains('isp may be') ||
           combined.contains('blocked by isp') ||
@@ -642,7 +639,6 @@ class _LogSummaryCard extends StatelessWidget {
         }
       }
 
-      // Check for rate limiting
       if (combined.contains('rate limit') ||
           combined.contains('429') ||
           combined.contains('too many requests')) {

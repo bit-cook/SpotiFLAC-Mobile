@@ -130,16 +130,14 @@ func NewTidalDownloader() *TidalDownloader {
 // GetAvailableAPIs returns list of available Tidal APIs
 func (t *TidalDownloader) GetAvailableAPIs() []string {
 	encodedAPIs := []string{
-		// Priority 1: APIs that return FULL tracks (not PREVIEW)
-		"dGlkYWwua2lub3BsdXMub25saW5l", // tidal.kinoplus.online - returns FULL
-		"dGlkYWwtYXBpLmJpbmltdW0ub3Jn", // tidal-api.binimum.org
-		"dHJpdG9uLnNxdWlkLnd0Zg==",     // triton.squid.wtf
-		// Priority 2: qqdl.site APIs (often return PREVIEW only)
-		"dm9nZWwucXFkbC5zaXRl", // vogel.qqdl.site
-		"bWF1cy5xcWRsLnNpdGU=", // maus.qqdl.site
-		"aHVuZC5xcWRsLnNpdGU=", // hund.qqdl.site
-		"a2F0emUucXFkbC5zaXRl", // katze.qqdl.site
-		"d29sZi5xcWRsLnNpdGU=", // wolf.qqdl.site
+		"dGlkYWwua2lub3BsdXMub25saW5l",
+		"dGlkYWwtYXBpLmJpbmltdW0ub3Jn",
+		"dHJpdG9uLnNxdWlkLnd0Zg==",
+		"dm9nZWwucXFkbC5zaXRl",
+		"bWF1cy5xcWRsLnNpdGU=",
+		"aHVuZC5xcWRsLnNpdGU=",
+		"a2F0emUucXFkbC5zaXRl",
+		"d29sZi5xcWRsLnNpdGU=",
 	}
 
 	var apis []string
@@ -159,7 +157,6 @@ func (t *TidalDownloader) GetAccessToken() (string, error) {
 	t.tokenMu.Lock()
 	defer t.tokenMu.Unlock()
 
-	// Return cached token if still valid (with 60s buffer)
 	if t.cachedToken != "" && time.Now().Add(60*time.Second).Before(t.tokenExpiresAt) {
 		return t.cachedToken, nil
 	}
@@ -385,22 +382,17 @@ func (t *TidalDownloader) SearchTrackByMetadataWithISRC(trackName, artistName, s
 		queries = append(queries, artistName+" "+trackName)
 	}
 
-	// Strategy 2: Track name only
 	if trackName != "" {
 		queries = append(queries, trackName)
 	}
 
-	// Strategy 3: Romaji versions if Japanese detected (NEW - from PC version)
 	if ContainsJapanese(trackName) || ContainsJapanese(artistName) {
-		// Convert to romaji (hiragana/katakana only, kanji stays)
 		romajiTrack := JapaneseToRomaji(trackName)
 		romajiArtist := JapaneseToRomaji(artistName)
 
-		// Clean and remove ALL non-ASCII characters (including kanji)
 		cleanRomajiTrack := CleanToASCII(romajiTrack)
 		cleanRomajiArtist := CleanToASCII(romajiArtist)
 
-		// Artist + Track romaji (cleaned to ASCII only)
 		if cleanRomajiArtist != "" && cleanRomajiTrack != "" {
 			romajiQuery := cleanRomajiArtist + " " + cleanRomajiTrack
 			if !containsQuery(queries, romajiQuery) {
@@ -409,14 +401,12 @@ func (t *TidalDownloader) SearchTrackByMetadataWithISRC(trackName, artistName, s
 			}
 		}
 
-		// Track romaji only (cleaned)
 		if cleanRomajiTrack != "" && cleanRomajiTrack != trackName {
 			if !containsQuery(queries, cleanRomajiTrack) {
 				queries = append(queries, cleanRomajiTrack)
 			}
 		}
 
-		// Also try with partial romaji (artist + cleaned track)
 		if artistName != "" && cleanRomajiTrack != "" {
 			partialQuery := artistName + " " + cleanRomajiTrack
 			if !containsQuery(queries, partialQuery) {
@@ -425,7 +415,6 @@ func (t *TidalDownloader) SearchTrackByMetadataWithISRC(trackName, artistName, s
 		}
 	}
 
-	// Strategy 4: Artist only as last resort
 	if artistName != "" {
 		artistOnly := CleanToASCII(JapaneseToRomaji(artistName))
 		if artistOnly != "" && !containsQuery(queries, artistOnly) {
@@ -435,7 +424,6 @@ func (t *TidalDownloader) SearchTrackByMetadataWithISRC(trackName, artistName, s
 
 	searchBase, _ := base64.StdEncoding.DecodeString("aHR0cHM6Ly9hcGkudGlkYWwuY29tL3YxL3NlYXJjaC90cmFja3M/cXVlcnk9")
 
-	// Collect all search results from all queries
 	var allTracks []TidalTrack
 	searchedQueries := make(map[string]bool)
 
@@ -485,7 +473,6 @@ func (t *TidalDownloader) SearchTrackByMetadataWithISRC(trackName, artistName, s
 				for i := range result.Items {
 					if result.Items[i].ISRC == spotifyISRC {
 						track := &result.Items[i]
-						// Verify duration if provided
 						if expectedDuration > 0 {
 							durationDiff := track.Duration - expectedDuration
 							if durationDiff < 0 {
@@ -495,7 +482,6 @@ func (t *TidalDownloader) SearchTrackByMetadataWithISRC(trackName, artistName, s
 								GoLog("[Tidal] ✓ ISRC match: '%s' (duration verified)\n", track.Title)
 								return track, nil
 							}
-							// Duration mismatch, continue searching
 							GoLog("[Tidal] ISRC match but duration mismatch (expected %ds, got %ds), continuing...\n",
 								expectedDuration, track.Duration)
 						} else {
@@ -514,7 +500,6 @@ func (t *TidalDownloader) SearchTrackByMetadataWithISRC(trackName, artistName, s
 		return nil, fmt.Errorf("no tracks found for any search query")
 	}
 
-	// Priority 1: Match by ISRC (exact match) WITH title verification
 	if spotifyISRC != "" {
 		GoLog("[Tidal] Looking for ISRC match: %s\n", spotifyISRC)
 		var isrcMatches []*TidalTrack
@@ -526,7 +511,6 @@ func (t *TidalDownloader) SearchTrackByMetadataWithISRC(trackName, artistName, s
 		}
 
 		if len(isrcMatches) > 0 {
-			// Verify duration first (most important check)
 			if expectedDuration > 0 {
 				var durationVerifiedMatches []*TidalTrack
 				for _, track := range isrcMatches {
@@ -534,37 +518,31 @@ func (t *TidalDownloader) SearchTrackByMetadataWithISRC(trackName, artistName, s
 					if durationDiff < 0 {
 						durationDiff = -durationDiff
 					}
-					// Allow 3 seconds tolerance for duration (same as PC version)
 					if durationDiff <= 3 {
 						durationVerifiedMatches = append(durationVerifiedMatches, track)
 					}
 				}
 
 				if len(durationVerifiedMatches) > 0 {
-					// Return first duration-verified match
 					GoLog("[Tidal] ✓ ISRC match with duration verification: '%s' (expected %ds, found %ds)\n",
 						durationVerifiedMatches[0].Title, expectedDuration, durationVerifiedMatches[0].Duration)
 					return durationVerifiedMatches[0], nil
 				}
 
-				// ISRC matches but duration doesn't - this is likely wrong version
 				GoLog("[Tidal] WARNING: ISRC %s found but duration mismatch. Expected=%ds, Found=%ds. Rejecting.\n",
 					spotifyISRC, expectedDuration, isrcMatches[0].Duration)
 				return nil, fmt.Errorf("ISRC found but duration mismatch: expected %ds, found %ds (likely different version/edit)",
 					expectedDuration, isrcMatches[0].Duration)
 			}
 
-			// No duration to verify, just return first ISRC match
 			GoLog("[Tidal] ✓ ISRC match (no duration verification): '%s'\n", isrcMatches[0].Title)
 			return isrcMatches[0], nil
 		}
 
-		// If ISRC was provided but no match found, return error
 		GoLog("[Tidal] ✗ No ISRC match found for: %s\n", spotifyISRC)
 		return nil, fmt.Errorf("ISRC mismatch: no track found with ISRC %s on Tidal", spotifyISRC)
 	}
 
-	// Priority 2: Match by duration (within tolerance) + prefer best quality
 	if expectedDuration > 0 {
 		tolerance := 3 // 3 seconds tolerance
 		var durationMatches []*TidalTrack
@@ -581,7 +559,6 @@ func (t *TidalDownloader) SearchTrackByMetadataWithISRC(trackName, artistName, s
 		}
 
 		if len(durationMatches) > 0 {
-			// Find best quality among duration matches
 			bestMatch := durationMatches[0]
 			for _, track := range durationMatches {
 				for _, tag := range track.MediaMetadata.Tags {
@@ -597,7 +574,6 @@ func (t *TidalDownloader) SearchTrackByMetadataWithISRC(trackName, artistName, s
 		}
 	}
 
-	// Priority 3: Just take the best quality from first results
 	bestMatch := &allTracks[0]
 	for i := range allTracks {
 		track := &allTracks[i]

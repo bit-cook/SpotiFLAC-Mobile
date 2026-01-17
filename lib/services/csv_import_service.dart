@@ -50,7 +50,6 @@ class CsvImportService {
       if (track.coverUrl == null || track.duration == 0) {
         Map<String, dynamic>? trackData;
         
-        // Try ISRC first if available
         if (track.isrc != null && track.isrc!.isNotEmpty) {
           try {
             trackData = await PlatformBridge.searchDeezerByISRC(track.isrc!);
@@ -112,7 +111,6 @@ class CsvImportService {
           
           _log.d('Enriched: ${track.name} - cover: ${coverUrl != null}, duration: ${durationMs ~/ 1000}s');
           
-          // Small delay to avoid rate limiting
           if (i < tracks.length - 1) {
             await Future.delayed(const Duration(milliseconds: 100));
           }
@@ -147,7 +145,6 @@ class CsvImportService {
 
     _log.d('CSV Headers: ${colMap.keys.toList()}');
 
-    // Parse rows
     for (int i = startIdx + 1; i < lines.length; i++) {
       final line = lines[i].trim();
       if (line.isEmpty) continue;
@@ -161,10 +158,9 @@ class CsvImportService {
       String? trackName = getVal(['track name', 'track', 'name', 'title']);
       String? artistName = getVal(['artist name', 'artist']);
       String? albumName = getVal(['album name', 'album']);
-      String? isrc = getVal(['isrc']); // Often formatted with leading/trailing quotes
-      String? spotifyId = getVal(['spotify - id', 'spotify id', 'id', 'uri']); // Uri might need parsing
+      String? isrc = getVal(['isrc']);
+      String? spotifyId = getVal(['spotify - id', 'spotify id', 'id', 'uri']);
 
-      // If 'spotify uri' contains the id: 'spotify:track:ID'
       if (spotifyId != null && spotifyId.startsWith('spotify:track:')) {
         spotifyId = spotifyId.replaceAll('spotify:track:', '');
       }
@@ -207,23 +203,17 @@ class CsvImportService {
     return val;
   }
 
-  // Robust CSV Line Parser
   static List<String> _parseLine(String line) {
      final List<String> result = [];
      bool inQuote = false;
      StringBuffer buffer = StringBuffer();
      
      for (int i=0; i<line.length; i++) {
-         String char = line[i];
-         if (char == '"') {
-             // Look ahead to check for escaped quote
-             if (i + 1 < line.length && line[i+1] == '"') {
-                buffer.write('"'); // Keep format for now, _cleanValue handles unescaping logic differently... 
-                // Wait, standard CSV: "Thumb ""Up""" -> Thumb "Up"
-                // My _cleanValue handles it, so I should just preserve raw content here mostly, 
-                // BUT I need to know if " toggles inQuote.
-                // Escaped "" does NOT toggle inQuote mode effectively (it counts as literal char inside quote).
-                buffer.write('"'); // Write 1st quote
+        String char = line[i];
+        if (char == '"') {
+            if (i + 1 < line.length && line[i+1] == '"') {
+               buffer.write('"');
+               buffer.write('"');
                 i++; // Skip next quote char loop
                 buffer.write('"'); // Write 2nd quote
              } else {
