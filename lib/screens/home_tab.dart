@@ -701,8 +701,8 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
     // Sort by most recent and take top 10
     downloadItems.sort((a, b) => b.accessedAt.compareTo(a.accessedAt));
     
-    // Filter out hidden downloads
-    final hiddenIds = ref.read(recentAccessProvider).hiddenDownloadIds;
+    // Filter out hidden downloads (use ref.watch for reactivity)
+    final hiddenIds = ref.watch(recentAccessProvider.select((s) => s.hiddenDownloadIds));
     final visibleDownloads = downloadItems
         .where((item) => !hiddenIds.contains(item.id))
         .take(10)
