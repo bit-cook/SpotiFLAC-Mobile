@@ -115,7 +115,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settingsTitle => 'Einstellungen';
 
   @override
-  String get settingsDownload => 'Download';
+  String get settingsDownload => 'Herunterladen';
 
   @override
   String get settingsAppearance => 'Erscheinungsbild';
@@ -130,7 +130,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settingsAbout => 'Über';
 
   @override
-  String get downloadTitle => 'Download';
+  String get downloadTitle => 'Herunterladen';
 
   @override
   String get downloadLocation => 'Download-Speicherort';
@@ -410,40 +410,46 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get aboutLogoArtist =>
-      'The talented artist who created our beautiful app logo!';
+      'Der talentierte Künstler, der unser wunderschönes App-Logo entworfen hat!';
 
   @override
-  String get aboutSpecialThanks => 'Special Thanks';
+  String get aboutTranslators => 'Translators';
+
+  @override
+  String get aboutSpecialThanks => 'Besonderer Dank';
 
   @override
   String get aboutLinks => 'Links';
 
   @override
-  String get aboutMobileSource => 'Mobile source code';
+  String get aboutMobileSource => 'Mobiler Quellcode';
 
   @override
-  String get aboutPCSource => 'PC source code';
+  String get aboutPCSource => 'PC Quellcode';
 
   @override
-  String get aboutReportIssue => 'Report an issue';
+  String get aboutReportIssue => 'Problem melden';
 
   @override
-  String get aboutReportIssueSubtitle => 'Report any problems you encounter';
+  String get aboutReportIssueSubtitle =>
+      'Melde jedes Problem, die dir auftreten';
 
   @override
-  String get aboutFeatureRequest => 'Feature request';
+  String get aboutFeatureRequest => 'Feature vorschlagen';
 
   @override
-  String get aboutFeatureRequestSubtitle => 'Suggest new features for the app';
+  String get aboutFeatureRequestSubtitle =>
+      'Schlage neue Funktionen für die App vor';
 
   @override
   String get aboutSupport => 'Support';
 
   @override
-  String get aboutBuyMeCoffee => 'Buy me a coffee';
+  String get aboutBuyMeCoffee => 'Spendiere mir einen Kaffee';
 
   @override
-  String get aboutBuyMeCoffeeSubtitle => 'Support development on Ko-fi';
+  String get aboutBuyMeCoffeeSubtitle =>
+      'Unterstütze die Entwicklung auf Ko-fi';
 
   @override
   String get aboutApp => 'App';
@@ -453,25 +459,25 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get aboutBinimumDesc =>
-      'The creator of QQDL & HiFi API. Without this API, Tidal downloads wouldn\'t exist!';
+      'Der Schöpfer der QQDL & HiFi API. Ohne diese API gäbe es keine Tidal-Downloads!';
 
   @override
   String get aboutSachinsenalDesc =>
-      'The original HiFi project creator. The foundation of Tidal integration!';
+      'Der ursprüngliche Entwickler des HiFi-Projekts. Die Grundlage der Tidal-Integration!';
 
   @override
   String get aboutDoubleDouble => 'DoubleDouble';
 
   @override
   String get aboutDoubleDoubleDesc =>
-      'Amazing API for Amazon Music downloads. Thank you for making it free!';
+      'Wundervolle API für Amazon Music Downloads.\nVielen Dank, dass Sie sie kostenlos zur Verfügung stellen!';
 
   @override
   String get aboutDabMusic => 'DAB Music';
 
   @override
   String get aboutDabMusicDesc =>
-      'The best Qobuz streaming API. Hi-Res downloads wouldn\'t be possible without this!';
+      'Die beste Qobuz-Streaming-API. Hi-Res-Downloads wären ohne diese nicht möglich!';
 
   @override
   String get aboutAppDescription =>

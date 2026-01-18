@@ -403,6 +403,9 @@ class AppLocalizationsJa extends AppLocalizations {
       'The talented artist who created our beautiful app logo!';
 
   @override
+  String get aboutTranslators => 'Translators';
+
+  @override
   String get aboutSpecialThanks => 'スペシャルサンクス';
 
   @override

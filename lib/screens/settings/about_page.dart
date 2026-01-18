@@ -87,6 +87,13 @@ class AboutPage extends StatelessWidget {
           ),
 
           SliverToBoxAdapter(
+            child: SettingsSectionHeader(title: context.l10n.aboutTranslators),
+          ),
+          const SliverToBoxAdapter(
+            child: _TranslatorsSection(),
+          ),
+
+          SliverToBoxAdapter(
             child: SettingsSectionHeader(title: context.l10n.aboutSpecialThanks),
           ),
           SliverToBoxAdapter(
@@ -395,7 +402,149 @@ class _ContributorItem extends StatelessWidget {
   }
 }
 
-/// Settings item with 40x40 icon area to align with contributor avatars
+/// Translator data model
+class _Translator {
+  final String name;
+  final String githubUsername;
+  final String language;
+  final String flag;
+
+  const _Translator({
+    required this.name,
+    required this.githubUsername,
+    required this.language,
+    required this.flag,
+  });
+}
+
+/// Translators section with compact chip-style layout
+class _TranslatorsSection extends StatelessWidget {
+  const _TranslatorsSection();
+
+  static const List<_Translator> _translators = [
+    _Translator(
+      name: 'Pedro Marcondes',
+      githubUsername: 'justapedro',
+      language: 'Portuguese',
+      flag: '🇵🇹',
+    ),
+    _Translator(
+      name: 'Credits 125',
+      githubUsername: 'credits125',
+      language: 'Spanish',
+      flag: '🇪🇸',
+    ),
+    _Translator(
+      name: 'Владислав',
+      githubUsername: 'OdiNoKiY_KoT',
+      language: 'Russian',
+      flag: '🇷🇺',
+    ),
+    _Translator(
+      name: 'Max',
+      githubUsername: 'Amonoman',
+      language: 'German',
+      flag: '🇩🇪',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final cardColor = isDark 
+        ? Color.alphaBlend(Colors.white.withValues(alpha: 0.08), colorScheme.surface)
+        : colorScheme.surfaceContainerHighest;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _translators.map((translator) => _TranslatorChip(
+            translator: translator,
+          )).toList(),
+        ),
+      ),
+    );
+  }
+}
+
+/// Individual translator chip
+class _TranslatorChip extends StatelessWidget {
+  final _Translator translator;
+
+  const _TranslatorChip({required this.translator});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Material(
+      color: colorScheme.secondaryContainer,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: () => _launchGitHub(translator.githubUsername),
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: CachedNetworkImage(
+                  imageUrl: 'https://github.com/${translator.githubUsername}.png',
+                  width: 20,
+                  height: 20,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    width: 20,
+                    height: 20,
+                    color: colorScheme.surface,
+                    child: Icon(Icons.person, size: 12, color: colorScheme.onSurfaceVariant),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    width: 20,
+                    height: 20,
+                    color: colorScheme.surface,
+                    child: Icon(Icons.person, size: 12, color: colorScheme.onSurfaceVariant),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                translator.name,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: colorScheme.onSecondaryContainer,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                translator.flag,
+                style: const TextStyle(fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchGitHub(String username) async {
+    final uri = Uri.parse('https://github.com/$username');
+    await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+  }
+}
+
 class _AboutSettingsItem extends StatelessWidget {
   final IconData icon;
   final String title;

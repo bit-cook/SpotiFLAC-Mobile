@@ -290,6 +290,8 @@
   "@aboutOriginalCreator": {"description": "Role description for original creator"},
   "aboutLogoArtist": "The talented artist who created our beautiful app logo!",
   "@aboutLogoArtist": {"description": "Role description for logo artist"},
+  "aboutTranslators": "Translators",
+  "@aboutTranslators": {"description": "Section for translators"},
   "aboutSpecialThanks": "Special Thanks",
   "@aboutSpecialThanks": {"description": "Section for special thanks"},
   "aboutLinks": "Links",

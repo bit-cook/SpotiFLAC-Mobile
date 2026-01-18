@@ -407,6 +407,9 @@ class AppLocalizationsId extends AppLocalizations {
       'Seniman berbakat yang membuat logo aplikasi kita yang indah!';
 
   @override
+  String get aboutTranslators => 'Translators';
+
+  @override
   String get aboutSpecialThanks => 'Terima Kasih Khusus';
 
   @override

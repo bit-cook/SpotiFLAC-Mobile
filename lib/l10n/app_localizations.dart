@@ -107,6 +107,7 @@ abstract class AppLocalizations {
     Locale('de'),
     Locale('en'),
     Locale('es'),
+    Locale('es', 'ES'),
     Locale('fr'),
     Locale('hi'),
     Locale('id'),
@@ -114,6 +115,7 @@ abstract class AppLocalizations {
     Locale('ko'),
     Locale('nl'),
     Locale('pt'),
+    Locale('pt', 'PT'),
     Locale('ru'),
     Locale('zh'),
     Locale('zh', 'CN'),
@@ -815,6 +817,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The talented artist who created our beautiful app logo!'**
   String get aboutLogoArtist;
+
+  /// Section for translators
+  ///
+  /// In en, this message translates to:
+  /// **'Translators'**
+  String get aboutTranslators;
 
   /// Section for special thanks
   ///
@@ -3699,6 +3707,22 @@ class _AppLocalizationsDelegate
 AppLocalizations lookupAppLocalizations(Locale locale) {
   // Lookup logic when language+country codes are specified.
   switch (locale.languageCode) {
+    case 'es':
+      {
+        switch (locale.countryCode) {
+          case 'ES':
+            return AppLocalizationsEsEs();
+        }
+        break;
+      }
+    case 'pt':
+      {
+        switch (locale.countryCode) {
+          case 'PT':
+            return AppLocalizationsPtPt();
+        }
+        break;
+      }
     case 'zh':
       {
         switch (locale.countryCode) {

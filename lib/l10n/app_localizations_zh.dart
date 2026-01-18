@@ -403,6 +403,9 @@ class AppLocalizationsZh extends AppLocalizations {
       'The talented artist who created our beautiful app logo!';
 
   @override
+  String get aboutTranslators => 'Translators';
+
+  @override
   String get aboutSpecialThanks => 'Special Thanks';
 
   @override
@@ -4056,7 +4059,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get homeSupports => 'Supports: Track, Album, Playlist, Artist URLs';
 
   @override
-  String get homeRecent => 'Recent';
+  String get homeRecent => '最新的';
 
   @override
   String get historyTitle => 'History';

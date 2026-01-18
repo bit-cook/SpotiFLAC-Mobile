@@ -415,6 +415,9 @@ class AppLocalizationsRu extends AppLocalizations {
       'Талантливый художник, который создал наш красивый логотип приложения!';
 
   @override
+  String get aboutTranslators => 'Translators';
+
+  @override
   String get aboutSpecialThanks => 'Особая благодарность';
 
   @override
@@ -1533,7 +1536,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get trackFileInfo => 'Информация о файле';
 
   @override
-  String get trackLyrics => 'Тексты песен';
+  String get trackLyrics => 'Текст песни';
 
   @override
   String get trackFileNotFound => 'Файл не найден';
@@ -1545,7 +1548,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get trackOpenInSpotify => 'Открыть в Spotify';
 
   @override
-  String get trackTrackName => 'Название трека';
+  String get trackTrackName => 'Название';
 
   @override
   String get trackArtist => 'Исполнитель';
