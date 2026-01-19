@@ -49,6 +49,13 @@ const _builtInServices = [
   ),
 ];
 
+/// MP3 quality option (shown when enabled in settings)
+const _mp3QualityOption = QualityOption(
+  id: 'MP3',
+  label: 'MP3',
+  description: '320kbps (converted from FLAC)',
+);
+
 /// A reusable widget for selecting download service (built-in + extensions)
 class DownloadServicePicker extends ConsumerStatefulWidget {
   final String? trackName;
@@ -105,20 +112,34 @@ class _DownloadServicePickerState extends ConsumerState<DownloadServicePicker> {
 
   /// Get quality options for the selected service
   List<QualityOption> _getQualityOptions() {
+    final settings = ref.read(settingsProvider);
     final builtIn = _builtInServices.where((s) => s.id == _selectedService).firstOrNull;
     if (builtIn != null) {
+      // Add MP3 option if enabled in settings
+      if (settings.enableMp3Option) {
+        return [...builtIn.qualityOptions, _mp3QualityOption];
+      }
       return builtIn.qualityOptions;
     }
 
     final extensionState = ref.read(extensionProvider);
     final ext = extensionState.extensions.where((e) => e.id == _selectedService).firstOrNull;
     if (ext != null && ext.qualityOptions.isNotEmpty) {
+      // Add MP3 option for extensions too if enabled
+      if (settings.enableMp3Option) {
+        return [...ext.qualityOptions, _mp3QualityOption];
+      }
       return ext.qualityOptions;
     }
 
-    return const [
-      QualityOption(id: 'DEFAULT', label: 'Default Quality', description: 'Best available'),
+    // Default fallback options
+    final defaultOptions = [
+      const QualityOption(id: 'DEFAULT', label: 'Default Quality', description: 'Best available'),
     ];
+    if (settings.enableMp3Option) {
+      return [...defaultOptions, _mp3QualityOption];
+    }
+    return defaultOptions;
   }
 
   @override

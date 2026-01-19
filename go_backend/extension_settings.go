@@ -42,7 +42,6 @@ func (s *ExtensionSettingsStore) SetDataDir(dataDir string) error {
 		return fmt.Errorf("failed to create settings directory: %w", err)
 	}
 
-	// Load all existing settings
 	return s.loadAllSettings()
 }
 
@@ -99,7 +98,6 @@ func (s *ExtensionSettingsStore) loadSettings(extensionID string) (map[string]in
 func (s *ExtensionSettingsStore) saveSettings(extensionID string, settings map[string]interface{}) error {
 	settingsPath := s.getSettingsPath(extensionID)
 
-	// Create directory if needed
 	dir := filepath.Dir(settingsPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
@@ -160,7 +158,6 @@ func (s *ExtensionSettingsStore) Set(extensionID, key string, value interface{})
 
 	s.settings[extensionID][key] = value
 
-	// Persist to disk
 	return s.saveSettings(extensionID, s.settings[extensionID])
 }
 
@@ -198,7 +195,6 @@ func (s *ExtensionSettingsStore) RemoveAll(extensionID string) error {
 
 	delete(s.settings, extensionID)
 
-	// Remove settings file
 	settingsPath := s.getSettingsPath(extensionID)
 	if err := os.Remove(settingsPath); err != nil && !os.IsNotExist(err) {
 		return err

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/models/download_item.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
@@ -10,20 +11,20 @@ class QueueScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final queueState = ref.watch(downloadQueueProvider);
+    final items = ref.watch(downloadQueueProvider.select((s) => s.items));
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(context.l10n.queueTitle),
         actions: [
-          if (queueState.items.isNotEmpty)
+          if (items.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_sweep),
               onPressed: () => ref.read(downloadQueueProvider.notifier).clearCompleted(),
               tooltip: context.l10n.queueClearCompleted,
             ),
-          if (queueState.items.isNotEmpty)
+          if (items.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.clear_all),
               onPressed: () => _showClearAllDialog(context, ref),
@@ -31,11 +32,12 @@ class QueueScreen extends ConsumerWidget {
             ),
         ],
       ),
-      body: queueState.items.isEmpty
+      body: items.isEmpty
           ? _buildEmptyState(context, colorScheme)
           : ListView.builder(
-              itemCount: queueState.items.length,
-              itemBuilder: (context, index) => _buildQueueItem(context, ref, queueState.items[index], colorScheme),
+              itemCount: items.length,
+              itemBuilder: (context, index) =>
+                  _buildQueueItem(context, ref, items[index], colorScheme),
             ),
     );
   }
@@ -74,11 +76,12 @@ class QueueScreen extends ConsumerWidget {
       leading: item.track.coverUrl != null
           ? ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: CachedNetworkImage(
+child: CachedNetworkImage(
                 imageUrl: item.track.coverUrl!,
                 width: 48,
                 height: 48,
                 fit: BoxFit.cover,
+                cacheManager: CoverCacheManager.instance,
               ),
             )
           : Container(

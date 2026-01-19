@@ -26,6 +26,10 @@ String? _normalizeOptionalString(String? value) {
   return trimmed;
 }
 
+final _invalidFolderChars = RegExp(r'[<>:"/\\|?*]');
+final _trailingDotsRegex = RegExp(r'\.+$');
+final _yearRegex = RegExp(r'^(\d{4})');
+
 class DownloadHistoryItem {
   final String id;
   final String trackName;
@@ -45,6 +49,9 @@ class DownloadHistoryItem {
   final String? quality;
   final int? bitDepth;
   final int? sampleRate;
+  final String? genre;
+  final String? label;
+  final String? copyright;
 
   const DownloadHistoryItem({
     required this.id,
@@ -65,6 +72,9 @@ class DownloadHistoryItem {
     this.quality,
     this.bitDepth,
     this.sampleRate,
+    this.genre,
+    this.label,
+    this.copyright,
   });
 
   Map<String, dynamic> toJson() => {
@@ -86,6 +96,9 @@ class DownloadHistoryItem {
     'quality': quality,
     'bitDepth': bitDepth,
     'sampleRate': sampleRate,
+    'genre': genre,
+    'label': label,
+    'copyright': copyright,
   };
 
   factory DownloadHistoryItem.fromJson(Map<String, dynamic> json) =>
@@ -108,12 +121,15 @@ class DownloadHistoryItem {
         quality: json['quality'] as String?,
         bitDepth: json['bitDepth'] as int?,
         sampleRate: json['sampleRate'] as int?,
+        genre: json['genre'] as String?,
+        label: json['label'] as String?,
+        copyright: json['copyright'] as String?,
       );
 }
 
 class DownloadHistoryState {
   final List<DownloadHistoryItem> items;
-  final Set<String> _downloadedSpotifyIds; // Cache for O(1) lookup
+  final Set<String> _downloadedSpotifyIds;
 
   DownloadHistoryState({this.items = const []})
     : _downloadedSpotifyIds = items
@@ -121,7 +137,6 @@ class DownloadHistoryState {
           .map((item) => item.spotifyId!)
           .toSet();
 
-  /// Check if a track has been downloaded (by Spotify ID)
   bool isDownloaded(String spotifyId) =>
       _downloadedSpotifyIds.contains(spotifyId);
 
@@ -132,6 +147,7 @@ class DownloadHistoryState {
 
 class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
   static const _storageKey = 'download_history';
+  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   bool _isLoaded = false;
 
   @override
@@ -151,7 +167,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
 
   Future<void> _loadFromStorage() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _prefs;
       final jsonStr = prefs.getString(_storageKey);
       if (jsonStr != null && jsonStr.isNotEmpty) {
         final List<dynamic> jsonList = jsonDecode(jsonStr);
@@ -176,7 +192,6 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     }
   }
 
-  /// Deduplicate history items by spotifyId, deezerId, or ISRC
   /// Keeps the most recent entry (first occurrence since list is sorted by date desc)
   List<DownloadHistoryItem> _deduplicateHistory(List<DownloadHistoryItem> items) {
     final seen = <String, int>{}; // key -> index of first occurrence
@@ -213,7 +228,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
 
   Future<void> _saveToStorage() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _prefs;
       final jsonList = state.items.map((e) => e.toJson()).toList();
       await prefs.setString(_storageKey, jsonEncode(jsonList));
       _historyLog.d('Saved ${state.items.length} items to storage');
@@ -222,7 +237,6 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     }
   }
 
-  /// Force reload from storage (useful after app restart)
   Future<void> reloadFromStorage() async {
     await _loadFromStorage();
   }
@@ -273,7 +287,6 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     _saveToStorage();
   }
 
-  /// Remove item from history by Spotify ID
   void removeBySpotifyId(String spotifyId) {
     state = state.copyWith(
       items: state.items.where((item) => item.spotifyId != spotifyId).toList(),
@@ -282,7 +295,6 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     _historyLog.d('Removed item with spotifyId: $spotifyId');
   }
 
-  /// Get history item by Spotify ID
   DownloadHistoryItem? getBySpotifyId(String spotifyId) {
     return state.items.where((item) => item.spotifyId == spotifyId).firstOrNull;
   }
@@ -302,12 +314,12 @@ class DownloadQueueState {
   final List<DownloadItem> items;
   final DownloadItem? currentDownload;
   final bool isProcessing;
-  final bool isPaused; // NEW: pause state
+  final bool isPaused;
   final String outputDir;
   final String filenameFormat;
-  final String audioQuality; // LOSSLESS, HI_RES, HI_RES_LOSSLESS
+  final String audioQuality;
   final bool autoFallback;
-  final int concurrentDownloads; // 1 = sequential, max 3
+  final int concurrentDownloads;
 
   const DownloadQueueState({
     this.items = const [],
@@ -360,17 +372,30 @@ class DownloadQueueState {
       items.where((i) => i.status == DownloadStatus.downloading).length;
 }
 
+class _ProgressUpdate {
+  final DownloadStatus status;
+  final double progress;
+  final double? speedMBps;
+
+  const _ProgressUpdate({
+    required this.status,
+    required this.progress,
+    this.speedMBps,
+  });
+}
+
 class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   Timer? _progressTimer;
-  int _downloadCount = 0; // Counter for connection cleanup
-  static const _cleanupInterval = 50; // Cleanup every 50 downloads
-  static const _queueStorageKey =
-      'download_queue'; // Storage key for queue persistence
+  int _downloadCount = 0;
+  static const _cleanupInterval = 50;
+  static const _queueStorageKey = 'download_queue';
   final NotificationService _notificationService = NotificationService();
-  int _totalQueuedAtStart = 0; // Track total items when queue started
-  int _completedInSession = 0; // Track completed downloads in current session
-  int _failedInSession = 0; // Track failed downloads in current session
+  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
+  int _totalQueuedAtStart = 0;
+  int _completedInSession = 0;
+  int _failedInSession = 0;
   bool _isLoaded = false;
+  final Set<String> _ensuredDirs = {};
 
   @override
   DownloadQueueState build() {
@@ -386,13 +411,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     return const DownloadQueueState();
   }
 
-  /// Load persisted queue from storage (for app restart recovery)
   Future<void> _loadQueueFromStorage() async {
     if (_isLoaded) return;
     _isLoaded = true;
 
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _prefs;
       final jsonStr = prefs.getString(_queueStorageKey);
       if (jsonStr != null && jsonStr.isNotEmpty) {
         final List<dynamic> jsonList = jsonDecode(jsonStr);
@@ -428,10 +452,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
-  /// Save current queue to storage (only pending items)
   Future<void> _saveQueueToStorage() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _prefs;
 
       final pendingItems = state.items
           .where(
@@ -454,7 +477,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
-  /// Start multi-progress polling for all downloads (sequential and parallel)
   void _startMultiProgressPolling() {
     _progressTimer?.cancel();
     _progressTimer = Timer.periodic(const Duration(milliseconds: 500), (
@@ -463,6 +485,15 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       try {
         final allProgress = await PlatformBridge.getAllDownloadProgress();
         final items = allProgress['items'] as Map<String, dynamic>? ?? {};
+        final currentItems = state.items;
+        final itemsById = <String, DownloadItem>{};
+        final itemIndexById = <String, int>{};
+        for (int i = 0; i < currentItems.length; i++) {
+          final item = currentItems[i];
+          itemsById[item.id] = item;
+          itemIndexById[item.id] = i;
+        }
+        final progressUpdates = <String, _ProgressUpdate>{};
 
         bool hasFinalizingItem = false;
         String? finalizingTrackName;
@@ -470,9 +501,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
         for (final entry in items.entries) {
           final itemId = entry.key;
-          final localItem = state.items
-              .where((i) => i.id == itemId)
-              .firstOrNull;
+          final localItem = itemsById[itemId];
           if (localItem == null) {
             continue;
           }
@@ -494,16 +523,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           final status = itemProgress['status'] as String? ?? 'downloading';
 
           if (status == 'finalizing' && bytesTotal > 0) {
-            updateItemStatus(itemId, DownloadStatus.finalizing, progress: 1.0);
-
-            final currentItem = state.items
-                .where((i) => i.id == itemId)
-                .firstOrNull;
-            if (currentItem != null) {
-              hasFinalizingItem = true;
-              finalizingTrackName = currentItem.track.name;
-              finalizingArtistName = currentItem.track.artistName;
-            }
+            progressUpdates[itemId] = const _ProgressUpdate(
+              status: DownloadStatus.finalizing,
+              progress: 1.0,
+            );
+            hasFinalizingItem = true;
+            finalizingTrackName = localItem.track.name;
+            finalizingArtistName = localItem.track.artistName;
             continue;
           }
 
@@ -518,7 +544,11 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
               percentage = progressFromBackend;
             }
 
-            updateProgress(itemId, percentage, speedMBps: speedMBps);
+            progressUpdates[itemId] = _ProgressUpdate(
+              status: DownloadStatus.downloading,
+              progress: percentage,
+              speedMBps: speedMBps,
+            );
 
             final mbReceived = bytesReceived / (1024 * 1024);
             final mbTotal = bytesTotal / (1024 * 1024);
@@ -534,12 +564,47 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           }
         }
 
+        if (progressUpdates.isNotEmpty) {
+          var updatedItems = currentItems;
+          bool changed = false;
+
+          for (final entry in progressUpdates.entries) {
+            final index = itemIndexById[entry.key];
+            if (index == null) continue;
+            final current = updatedItems[index];
+            if (current.status == DownloadStatus.skipped ||
+                current.status == DownloadStatus.completed ||
+                current.status == DownloadStatus.failed) {
+              continue;
+            }
+            final update = entry.value;
+            final next = current.copyWith(
+              status: update.status,
+              progress: update.progress,
+              speedMBps: update.speedMBps ?? current.speedMBps,
+            );
+            if (current.status != next.status ||
+                current.progress != next.progress ||
+                current.speedMBps != next.speedMBps) {
+              if (!changed) {
+                updatedItems = List<DownloadItem>.from(updatedItems);
+                changed = true;
+              }
+              updatedItems[index] = next;
+            }
+          }
+
+          if (changed) {
+            state = state.copyWith(items: updatedItems);
+          }
+        }
+
         if (hasFinalizingItem && finalizingTrackName != null) {
           _notificationService.showDownloadFinalizing(
             trackName: finalizingTrackName,
             artistName: finalizingArtistName ?? '',
           );
-          return; // Don't show download progress notification
+          return;
         }
 
         if (items.isNotEmpty) {
@@ -583,12 +648,11 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                 progress: notifProgress,
                 total: notifTotal > 0 ? notifTotal : 1,
                 queueCount: state.queuedCount,
-              ).catchError((_) {}); // Ignore errors
+              ).catchError((_) {});
             }
           }
         }
-      } catch (e) {
-      }
+      } catch (_) {}
     });
   }
 
@@ -637,11 +701,24 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
+  Future<void> _ensureDirExists(String path, {String? label}) async {
+    if (_ensuredDirs.contains(path)) return;
+    final dir = Directory(path);
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+      if (label != null) {
+        _log.d('Created $label: $path');
+      } else {
+        _log.d('Created folder: $path');
+      }
+    }
+    _ensuredDirs.add(path);
+  }
+
   void setOutputDir(String dir) {
     state = state.copyWith(outputDir: dir);
   }
 
-  /// Build output directory based on folder organization setting and separateSingles
   Future<String> _buildOutputDir(Track track, String folderOrganization, {bool separateSingles = false, String albumFolderStructure = 'artist_album'}) async {
     String baseDir = state.outputDir;
     final albumArtist = _normalizeOptionalString(track.albumArtist) ?? track.artistName;
@@ -651,11 +728,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       
       if (isSingle) {
         final singlesPath = '$baseDir${Platform.pathSeparator}Singles';
-        final dir = Directory(singlesPath);
-        if (!await dir.exists()) {
-          await dir.create(recursive: true);
-          _log.d('Created Singles folder: $singlesPath');
-        }
+        await _ensureDirExists(singlesPath, label: 'Singles folder');
         return singlesPath;
       } else {
         final albumName = _sanitizeFolderName(track.albumName);
@@ -679,11 +752,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             albumPath = '$baseDir${Platform.pathSeparator}Albums${Platform.pathSeparator}$artistName${Platform.pathSeparator}$albumName';
         }
         
-        final dir = Directory(albumPath);
-        if (!await dir.exists()) {
-          await dir.create(recursive: true);
-          _log.d('Created Album folder: $albumPath');
-        }
+        await _ensureDirExists(albumPath, label: 'Album folder');
         return albumPath;
       }
     }
@@ -711,29 +780,24 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
     if (subPath.isNotEmpty) {
       final fullPath = '$baseDir${Platform.pathSeparator}$subPath';
-      final dir = Directory(fullPath);
-      if (!await dir.exists()) {
-        await dir.create(recursive: true);
-        _log.d('Created folder: $fullPath');
-      }
+      await _ensureDirExists(fullPath);
       return fullPath;
     }
 
     return baseDir;
   }
 
-  /// Sanitize folder names (remove invalid characters)
   String _sanitizeFolderName(String name) {
     return name
-        .replaceAll(RegExp(r'[<>:"/\\|?*]'), '_')
-        .replaceAll(RegExp(r'\.+$'), '') // Remove trailing dots
+        .replaceAll(_invalidFolderChars, '_')
+        .replaceAll(_trailingDotsRegex, '') // Remove trailing dots
         .trim();
   }
 
   /// Extract year from release date (format: "2005-06-13" or "2005")
   String? _extractYear(String? releaseDate) {
     if (releaseDate == null || releaseDate.isEmpty) return null;
-    final match = RegExp(r'^(\d{4})').firstMatch(releaseDate);
+    final match = _yearRegex.firstMatch(releaseDate);
     return match?.group(1);
   }
 
@@ -794,7 +858,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }).toList();
 
     state = state.copyWith(items: [...state.items, ...newItems]);
-    _saveQueueToStorage(); // Persist queue
+    _saveQueueToStorage();
 
     if (!state.isProcessing) {
       Future.microtask(() => _processQueue());
@@ -810,21 +874,32 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     String? error,
     DownloadErrorType? errorType,
   }) {
-    final items = state.items.map((item) {
-      if (item.id == id) {
-        return item.copyWith(
-          status: status,
-          progress: progress ?? item.progress,
-          speedMBps: speedMBps ?? item.speedMBps,
-          filePath: filePath,
-          error: error,
-          errorType: errorType,
-        );
-      }
-      return item;
-    }).toList();
+    final items = state.items;
+    final index = items.indexWhere((item) => item.id == id);
+    if (index == -1) return;
 
-    state = state.copyWith(items: items);
+    final current = items[index];
+    final next = current.copyWith(
+      status: status,
+      progress: progress ?? current.progress,
+      speedMBps: speedMBps ?? current.speedMBps,
+      filePath: filePath,
+      error: error,
+      errorType: errorType,
+    );
+
+    if (current.status == next.status &&
+        current.progress == next.progress &&
+        current.speedMBps == next.speedMBps &&
+        current.filePath == next.filePath &&
+        current.error == next.error &&
+        current.errorType == next.errorType) {
+      return;
+    }
+
+    final updatedItems = List<DownloadItem>.from(items);
+    updatedItems[index] = next;
+    state = state.copyWith(items: updatedItems);
 
     if (status == DownloadStatus.completed ||
         status == DownloadStatus.failed ||
@@ -834,9 +909,11 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   }
 
   void updateProgress(String id, double progress, {double? speedMBps}) {
-    final item = state.items.where((i) => i.id == id).firstOrNull;
-    if (item == null ||
-        item.status == DownloadStatus.skipped ||
+    final items = state.items;
+    final index = items.indexWhere((i) => i.id == id);
+    if (index == -1) return;
+    final item = items[index];
+    if (item.status == DownloadStatus.skipped ||
         item.status == DownloadStatus.completed ||
         item.status == DownloadStatus.failed) {
       return;
@@ -866,15 +943,14 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         .toList();
 
     state = state.copyWith(items: items);
-    _saveQueueToStorage(); // Persist queue
+    _saveQueueToStorage();
   }
 
   void clearAll() {
     state = state.copyWith(items: [], isPaused: false);
-    _saveQueueToStorage(); // Clear persisted queue
+    _saveQueueToStorage();
   }
 
-  /// Pause the download queue
   void pauseQueue() {
     if (state.isProcessing && !state.isPaused) {
       state = state.copyWith(isPaused: true);
@@ -883,7 +959,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
-  /// Resume the download queue
   void resumeQueue() {
     if (state.isPaused) {
       state = state.copyWith(isPaused: false);
@@ -894,7 +969,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
-  /// Toggle pause/resume
   void togglePause() {
     if (state.isPaused) {
       resumeQueue();
@@ -903,7 +977,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
-  /// Retry a failed or skipped download
   void retryItem(String id) {
     final item = state.items.where((i) => i.id == id).firstOrNull;
     if (item == null) {
@@ -940,14 +1013,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
-  /// Remove a specific item from queue
   void removeItem(String id) {
     final items = state.items.where((item) => item.id != id).toList();
     state = state.copyWith(items: items);
-    _saveQueueToStorage(); // Persist queue
+    _saveQueueToStorage();
   }
 
-  /// Run post-processing hooks on a downloaded file
   Future<void> _runPostProcessingHooks(String filePath, Track track) async {
     try {
       final settings = ref.read(settingsProvider);
@@ -994,7 +1065,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
-  /// Upgrade Spotify cover URL to max quality (~2000x2000)
   /// Same logic as Go backend cover.go
   String _upgradeToMaxQualityCover(String coverUrl) {
     const spotifySize300 = 'ab67616d00001e02'; // 300x300 (small)
@@ -1013,8 +1083,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     return result;
   }
 
-  /// Embed metadata and cover to a FLAC file after M4A conversion
-  Future<void> _embedMetadataAndCover(String flacPath, Track track) async {
+  Future<void> _embedMetadataAndCover(
+    String flacPath, 
+    Track track, {
+    String? genre,
+    String? label,
+    String? copyright,
+  }) async {
     final settings = ref.read(settingsProvider);
     
     String? coverPath;
@@ -1064,12 +1139,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
       if (track.trackNumber != null) {
         metadata['TRACKNUMBER'] = track.trackNumber.toString();
-        metadata['TRACK'] = track.trackNumber.toString(); // Compatibility
+        metadata['TRACK'] = track.trackNumber.toString();
       }
 
       if (track.discNumber != null) {
         metadata['DISCNUMBER'] = track.discNumber.toString();
-        metadata['DISC'] = track.discNumber.toString(); // Compatibility
+        metadata['DISC'] = track.discNumber.toString();
       }
 
       if (track.releaseDate != null) {
@@ -1081,23 +1156,35 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         metadata['ISRC'] = track.isrc!;
       }
 
+      if (genre != null && genre.isNotEmpty) {
+        metadata['GENRE'] = genre;
+        _log.d('Adding GENRE: $genre');
+      }
+      if (label != null && label.isNotEmpty) {
+        metadata['ORGANIZATION'] = label;
+        _log.d('Adding ORGANIZATION (label): $label');
+      }
+      if (copyright != null && copyright.isNotEmpty) {
+        metadata['COPYRIGHT'] = copyright;
+        _log.d('Adding COPYRIGHT: $copyright');
+      }
+
       _log.d('Metadata map content: $metadata');
 
       try {
-        // Convert duration from seconds to milliseconds for better lyrics matching
         final durationMs = track.duration * 1000;
         
         final lrcContent = await PlatformBridge.getLyricsLRC(
-          track.id, // spotifyID
+          track.id,
           track.name,
           track.artistName,
-          filePath: '', // No local file path yet (processed in memory)
+          filePath: '',
           durationMs: durationMs,
         );
 
         if (lrcContent.isNotEmpty) {
           metadata['LYRICS'] = lrcContent;
-          metadata['UNSYNCEDLYRICS'] = lrcContent; // Fallback for some players
+          metadata['UNSYNCEDLYRICS'] = lrcContent;
           _log.d('Lyrics fetched for embedding (${lrcContent.length} chars)');
         }
       } catch (e) {
@@ -1126,15 +1213,158 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           if (await coverFile.exists()) {
             await coverFile.delete();
           }
-        } catch (_) {}
+        } catch (e) {
+          _log.w('Failed to cleanup cover file: $e');
+        }
       }
     } catch (e) {
       _log.e('Failed to embed metadata: $e');
     }
   }
 
+  Future<void> _embedMetadataToMp3(
+    String mp3Path, 
+    Track track, {
+    String? genre,
+    String? label,
+    String? copyright,
+  }) async {
+    final settings = ref.read(settingsProvider);
+    
+    String? coverPath;
+    var coverUrl = track.coverUrl;
+    if (coverUrl != null && coverUrl.isNotEmpty) {
+      try {
+        if (settings.maxQualityCover) {
+          coverUrl = _upgradeToMaxQualityCover(coverUrl);
+          _log.d('Cover URL upgraded to max quality for MP3: $coverUrl');
+        }
+        
+        final tempDir = await getTemporaryDirectory();
+        final uniqueId =
+            '${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(10000)}';
+        coverPath = '${tempDir.path}/cover_mp3_$uniqueId.jpg';
+
+        final httpClient = HttpClient();
+        final request = await httpClient.getUrl(Uri.parse(coverUrl));
+        final response = await request.close();
+        if (response.statusCode == 200) {
+          final file = File(coverPath);
+          final sink = file.openWrite();
+          await response.pipe(sink);
+          await sink.close();
+          _log.d('Cover downloaded for MP3: $coverPath');
+        } else {
+          _log.w('Failed to download cover for MP3: HTTP ${response.statusCode}');
+          coverPath = null;
+        }
+        httpClient.close();
+      } catch (e) {
+        _log.e('Failed to download cover for MP3: $e');
+        coverPath = null;
+      }
+    }
+
+    try {
+      final metadata = <String, String>{
+        'TITLE': track.name,
+        'ARTIST': track.artistName,
+        'ALBUM': track.albumName,
+      };
+
+      final albumArtist = _normalizeOptionalString(track.albumArtist) ??
+          track.artistName;
+      metadata['ALBUMARTIST'] = albumArtist;
+
+      if (track.trackNumber != null) {
+        metadata['TRACKNUMBER'] = track.trackNumber.toString();
+        metadata['TRACK'] = track.trackNumber.toString();
+      }
+
+      if (track.discNumber != null) {
+        metadata['DISCNUMBER'] = track.discNumber.toString();
+        metadata['DISC'] = track.discNumber.toString();
+      }
+
+      if (track.releaseDate != null) {
+        metadata['DATE'] = track.releaseDate!;
+        metadata['YEAR'] = track.releaseDate!.split('-').first;
+      }
+
+      if (track.isrc != null) {
+        metadata['ISRC'] = track.isrc!;
+      }
+
+      if (genre != null && genre.isNotEmpty) {
+        metadata['GENRE'] = genre;
+        _log.d('Adding GENRE to MP3: $genre');
+      }
+      if (label != null && label.isNotEmpty) {
+        metadata['ORGANIZATION'] = label;
+        _log.d('Adding ORGANIZATION (label) to MP3: $label');
+      }
+      if (copyright != null && copyright.isNotEmpty) {
+        metadata['COPYRIGHT'] = copyright;
+        _log.d('Adding COPYRIGHT to MP3: $copyright');
+      }
+
+      _log.d('MP3 Metadata map content: $metadata');
+
+      if (settings.embedLyrics) {
+        try {
+          final durationMs = track.duration * 1000;
+          
+          final lrcContent = await PlatformBridge.getLyricsLRC(
+            track.id,
+            track.name,
+            track.artistName,
+            filePath: '',
+            durationMs: durationMs,
+          );
+
+          if (lrcContent.isNotEmpty) {
+            metadata['LYRICS'] = lrcContent;
+            metadata['UNSYNCEDLYRICS'] = lrcContent;
+            _log.d('Lyrics fetched for MP3 embedding (${lrcContent.length} chars)');
+          }
+        } catch (e) {
+          _log.w('Failed to fetch lyrics for MP3 embedding: $e');
+        }
+      }
+
+      _log.d('Embedding tags to MP3: $metadata');
+
+      final result = await FFmpegService.embedMetadataToMp3(
+        mp3Path: mp3Path,
+        coverPath: coverPath != null && await File(coverPath).exists()
+            ? coverPath
+            : null,
+        metadata: metadata,
+      );
+
+      if (result != null) {
+        _log.d('Metadata, lyrics, and cover embedded to MP3 via FFmpeg');
+      } else {
+        _log.w('FFmpeg MP3 metadata/cover embed failed');
+      }
+
+      if (coverPath != null) {
+        try {
+          final coverFile = File(coverPath);
+          if (await coverFile.exists()) {
+            await coverFile.delete();
+          }
+        } catch (e) {
+          _log.w('Failed to cleanup MP3 cover file: $e');
+        }
+      }
+    } catch (e) {
+      _log.e('Failed to embed metadata to MP3: $e');
+    }
+  }
+
   Future<void> _processQueue() async {
-    if (state.isProcessing) return; // Prevent multiple concurrent processing
+    if (state.isProcessing) return;
 
     state = state.copyWith(isProcessing: true);
     _log.i('Starting queue processing...');
@@ -1231,7 +1461,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
-  /// Sequential download processing (uses multi-progress system with single item)
   Future<void> _processQueueSequential() async {
     _startMultiProgressPolling();
 
@@ -1243,29 +1472,17 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       }
 
       final currentItems = state.items;
-      final nextItem = currentItems.firstWhere(
+      final nextIndex = currentItems.indexWhere(
         (item) => item.status == DownloadStatus.queued,
-        orElse: () => DownloadItem(
-          id: '',
-          track: const Track(
-            id: '',
-            name: '',
-            artistName: '',
-            albumName: '',
-            duration: 0,
-          ),
-          service: '',
-          createdAt: DateTime.now(),
-        ),
       );
-
-      if (nextItem.id.isEmpty) {
+      if (nextIndex == -1) {
         _log.d(
           'No more items to process (checked ${currentItems.length} items)',
         );
         break;
       }
 
+      final nextItem = currentItems[nextIndex];
       _log.d(
         'Processing next item: ${nextItem.track.name} (id: ${nextItem.id})',
       );
@@ -1277,10 +1494,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     _stopProgressPolling();
   }
 
-  /// Parallel download processing with worker pool
   Future<void> _processQueueParallel() async {
     final maxConcurrent = state.concurrentDownloads;
-    final activeDownloads = <String, Future<void>>{}; // Map item ID to future
+    final activeDownloads = <String, Future<void>>{};
+
 
     _startMultiProgressPolling();
 
@@ -1334,7 +1551,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     _stopProgressPolling();
   }
 
-  /// Download a single item (used by both sequential and parallel processing)
   Future<void> _downloadSingleItem(DownloadItem item) async {
     _log.d('Processing: ${item.track.name} by ${item.track.artistName}');
     _log.d('Cover URL: ${item.track.coverUrl}');
@@ -1397,7 +1613,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                     trackToDownload.albumName,
                 albumArtist: data['album_artist'] as String?,
                 coverUrl: data['images'] as String?,
-                // duration_ms from Go is in milliseconds, Track.duration is in seconds
                 duration:
                     ((data['duration_ms'] as int?) ??
                         (trackToDownload.duration * 1000)) ~/
@@ -1440,6 +1655,33 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
       final quality = item.qualityOverride ?? state.audioQuality;
 
+      // Fetch extended metadata (genre, label) from Deezer if available
+      String? genre;
+      String? label;
+      
+      String? deezerTrackId = trackToDownload.deezerId;
+      if (deezerTrackId == null && trackToDownload.id.startsWith('deezer:')) {
+        deezerTrackId = trackToDownload.id.split(':')[1];
+      }
+      if (deezerTrackId == null && trackToDownload.availability?.deezerId != null) {
+        deezerTrackId = trackToDownload.availability!.deezerId;
+      }
+      
+      if (deezerTrackId != null && deezerTrackId.isNotEmpty) {
+        try {
+          final extendedMetadata = await PlatformBridge.getDeezerExtendedMetadata(deezerTrackId);
+          if (extendedMetadata != null) {
+            genre = extendedMetadata['genre'];
+            label = extendedMetadata['label'];
+            if (genre != null && genre.isNotEmpty) {
+              _log.d('Extended metadata - Genre: $genre, Label: $label');
+            }
+          }
+        } catch (e) {
+          _log.w('Failed to fetch extended metadata from Deezer: $e');
+        }
+      }
+
       Map<String, dynamic> result;
 
       final extensionState = ref.read(extensionProvider);
@@ -1468,7 +1710,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           releaseDate: trackToDownload.releaseDate,
           itemId: item.id,
           durationMs: trackToDownload.duration,
-          source: trackToDownload.source, // Pass extension ID that provided this track
+          source: trackToDownload.source,
+          genre: genre,
+          label: label,
+          lyricsMode: settings.lyricsMode,
         );
       } else if (state.autoFallback) {
         _log.d('Using auto-fallback mode');
@@ -1491,9 +1736,11 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           discNumber: trackToDownload.discNumber ?? 1,
           releaseDate: trackToDownload.releaseDate,
           preferredService: item.service,
-          itemId: item.id, // Pass item ID for progress tracking
-          durationMs:
-              trackToDownload.duration, // Duration in ms for verification
+          itemId: item.id,
+          durationMs: trackToDownload.duration,
+          genre: genre,
+          label: label,
+          lyricsMode: settings.lyricsMode,
         );
       } else {
         result = await PlatformBridge.downloadTrack(
@@ -1543,8 +1790,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       if (result['success'] == true) {
         var filePath = result['file_path'] as String?;
         
-        if (filePath != null && filePath.startsWith('EXISTS:')) {
+        final wasExisting = filePath != null && filePath.startsWith('EXISTS:');
+        if (wasExisting) {
           filePath = filePath.substring(7); // Remove "EXISTS:" prefix
+          _log.i('Using existing file: $filePath');
         }
         
         _log.i('Download success, file: $filePath');
@@ -1642,7 +1891,21 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                       );
                     }
 
-                    await _embedMetadataAndCover(flacPath, finalTrack);
+                    final backendGenre = result['genre'] as String?;
+                    final backendLabel = result['label'] as String?;
+                    final backendCopyright = result['copyright'] as String?;
+                    
+                    if (backendGenre != null || backendLabel != null || backendCopyright != null) {
+                      _log.d('Extended metadata from backend - Genre: $backendGenre, Label: $backendLabel, Copyright: $backendCopyright');
+                    }
+
+                    await _embedMetadataAndCover(
+                      flacPath, 
+                      finalTrack,
+                      genre: backendGenre ?? genre,
+                      label: backendLabel ?? label,
+                      copyright: backendCopyright,
+                    );
                     _log.d('Metadata and cover embedded successfully');
                   } catch (e) {
                     _log.w('Warning: Failed to embed metadata/cover: $e');
@@ -1677,6 +1940,56 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           return;
         }
 
+        if (quality == 'MP3' && filePath != null && filePath.endsWith('.flac')) {
+          if (wasExisting) {
+            _log.i('MP3 requested but existing FLAC found - skipping conversion to preserve original file');
+          } else {
+            _log.i('MP3 quality selected, converting FLAC to MP3...');
+            updateItemStatus(
+              item.id,
+              DownloadStatus.downloading,
+              progress: 0.97,
+            );
+            
+            try {
+              final mp3Path = await FFmpegService.convertFlacToMp3(
+                filePath,
+                bitrate: '320k',
+                deleteOriginal: true,
+              );
+              
+              if (mp3Path != null) {
+                filePath = mp3Path;
+                actualQuality = 'MP3 320kbps';
+                _log.i('Successfully converted to MP3: $mp3Path');
+                
+                _log.i('Embedding metadata to MP3...');
+                updateItemStatus(
+                  item.id,
+                  DownloadStatus.downloading,
+                  progress: 0.99,
+                );
+                
+                final mp3BackendGenre = result['genre'] as String?;
+                final mp3BackendLabel = result['label'] as String?;
+                final mp3BackendCopyright = result['copyright'] as String?;
+                
+                await _embedMetadataToMp3(
+                  mp3Path, 
+                  trackToDownload,
+                  genre: mp3BackendGenre ?? genre,
+                  label: mp3BackendLabel ?? label,
+                  copyright: mp3BackendCopyright,
+                );
+              } else {
+                _log.w('MP3 conversion failed, keeping FLAC file');
+              }
+            } catch (e) {
+              _log.e('MP3 conversion error: $e, keeping FLAC file');
+            }
+          }
+        }
+
         updateItemStatus(
           item.id,
           DownloadStatus.completed,
@@ -1707,6 +2020,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           final backendBitDepth = result['actual_bit_depth'] as int?;
           final backendSampleRate = result['actual_sample_rate'] as int?;
           final backendISRC = result['isrc'] as String?;
+          final backendGenre = result['genre'] as String?;
+          final backendLabel = result['label'] as String?;
+          final backendCopyright = result['copyright'] as String?;
 
           _log.d('Saving to history - coverUrl: ${trackToDownload.coverUrl}');
 
@@ -1715,6 +2031,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                       normalizedAlbumArtist != trackToDownload.artistName)
                   ? normalizedAlbumArtist
                   : null;
+
+          final isMp3 = filePath.endsWith('.mp3');
+          final historyBitDepth = isMp3 ? null : backendBitDepth;
+          final historySampleRate = isMp3 ? null : backendSampleRate;
 
           ref
               .read(downloadHistoryProvider.notifier)
@@ -1750,8 +2070,11 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                       ? backendYear
                       : trackToDownload.releaseDate,
                   quality: actualQuality,
-                  bitDepth: backendBitDepth,
-                  sampleRate: backendSampleRate,
+                  bitDepth: historyBitDepth,
+                  sampleRate: historySampleRate,
+                  genre: backendGenre,
+                  label: backendLabel,
+                  copyright: backendCopyright,
                 ),
               );
 
@@ -1850,3 +2173,22 @@ final downloadQueueProvider =
     NotifierProvider<DownloadQueueNotifier, DownloadQueueState>(
       DownloadQueueNotifier.new,
     );
+
+class DownloadQueueLookup {
+  final Map<String, DownloadItem> byTrackId;
+
+  DownloadQueueLookup._(this.byTrackId);
+
+  factory DownloadQueueLookup.fromItems(List<DownloadItem> items) {
+    final map = <String, DownloadItem>{};
+    for (final item in items) {
+      map.putIfAbsent(item.track.id, () => item);
+    }
+    return DownloadQueueLookup._(map);
+  }
+}
+
+final downloadQueueLookupProvider = Provider<DownloadQueueLookup>((ref) {
+  final items = ref.watch(downloadQueueProvider.select((s) => s.items));
+  return DownloadQueueLookup.fromItems(items);
+});

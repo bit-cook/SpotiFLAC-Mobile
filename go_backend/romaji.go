@@ -5,7 +5,6 @@ import (
 	"unicode"
 )
 
-// Hiragana to Romaji mapping
 var hiraganaToRomaji = map[rune]string{
 	'あ': "a", 'い': "i", 'う': "u", 'え': "e", 'お': "o",
 	'か': "ka", 'き': "ki", 'く': "ku", 'け': "ke", 'こ': "ko",
@@ -30,7 +29,6 @@ var hiraganaToRomaji = map[rune]string{
 	'ぁ': "a", 'ぃ': "i", 'ぅ': "u", 'ぇ': "e", 'ぉ': "o",
 }
 
-// Katakana to Romaji mapping
 var katakanaToRomaji = map[rune]string{
 	'ア': "a", 'イ': "i", 'ウ': "u", 'エ': "e", 'オ': "o",
 	'カ': "ka", 'キ': "ki", 'ク': "ku", 'ケ': "ke", 'コ': "ko",
@@ -58,7 +56,6 @@ var katakanaToRomaji = map[rune]string{
 	'ヴ': "vu",
 }
 
-// Combination mappings for きゃ, しゃ, etc.
 var combinationHiragana = map[string]string{
 	"きゃ": "kya", "きゅ": "kyu", "きょ": "kyo",
 	"しゃ": "sha", "しゅ": "shu", "しょ": "sho",
@@ -91,7 +88,6 @@ var combinationKatakana = map[string]string{
 	"ウィ": "wi", "ウェ": "we", "ウォ": "wo",
 }
 
-// ContainsJapanese checks if a string contains Japanese characters
 func ContainsJapanese(s string) bool {
 	for _, r := range s {
 		if isHiragana(r) || isKatakana(r) || isKanji(r) {
@@ -114,8 +110,6 @@ func isKanji(r rune) bool {
 		(r >= 0x3400 && r <= 0x4DBF) // CJK Unified Ideographs Extension A
 }
 
-// JapaneseToRomaji converts Japanese text (hiragana/katakana) to romaji
-// Note: Kanji cannot be converted without a dictionary, so they are kept as-is
 func JapaneseToRomaji(text string) string {
 	if !ContainsJapanese(text) {
 		return text
@@ -175,8 +169,6 @@ func JapaneseToRomaji(text string) string {
 	return result.String()
 }
 
-// BuildSearchQuery creates a search query from track name and artist
-// Converts Japanese to romaji if present
 func BuildSearchQuery(trackName, artistName string) string {
 	// Convert Japanese to romaji
 	trackRomaji := JapaneseToRomaji(trackName)
@@ -189,7 +181,6 @@ func BuildSearchQuery(trackName, artistName string) string {
 	return strings.TrimSpace(artistClean + " " + trackClean)
 }
 
-// cleanSearchQuery removes special characters that might interfere with search
 func cleanSearchQuery(s string) string {
 	var result strings.Builder
 	for _, r := range s {
@@ -202,8 +193,6 @@ func cleanSearchQuery(s string) string {
 	return strings.TrimSpace(result.String())
 }
 
-// CleanToASCII removes all non-ASCII characters and keeps only letters, numbers, spaces
-// This is useful for creating search queries that work better with Tidal's search
 func CleanToASCII(s string) string {
 	var result strings.Builder
 	for _, r := range s {

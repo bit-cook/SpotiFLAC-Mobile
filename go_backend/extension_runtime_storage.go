@@ -143,19 +143,16 @@ func (r *ExtensionRuntime) getSaltPath() string {
 func (r *ExtensionRuntime) getOrCreateSalt() ([]byte, error) {
 	saltPath := r.getSaltPath()
 
-	// Try to read existing salt
 	salt, err := os.ReadFile(saltPath)
 	if err == nil && len(salt) == 32 {
 		return salt, nil
 	}
 
-	// Generate new random salt (32 bytes)
 	salt = make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
 		return nil, fmt.Errorf("failed to generate salt: %w", err)
 	}
 
-	// Save salt to file
 	if err := os.WriteFile(saltPath, salt, 0600); err != nil {
 		return nil, fmt.Errorf("failed to save salt: %w", err)
 	}
@@ -214,7 +211,6 @@ func (r *ExtensionRuntime) saveCredentials(creds map[string]interface{}) error {
 		return err
 	}
 
-	// Encrypt the data
 	key, err := r.getEncryptionKey()
 	if err != nil {
 		return fmt.Errorf("failed to get encryption key: %w", err)

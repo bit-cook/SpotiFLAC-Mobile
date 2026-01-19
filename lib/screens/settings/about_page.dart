@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/constants/app_info.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
@@ -14,7 +15,7 @@ class AboutPage extends StatelessWidget {
     final topPadding = MediaQuery.of(context).padding.top;
 
     return PopScope(
-      canPop: true, // Always allow back gesture
+      canPop: true,
       child: Scaffold(
         body: CustomScrollView(
           slivers: [
@@ -84,6 +85,13 @@ class AboutPage extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+
+          SliverToBoxAdapter(
+            child: SettingsSectionHeader(title: context.l10n.aboutTranslators),
+          ),
+          const SliverToBoxAdapter(
+            child: _TranslatorsSection(),
           ),
 
           SliverToBoxAdapter(
@@ -245,9 +253,9 @@ class _AppHeaderCard extends StatelessWidget {
               color: colorScheme.primary,
               shape: BoxShape.circle,
             ),
-            child: Image.asset(
+            child:             Image.asset(
               'assets/images/logo-transparant.png',
-              color: colorScheme.onPrimary, // Tint with onPrimary color
+              color: colorScheme.onPrimary,
               fit: BoxFit.contain,
               errorBuilder: (_, _, _) => ClipRRect(
                 borderRadius: BorderRadius.circular(24),
@@ -326,11 +334,12 @@ class _ContributorItem extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: CachedNetworkImage(
+child: CachedNetworkImage(
                     imageUrl: 'https://github.com/$githubUsername.png',
                     width: 40,
                     height: 40,
                     fit: BoxFit.cover,
+                    cacheManager: CoverCacheManager.instance,
                     placeholder: (context, url) => Container(
                       width: 40,
                       height: 40,
@@ -395,7 +404,140 @@ class _ContributorItem extends StatelessWidget {
   }
 }
 
-/// Settings item with 40x40 icon area to align with contributor avatars
+/// Translator data model
+class _Translator {
+  final String name;
+  final String crowdinUsername;
+  final String language;
+  final String flag;
+
+  const _Translator({
+    required this.name,
+    required this.crowdinUsername,
+    required this.language,
+    required this.flag,
+  });
+}
+
+/// Translators section with compact chip-style layout
+class _TranslatorsSection extends StatelessWidget {
+  const _TranslatorsSection();
+
+  static const List<_Translator> _translators = [
+    _Translator(
+      name: 'Pedro Marcondes',
+      crowdinUsername: 'justapedro',
+      language: 'Portuguese',
+      flag: '🇵🇹',
+    ),
+    _Translator(
+      name: 'Credits 125',
+      crowdinUsername: 'credits125',
+      language: 'Spanish',
+      flag: '🇪🇸',
+    ),
+    _Translator(
+      name: 'Владислав',
+      crowdinUsername: 'odinokiy_kot',
+      language: 'Russian',
+      flag: '🇷🇺',
+    ),
+    _Translator(
+      name: 'Max',
+      crowdinUsername: 'amonoman',
+      language: 'German',
+      flag: '🇩🇪',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final cardColor = isDark 
+        ? Color.alphaBlend(Colors.white.withValues(alpha: 0.08), colorScheme.surface)
+        : colorScheme.surfaceContainerHighest;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _translators.map((translator) => _TranslatorChip(
+            translator: translator,
+          )).toList(),
+        ),
+      ),
+    );
+  }
+}
+
+/// Individual translator chip
+class _TranslatorChip extends StatelessWidget {
+  final _Translator translator;
+
+  const _TranslatorChip({required this.translator});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Material(
+      color: colorScheme.secondaryContainer,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: () => _launchCrowdin(translator.crowdinUsername),
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircleAvatar(
+                radius: 10,
+                backgroundColor: colorScheme.primary.withValues(alpha: 0.2),
+                child: Text(
+                  translator.name.isNotEmpty ? translator.name[0].toUpperCase() : '?',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                translator.name,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: colorScheme.onSecondaryContainer,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                translator.flag,
+                style: const TextStyle(fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchCrowdin(String username) async {
+    final uri = Uri.parse('https://crowdin.com/profile/$username');
+    await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+  }
+}
+
 class _AboutSettingsItem extends StatelessWidget {
   final IconData icon;
   final String title;

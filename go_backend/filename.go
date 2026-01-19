@@ -6,10 +6,8 @@ import (
 	"strings"
 )
 
-// Invalid filename characters for Android/Windows/Linux
 var invalidChars = regexp.MustCompile(`[<>:"/\\|?*\x00-\x1f]`)
 
-// sanitizeFilename removes invalid characters from filename
 func sanitizeFilename(filename string) string {
 	sanitized := invalidChars.ReplaceAllString(filename, "_")
 	
@@ -30,7 +28,6 @@ func sanitizeFilename(filename string) string {
 	return sanitized
 }
 
-// buildFilenameFromTemplate builds a filename from template and metadata
 func buildFilenameFromTemplate(template string, metadata map[string]interface{}) string {
 	if template == "" {
 		template = "{artist} - {title}"
@@ -91,7 +88,6 @@ func formatDiscNumber(n int) string {
 	return fmt.Sprintf("%d", n)
 }
 
-// extractYear extracts year from date string (YYYY-MM-DD or YYYY)
 func extractYear(date string) string {
 	if len(date) >= 4 {
 		return date[:4]

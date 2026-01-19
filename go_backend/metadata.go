@@ -1,7 +1,10 @@
 package gobackend
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -11,7 +14,6 @@ import (
 	"github.com/go-flac/go-flac"
 )
 
-// Metadata represents track metadata for embedding
 type Metadata struct {
 	Title       string
 	Artist      string
@@ -24,9 +26,11 @@ type Metadata struct {
 	ISRC        string
 	Description string
 	Lyrics      string
+	Genre       string
+	Label       string
+	Copyright   string
 }
 
-// EmbedMetadata embeds metadata into a FLAC file
 func EmbedMetadata(filePath string, metadata Metadata, coverPath string) error {
 	f, err := flac.ParseFile(filePath)
 	if err != nil {
@@ -82,6 +86,18 @@ func EmbedMetadata(filePath string, metadata Metadata, coverPath string) error {
 		setComment(cmt, "UNSYNCEDLYRICS", metadata.Lyrics)
 	}
 
+	if metadata.Genre != "" {
+		setComment(cmt, "GENRE", metadata.Genre)
+	}
+
+	if metadata.Label != "" {
+		setComment(cmt, "ORGANIZATION", metadata.Label)
+	}
+
+	if metadata.Copyright != "" {
+		setComment(cmt, "COPYRIGHT", metadata.Copyright)
+	}
+
 	cmtBlock := cmt.Marshal()
 	if cmtIdx >= 0 {
 		f.Meta[cmtIdx] = &cmtBlock
@@ -123,8 +139,6 @@ func EmbedMetadata(filePath string, metadata Metadata, coverPath string) error {
 	return f.Save(filePath)
 }
 
-// EmbedMetadataWithCoverData embeds metadata into a FLAC file with cover data as bytes
-// This avoids file permission issues on Android by not requiring a temp file
 func EmbedMetadataWithCoverData(filePath string, metadata Metadata, coverData []byte) error {
 	f, err := flac.ParseFile(filePath)
 	if err != nil {
@@ -178,6 +192,18 @@ func EmbedMetadataWithCoverData(filePath string, metadata Metadata, coverData []
 	if metadata.Lyrics != "" {
 		setComment(cmt, "LYRICS", metadata.Lyrics)
 		setComment(cmt, "UNSYNCEDLYRICS", metadata.Lyrics)
+	}
+
+	if metadata.Genre != "" {
+		setComment(cmt, "GENRE", metadata.Genre)
+	}
+
+	if metadata.Label != "" {
+		setComment(cmt, "ORGANIZATION", metadata.Label)
+	}
+
+	if metadata.Copyright != "" {
+		setComment(cmt, "COPYRIGHT", metadata.Copyright)
 	}
 
 	cmtBlock := cmt.Marshal()
@@ -310,7 +336,6 @@ func fileExists(path string) bool {
 	return err == nil
 }
 
-// EmbedLyrics embeds lyrics into a FLAC file as a separate operation
 func EmbedLyrics(filePath string, lyrics string) error {
 	f, err := flac.ParseFile(filePath)
 	if err != nil {
@@ -337,6 +362,51 @@ func EmbedLyrics(filePath string, lyrics string) error {
 
 	setComment(cmt, "LYRICS", lyrics)
 	setComment(cmt, "UNSYNCEDLYRICS", lyrics)
+
+	cmtBlock := cmt.Marshal()
+	if cmtIdx >= 0 {
+		f.Meta[cmtIdx] = &cmtBlock
+	} else {
+		f.Meta = append(f.Meta, &cmtBlock)
+	}
+
+	return f.Save(filePath)
+}
+
+func EmbedGenreLabel(filePath string, genre, label string) error {
+	if genre == "" && label == "" {
+		return nil
+	}
+
+	f, err := flac.ParseFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to parse FLAC file: %w", err)
+	}
+
+	var cmtIdx int = -1
+	var cmt *flacvorbis.MetaDataBlockVorbisComment
+
+	for idx, meta := range f.Meta {
+		if meta.Type == flac.VorbisComment {
+			cmtIdx = idx
+			cmt, err = flacvorbis.ParseFromMetaDataBlock(*meta)
+			if err != nil {
+				return fmt.Errorf("failed to parse vorbis comment: %w", err)
+			}
+			break
+		}
+	}
+
+	if cmt == nil {
+		cmt = flacvorbis.New()
+	}
+
+	if genre != "" {
+		setComment(cmt, "GENRE", genre)
+	}
+	if label != "" {
+		setComment(cmt, "ORGANIZATION", label)
+	}
 
 	cmtBlock := cmt.Marshal()
 	if cmtIdx >= 0 {
@@ -377,16 +447,12 @@ func ExtractLyrics(filePath string) (string, error) {
 	return "", fmt.Errorf("no lyrics found in file")
 }
 
-// AudioQuality represents audio quality info from a FLAC file
 type AudioQuality struct {
 	BitDepth     int   `json:"bit_depth"`
 	SampleRate   int   `json:"sample_rate"`
 	TotalSamples int64 `json:"total_samples"`
 }
 
-// GetAudioQuality reads bit depth and sample rate from a FLAC file's StreamInfo block
-// FLAC StreamInfo is always the first metadata block after the 4-byte "fLaC" marker
-// For M4A files, it delegates to GetM4AQuality
 func GetAudioQuality(filePath string) (AudioQuality, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -452,78 +518,170 @@ func GetAudioQuality(filePath string) (AudioQuality, error) {
 
 // EmbedM4AMetadata embeds metadata into an M4A file using iTunes-style atoms
 func EmbedM4AMetadata(filePath string, metadata Metadata, coverData []byte) error {
-	data, err := os.ReadFile(filePath)
+	input, err := os.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("failed to read M4A file: %w", err)
+		return fmt.Errorf("failed to open M4A file: %w", err)
 	}
+	defer input.Close()
 
-	moovPos := findAtom(data, "moov", 0)
-	if moovPos < 0 {
+	info, err := input.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat M4A file: %w", err)
+	}
+	fileSize := info.Size()
+
+	moovHeader, moovFound, err := findAtomInRange(input, 0, fileSize, "moov", fileSize)
+	if err != nil {
+		return fmt.Errorf("failed to find moov atom: %w", err)
+	}
+	if !moovFound {
 		return fmt.Errorf("moov atom not found in M4A file")
 	}
 
-	moovSize := int(uint32(data[moovPos])<<24 | uint32(data[moovPos+1])<<16 | uint32(data[moovPos+2])<<8 | uint32(data[moovPos+3]))
-	udtaPos := findAtom(data, "udta", moovPos+8)
+	moovContentStart := moovHeader.offset + moovHeader.headerSize
+	moovContentSize := moovHeader.size - moovHeader.headerSize
+
+	udtaHeader, udtaFound, err := findAtomInRange(input, moovContentStart, moovContentSize, "udta", fileSize)
+	if err != nil {
+		return fmt.Errorf("failed to locate udta atom: %w", err)
+	}
+
+	var metaHeader atomHeader
+	metaFound := false
+	if udtaFound {
+		udtaContentStart := udtaHeader.offset + udtaHeader.headerSize
+		udtaContentSize := udtaHeader.size - udtaHeader.headerSize
+		metaHeader, metaFound, err = findAtomInRange(input, udtaContentStart, udtaContentSize, "meta", fileSize)
+		if err != nil {
+			return fmt.Errorf("failed to locate meta atom: %w", err)
+		}
+	}
 
 	metaAtom := buildMetaAtom(metadata, coverData)
+	metaSize := int64(len(metaAtom))
 
-	var newData []byte
-	if udtaPos >= 0 && udtaPos < moovPos+moovSize {
-		udtaSize := int(uint32(data[udtaPos])<<24 | uint32(data[udtaPos+1])<<16 | uint32(data[udtaPos+2])<<8 | uint32(data[udtaPos+3]))
-		metaPos := findAtom(data, "meta", udtaPos+8)
+	var delta int64
+	var newUdtaSize int64
+	switch {
+	case udtaFound && metaFound:
+		delta = metaSize - metaHeader.size
+		newUdtaSize = udtaHeader.size + delta
+	case udtaFound && !metaFound:
+		delta = metaSize
+		newUdtaSize = udtaHeader.size + delta
+	case !udtaFound:
+		newUdtaSize = int64(8 + len(metaAtom))
+		delta = newUdtaSize
+	}
 
-		if metaPos >= 0 && metaPos < udtaPos+udtaSize {
-			metaSize := int(uint32(data[metaPos])<<24 | uint32(data[metaPos+1])<<16 | uint32(data[metaPos+2])<<8 | uint32(data[metaPos+3]))
-			newData = append(newData, data[:metaPos]...)
-			newData = append(newData, metaAtom...)
-			newData = append(newData, data[metaPos+metaSize:]...)
-		} else {
-			newUdtaContent := append(data[udtaPos+8:udtaPos+udtaSize], metaAtom...)
-			newUdtaSize := 8 + len(newUdtaContent)
-			newUdta := make([]byte, 4)
-			newUdta[0] = byte(newUdtaSize >> 24)
-			newUdta[1] = byte(newUdtaSize >> 16)
-			newUdta[2] = byte(newUdtaSize >> 8)
-			newUdta[3] = byte(newUdtaSize)
-			newUdta = append(newUdta, []byte("udta")...)
-			newUdta = append(newUdta, newUdtaContent...)
+	newMoovSize := moovHeader.size + delta
+	if moovHeader.headerSize == 8 && newMoovSize > int64(^uint32(0)) {
+		return fmt.Errorf("moov atom exceeds 32-bit size after update")
+	}
+	if udtaFound && udtaHeader.headerSize == 8 && newUdtaSize > int64(^uint32(0)) {
+		return fmt.Errorf("udta atom exceeds 32-bit size after update")
+	}
+	if !udtaFound && newUdtaSize > int64(^uint32(0)) {
+		return fmt.Errorf("udta atom exceeds 32-bit size after update")
+	}
 
-			newData = append(newData, data[:udtaPos]...)
-			newData = append(newData, newUdta...)
-			newData = append(newData, data[udtaPos+udtaSize:]...)
+	tempPath := filePath + ".tmp"
+	output, err := os.OpenFile(tempPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	cleanupTemp := true
+	defer func() {
+		_ = output.Close()
+		if cleanupTemp {
+			_ = os.Remove(tempPath)
 		}
-	} else {
-		udtaContent := metaAtom
-		udtaSize := 8 + len(udtaContent)
-		newUdta := make([]byte, 4)
-		newUdta[0] = byte(udtaSize >> 24)
-		newUdta[1] = byte(udtaSize >> 16)
-		newUdta[2] = byte(udtaSize >> 8)
-		newUdta[3] = byte(udtaSize)
-		newUdta = append(newUdta, []byte("udta")...)
-		newUdta = append(newUdta, udtaContent...)
+	}()
 
-		insertPos := moovPos + moovSize
-		newData = append(newData, data[:insertPos]...)
-		newData = append(newData, newUdta...)
-		newData = append(newData, data[insertPos:]...)
+	switch {
+	case udtaFound && metaFound:
+		if err := copyRange(output, input, 0, moovHeader.offset); err != nil {
+			return err
+		}
+		if err := writeAtomHeader(output, "moov", newMoovSize, moovHeader.headerSize); err != nil {
+			return err
+		}
+		if err := copyRange(output, input, moovHeader.offset+moovHeader.headerSize, udtaHeader.offset-(moovHeader.offset+moovHeader.headerSize)); err != nil {
+			return err
+		}
+		if err := writeAtomHeader(output, "udta", newUdtaSize, udtaHeader.headerSize); err != nil {
+			return err
+		}
+		if err := copyRange(output, input, udtaHeader.offset+udtaHeader.headerSize, metaHeader.offset-(udtaHeader.offset+udtaHeader.headerSize)); err != nil {
+			return err
+		}
+		if _, err := output.Write(metaAtom); err != nil {
+			return fmt.Errorf("failed to write meta atom: %w", err)
+		}
+		metaEnd := metaHeader.offset + metaHeader.size
+		if err := copyRange(output, input, metaEnd, fileSize-metaEnd); err != nil {
+			return err
+		}
+	case udtaFound && !metaFound:
+		if err := copyRange(output, input, 0, moovHeader.offset); err != nil {
+			return err
+		}
+		if err := writeAtomHeader(output, "moov", newMoovSize, moovHeader.headerSize); err != nil {
+			return err
+		}
+		if err := copyRange(output, input, moovHeader.offset+moovHeader.headerSize, udtaHeader.offset-(moovHeader.offset+moovHeader.headerSize)); err != nil {
+			return err
+		}
+		if err := writeAtomHeader(output, "udta", newUdtaSize, udtaHeader.headerSize); err != nil {
+			return err
+		}
+		insertPos := udtaHeader.offset + udtaHeader.size
+		if err := copyRange(output, input, udtaHeader.offset+udtaHeader.headerSize, insertPos-(udtaHeader.offset+udtaHeader.headerSize)); err != nil {
+			return err
+		}
+		if _, err := output.Write(metaAtom); err != nil {
+			return fmt.Errorf("failed to write meta atom: %w", err)
+		}
+		if err := copyRange(output, input, insertPos, fileSize-insertPos); err != nil {
+			return err
+		}
+	case !udtaFound:
+		newUdtaAtom := buildUdtaAtom(metaAtom)
+		if err := copyRange(output, input, 0, moovHeader.offset); err != nil {
+			return err
+		}
+		if err := writeAtomHeader(output, "moov", newMoovSize, moovHeader.headerSize); err != nil {
+			return err
+		}
+		moovEnd := moovHeader.offset + moovHeader.size
+		if err := copyRange(output, input, moovHeader.offset+moovHeader.headerSize, moovEnd-(moovHeader.offset+moovHeader.headerSize)); err != nil {
+			return err
+		}
+		if _, err := output.Write(newUdtaAtom); err != nil {
+			return fmt.Errorf("failed to write udta atom: %w", err)
+		}
+		if err := copyRange(output, input, moovEnd, fileSize-moovEnd); err != nil {
+			return err
+		}
 	}
 
-	newMoovSize := moovSize + len(newData) - len(data)
-	newData[moovPos] = byte(newMoovSize >> 24)
-	newData[moovPos+1] = byte(newMoovSize >> 16)
-	newData[moovPos+2] = byte(newMoovSize >> 8)
-	newData[moovPos+3] = byte(newMoovSize)
-
-	if err := os.WriteFile(filePath, newData, 0644); err != nil {
-		return fmt.Errorf("failed to write M4A file: %w", err)
+	if err := output.Close(); err != nil {
+		return fmt.Errorf("failed to close temp file: %w", err)
 	}
+
+	_ = input.Close()
+	if err := os.Remove(filePath); err != nil {
+		return fmt.Errorf("failed to replace original file: %w", err)
+	}
+	if err := os.Rename(tempPath, filePath); err != nil {
+		return fmt.Errorf("failed to move temp file: %w", err)
+	}
+	cleanupTemp = false
 
 	fmt.Printf("[M4A] Metadata embedded successfully\n")
 	return nil
 }
 
-// findAtom finds an atom by name starting from offset
 func findAtom(data []byte, name string, offset int) int {
 	for i := offset; i < len(data)-8; {
 		size := int(uint32(data[i])<<24 | uint32(data[i+1])<<16 | uint32(data[i+2])<<8 | uint32(data[i+3]))
@@ -615,7 +773,6 @@ func buildMetaAtom(metadata Metadata, coverData []byte) []byte {
 	return metaAtom
 }
 
-// buildTextAtom builds a text metadata atom (©nam, ©ART, etc.)
 func buildTextAtom(name, value string) []byte {
 	valueBytes := []byte(value)
 
@@ -667,7 +824,6 @@ func buildTrackNumberAtom(track, total int) []byte {
 	return atom
 }
 
-// buildDiscNumberAtom builds disk atom
 func buildDiscNumberAtom(disc, total int) []byte {
 	dataAtom := []byte{
 		0, 0, 0, 22, // size
@@ -693,9 +849,9 @@ func buildDiscNumberAtom(disc, total int) []byte {
 
 // buildCoverAtom builds covr atom with image data
 func buildCoverAtom(coverData []byte) []byte {
-	imageType := byte(13) // default JPEG
+	imageType := byte(13)
 	if len(coverData) > 8 && coverData[0] == 0x89 && coverData[1] == 'P' && coverData[2] == 'N' && coverData[3] == 'G' {
-		imageType = 14 // PNG
+		imageType = 14
 	}
 
 	dataSize := 16 + len(coverData)
@@ -705,8 +861,8 @@ func buildCoverAtom(coverData []byte) []byte {
 	dataAtom[2] = byte(dataSize >> 8)
 	dataAtom[3] = byte(dataSize)
 	dataAtom = append(dataAtom, []byte("data")...)
-	dataAtom = append(dataAtom, 0, 0, 0, imageType) // type = JPEG or PNG
-	dataAtom = append(dataAtom, 0, 0, 0, 0)         // locale
+	dataAtom = append(dataAtom, 0, 0, 0, imageType)
+	dataAtom = append(dataAtom, 0, 0, 0, 0)
 	dataAtom = append(dataAtom, coverData...)
 
 	atomSize := 8 + len(dataAtom)
@@ -721,30 +877,226 @@ func buildCoverAtom(coverData []byte) []byte {
 	return atom
 }
 
-// GetM4AQuality reads audio quality from M4A file
 func GetM4AQuality(filePath string) (AudioQuality, error) {
-	data, err := os.ReadFile(filePath)
+	f, err := os.Open(filePath)
 	if err != nil {
-		return AudioQuality{}, fmt.Errorf("failed to read M4A file: %w", err)
+		return AudioQuality{}, fmt.Errorf("failed to open M4A file: %w", err)
 	}
+	defer f.Close()
 
-	moovPos := findAtom(data, "moov", 0)
-	if moovPos < 0 {
+	info, err := f.Stat()
+	if err != nil {
+		return AudioQuality{}, fmt.Errorf("failed to stat M4A file: %w", err)
+	}
+	fileSize := info.Size()
+
+	moovHeader, moovFound, err := findAtomInRange(f, 0, fileSize, "moov", fileSize)
+	if err != nil {
+		return AudioQuality{}, fmt.Errorf("failed to find moov atom: %w", err)
+	}
+	if !moovFound {
 		return AudioQuality{}, fmt.Errorf("moov atom not found")
 	}
 
-	for i := moovPos; i < len(data)-20; i++ {
-		if string(data[i:i+4]) == "mp4a" || string(data[i:i+4]) == "alac" {
-			if i+24 < len(data) {
-				sampleRate := int(data[i+22])<<8 | int(data[i+23])
-				bitDepth := 16
-				if string(data[i:i+4]) == "alac" {
-					bitDepth = 24
-				}
-				return AudioQuality{BitDepth: bitDepth, SampleRate: sampleRate}, nil
-			}
-		}
+	moovStart := moovHeader.offset
+	moovEnd := moovHeader.offset + moovHeader.size
+
+	sampleOffset, atomType, err := findAudioSampleEntry(f, moovStart, moovEnd, fileSize)
+	if err != nil {
+		return AudioQuality{}, err
 	}
 
-	return AudioQuality{}, fmt.Errorf("audio info not found in M4A file")
+	buf := make([]byte, 24)
+	if _, err := f.ReadAt(buf, sampleOffset); err != nil {
+		return AudioQuality{}, fmt.Errorf("failed to read audio sample entry: %w", err)
+	}
+
+	sampleRate := int(buf[22])<<8 | int(buf[23])
+	bitDepth := 16
+	if atomType == "alac" {
+		bitDepth = 24
+	}
+
+	return AudioQuality{BitDepth: bitDepth, SampleRate: sampleRate}, nil
+}
+
+type atomHeader struct {
+	offset     int64
+	size       int64
+	headerSize int64
+	typ        string
+}
+
+func readAtomHeaderAt(f *os.File, offset, fileSize int64) (atomHeader, error) {
+	if offset+8 > fileSize {
+		return atomHeader{}, io.ErrUnexpectedEOF
+	}
+
+	headerBuf := make([]byte, 8)
+	if _, err := f.ReadAt(headerBuf, offset); err != nil {
+		return atomHeader{}, err
+	}
+
+	size32 := binary.BigEndian.Uint32(headerBuf[0:4])
+	typ := string(headerBuf[4:8])
+
+	if size32 == 1 {
+		if offset+16 > fileSize {
+			return atomHeader{}, io.ErrUnexpectedEOF
+		}
+		extBuf := make([]byte, 8)
+		if _, err := f.ReadAt(extBuf, offset+8); err != nil {
+			return atomHeader{}, err
+		}
+		size64 := binary.BigEndian.Uint64(extBuf)
+		return atomHeader{offset: offset, size: int64(size64), headerSize: 16, typ: typ}, nil
+	}
+
+	return atomHeader{offset: offset, size: int64(size32), headerSize: 8, typ: typ}, nil
+}
+
+func findAtomInRange(f *os.File, start, size int64, target string, fileSize int64) (atomHeader, bool, error) {
+	if size <= 0 {
+		return atomHeader{}, false, nil
+	}
+
+	end := start + size
+	pos := start
+
+	for pos+8 <= end {
+		header, err := readAtomHeaderAt(f, pos, fileSize)
+		if err != nil {
+			return atomHeader{}, false, err
+		}
+
+		atomSize := header.size
+		if atomSize == 0 {
+			atomSize = end - pos
+		}
+
+		if atomSize < header.headerSize {
+			return atomHeader{}, false, fmt.Errorf("invalid atom size for %s", header.typ)
+		}
+
+		header.size = atomSize
+		if header.typ == target {
+			return header, true, nil
+		}
+
+		pos += atomSize
+	}
+
+	return atomHeader{}, false, nil
+}
+
+func writeAtomHeader(w io.Writer, typ string, size int64, headerSize int64) error {
+	if len(typ) != 4 {
+		return fmt.Errorf("invalid atom type: %s", typ)
+	}
+
+	if headerSize == 16 {
+		header := make([]byte, 16)
+		binary.BigEndian.PutUint32(header[0:4], 1)
+		copy(header[4:8], []byte(typ))
+		binary.BigEndian.PutUint64(header[8:16], uint64(size))
+		_, err := w.Write(header)
+		return err
+	}
+
+	if size > int64(^uint32(0)) {
+		return fmt.Errorf("atom size exceeds 32-bit for %s", typ)
+	}
+
+	header := make([]byte, 8)
+	binary.BigEndian.PutUint32(header[0:4], uint32(size))
+	copy(header[4:8], []byte(typ))
+	_, err := w.Write(header)
+	return err
+}
+
+func copyRange(dst io.Writer, src *os.File, offset, length int64) error {
+	if length <= 0 {
+		return nil
+	}
+	if _, err := src.Seek(offset, io.SeekStart); err != nil {
+		return fmt.Errorf("failed to seek source: %w", err)
+	}
+	if _, err := io.CopyN(dst, src, length); err != nil {
+		return fmt.Errorf("failed to copy data: %w", err)
+	}
+	return nil
+}
+
+func buildUdtaAtom(metaAtom []byte) []byte {
+	size := 8 + len(metaAtom)
+	header := make([]byte, 8)
+	binary.BigEndian.PutUint32(header[0:4], uint32(size))
+	copy(header[4:8], []byte("udta"))
+	return append(header, metaAtom...)
+}
+
+func findAudioSampleEntry(f *os.File, start, end, fileSize int64) (int64, string, error) {
+	const chunkSize = 64 * 1024
+	patternMP4A := []byte("mp4a")
+	patternALAC := []byte("alac")
+
+	var tail []byte
+	readPos := start
+
+	for readPos < end {
+		toRead := end - readPos
+		if toRead > chunkSize {
+			toRead = chunkSize
+		}
+
+		buf := make([]byte, toRead)
+		n, err := f.ReadAt(buf, readPos)
+		if err != nil && err != io.EOF {
+			return 0, "", fmt.Errorf("failed to read M4A atom data: %w", err)
+		}
+		if n == 0 {
+			break
+		}
+
+		data := append(tail, buf[:n]...)
+		mp4aIdx := bytes.Index(data, patternMP4A)
+		alacIdx := bytes.Index(data, patternALAC)
+
+		bestIdx := -1
+		bestType := ""
+		switch {
+		case mp4aIdx >= 0 && alacIdx >= 0:
+			if mp4aIdx <= alacIdx {
+				bestIdx = mp4aIdx
+				bestType = "mp4a"
+			} else {
+				bestIdx = alacIdx
+				bestType = "alac"
+			}
+		case mp4aIdx >= 0:
+			bestIdx = mp4aIdx
+			bestType = "mp4a"
+		case alacIdx >= 0:
+			bestIdx = alacIdx
+			bestType = "alac"
+		}
+
+		if bestIdx >= 0 {
+			absolute := readPos - int64(len(tail)) + int64(bestIdx)
+			if absolute+24 > fileSize {
+				return 0, "", fmt.Errorf("audio info not found in M4A file")
+			}
+			return absolute, bestType, nil
+		}
+
+		if len(data) >= 3 {
+			tail = append([]byte{}, data[len(data)-3:]...)
+		} else {
+			tail = append([]byte{}, data...)
+		}
+
+		readPos += int64(n)
+	}
+
+	return 0, "", fmt.Errorf("audio info not found in M4A file")
 }

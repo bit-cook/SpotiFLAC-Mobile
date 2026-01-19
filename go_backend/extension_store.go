@@ -35,7 +35,6 @@ type StoreExtension struct {
 	Downloads     int      `json:"downloads"`
 	UpdatedAt     string   `json:"updated_at"`
 	MinAppVersion string   `json:"min_app_version,omitempty"`
-	// Alternative camelCase fields (for flexibility)
 	DisplayNameAlt   string `json:"displayName,omitempty"`
 	DownloadURLAlt   string `json:"downloadUrl,omitempty"`
 	IconURLAlt       string `json:"iconUrl,omitempty"`
@@ -332,7 +331,6 @@ func (s *ExtensionStore) DownloadExtension(extensionID string, destPath string) 
 		return fmt.Errorf("download returned HTTP %d", resp.StatusCode)
 	}
 
-	// Create destination file
 	out, err := os.Create(destPath)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)

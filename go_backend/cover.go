@@ -8,18 +8,15 @@ import (
 	"strings"
 )
 
-// Spotify image size codes (same as PC version)
 const (
-	spotifySize300 = "ab67616d00001e02" // 300x300 (small)
-	spotifySize640 = "ab67616d0000b273" // 640x640 (medium)
-	spotifySizeMax = "ab67616d000082c1" // Max resolution (~2000x2000)
+	spotifySize300 = "ab67616d00001e02"
+	spotifySize640 = "ab67616d0000b273"
+	spotifySizeMax = "ab67616d000082c1"
 )
 
 // Deezer CDN supports these sizes: 56, 250, 500, 1000, 1400, 1800
 var deezerSizeRegex = regexp.MustCompile(`/(\d+)x(\d+)-\d+-\d+-\d+-\d+\.jpg$`)
 
-// convertSmallToMedium upgrades 300x300 cover URL to 640x640
-// Same logic as PC version for consistency
 func convertSmallToMedium(imageURL string) string {
 	if strings.Contains(imageURL, spotifySize300) {
 		return strings.Replace(imageURL, spotifySize300, spotifySize640, 1)
@@ -27,8 +24,6 @@ func convertSmallToMedium(imageURL string) string {
 	return imageURL
 }
 
-// downloadCoverToMemory downloads cover art and returns as bytes (no file creation)
-// This avoids file permission issues on Android
 func downloadCoverToMemory(coverURL string, maxQuality bool) ([]byte, error) {
 	if coverURL == "" {
 		return nil, fmt.Errorf("no cover URL provided")
@@ -90,8 +85,6 @@ func downloadCoverToMemory(coverURL string, maxQuality bool) ([]byte, error) {
 	return data, nil
 }
 
-// upgradeToMaxQuality upgrades cover URL to maximum quality
-// Supports both Spotify and Deezer CDNs
 func upgradeToMaxQuality(coverURL string) string {
 	// Spotify CDN upgrade
 	if strings.Contains(coverURL, spotifySize640) {
@@ -106,9 +99,6 @@ func upgradeToMaxQuality(coverURL string) string {
 	return coverURL
 }
 
-// upgradeDeezerCover upgrades Deezer cover URL to maximum quality (1800x1800)
-// Deezer CDN format: https://cdn-images.dzcdn.net/images/cover/{hash}/{size}x{size}-000000-80-0-0.jpg
-// Available sizes: 56, 250, 500, 1000, 1400, 1800
 func upgradeDeezerCover(coverURL string) string {
 	if !strings.Contains(coverURL, "cdn-images.dzcdn.net") {
 		return coverURL
@@ -122,7 +112,6 @@ func upgradeDeezerCover(coverURL string) string {
 	return upgraded
 }
 
-// GetCoverFromSpotify gets cover URL from Spotify metadata
 func GetCoverFromSpotify(imageURL string, maxQuality bool) string {
 	if imageURL == "" {
 		return ""

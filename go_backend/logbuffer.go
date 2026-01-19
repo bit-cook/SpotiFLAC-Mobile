@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// LogEntry represents a single log entry
 type LogEntry struct {
 	Timestamp string `json:"timestamp"`
 	Level     string `json:"level"`
@@ -16,7 +15,6 @@ type LogEntry struct {
 	Message   string `json:"message"`
 }
 
-// LogBuffer stores logs in a circular buffer for retrieval by Flutter
 type LogBuffer struct {
 	entries        []LogEntry
 	maxSize        int
@@ -41,7 +39,6 @@ func GetLogBuffer() *LogBuffer {
 	return globalLogBuffer
 }
 
-// SetLoggingEnabled enables or disables logging
 func (lb *LogBuffer) SetLoggingEnabled(enabled bool) {
 	lb.mu.Lock()
 	defer lb.mu.Unlock()
@@ -55,7 +52,6 @@ func (lb *LogBuffer) IsLoggingEnabled() bool {
 	return lb.loggingEnabled
 }
 
-// Add adds a log entry to the buffer
 func (lb *LogBuffer) Add(level, tag, message string) {
 	lb.mu.Lock()
 	defer lb.mu.Unlock()

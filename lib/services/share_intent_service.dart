@@ -4,7 +4,6 @@ import 'package:spotiflac_android/utils/logger.dart';
 
 final _log = AppLogger('ShareIntent');
 
-/// Service to handle incoming share intents from other apps (e.g., Spotify)
 class ShareIntentService {
   static final ShareIntentService _instance = ShareIntentService._internal();
   factory ShareIntentService() => _instance;
@@ -15,17 +14,14 @@ class ShareIntentService {
   bool _initialized = false;
   String? _pendingUrl; // Store URL received before listener is ready
 
-  /// Stream of shared Spotify URLs
   Stream<String> get sharedUrlStream => _sharedUrlController.stream;
 
-  /// Get pending URL that was received before listener was ready
   String? consumePendingUrl() {
     final url = _pendingUrl;
     _pendingUrl = null;
     return url;
   }
 
-  /// Initialize the service and start listening for share intents
   Future<void> initialize() async {
     if (_initialized) return;
     _initialized = true;
@@ -58,11 +54,6 @@ class ShareIntentService {
     }
   }
 
-  /// Extract Spotify URL from shared text
-  /// Handles various formats:
-  /// - Direct URL: https://open.spotify.com/track/xxx
-  /// - With text: "Check out this song! https://open.spotify.com/track/xxx"
-  /// - Spotify URI: spotify:track:xxx
   String? _extractSpotifyUrl(String text) {
     if (text.isEmpty) return null;
 
@@ -83,7 +74,6 @@ class ShareIntentService {
     return null;
   }
 
-  /// Dispose resources
   void dispose() {
     _mediaSubscription?.cancel();
     _sharedUrlController.close();

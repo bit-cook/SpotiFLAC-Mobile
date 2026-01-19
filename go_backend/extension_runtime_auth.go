@@ -18,7 +18,6 @@ import (
 
 // ==================== Auth API (OAuth Support) ====================
 
-// authOpenUrl requests Flutter to open an OAuth URL
 func (r *ExtensionRuntime) authOpenUrl(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
 		return r.vm.ToValue(map[string]interface{}{
@@ -33,7 +32,6 @@ func (r *ExtensionRuntime) authOpenUrl(call goja.FunctionCall) goja.Value {
 		callbackURL = call.Arguments[1].String()
 	}
 
-	// Store pending auth request for Flutter to pick up
 	pendingAuthRequestsMu.Lock()
 	pendingAuthRequests[r.extensionID] = &PendingAuthRequest{
 		ExtensionID: r.extensionID,
@@ -42,7 +40,6 @@ func (r *ExtensionRuntime) authOpenUrl(call goja.FunctionCall) goja.Value {
 	}
 	pendingAuthRequestsMu.Unlock()
 
-	// Update auth state
 	extensionAuthStateMu.Lock()
 	state, exists := extensionAuthState[r.extensionID]
 	if !exists {
@@ -50,7 +47,7 @@ func (r *ExtensionRuntime) authOpenUrl(call goja.FunctionCall) goja.Value {
 		extensionAuthState[r.extensionID] = state
 	}
 	state.PendingAuthURL = authURL
-	state.AuthCode = "" // Clear any previous auth code
+	state.AuthCode = ""
 	extensionAuthStateMu.Unlock()
 
 	GoLog("[Extension:%s] Auth URL requested: %s\n", r.extensionID, authURL)
@@ -61,7 +58,6 @@ func (r *ExtensionRuntime) authOpenUrl(call goja.FunctionCall) goja.Value {
 	})
 }
 
-// authGetCode gets the auth code (set by Flutter after OAuth callback)
 func (r *ExtensionRuntime) authGetCode(call goja.FunctionCall) goja.Value {
 	extensionAuthStateMu.RLock()
 	defer extensionAuthStateMu.RUnlock()
@@ -114,7 +110,6 @@ func (r *ExtensionRuntime) authSetCode(call goja.FunctionCall) goja.Value {
 	return r.vm.ToValue(true)
 }
 
-// authClear clears all auth state for the extension
 func (r *ExtensionRuntime) authClear(call goja.FunctionCall) goja.Value {
 	extensionAuthStateMu.Lock()
 	delete(extensionAuthState, r.extensionID)
@@ -138,7 +133,6 @@ func (r *ExtensionRuntime) authIsAuthenticated(call goja.FunctionCall) goja.Valu
 		return r.vm.ToValue(false)
 	}
 
-	// Check if token is expired
 	if state.IsAuthenticated && !state.ExpiresAt.IsZero() && time.Now().After(state.ExpiresAt) {
 		return r.vm.ToValue(false)
 	}
@@ -146,7 +140,6 @@ func (r *ExtensionRuntime) authIsAuthenticated(call goja.FunctionCall) goja.Valu
 	return r.vm.ToValue(state.IsAuthenticated)
 }
 
-// authGetTokens returns current tokens (for extension to use in API calls)
 func (r *ExtensionRuntime) authGetTokens(call goja.FunctionCall) goja.Value {
 	extensionAuthStateMu.RLock()
 	defer extensionAuthStateMu.RUnlock()
@@ -182,16 +175,13 @@ func generatePKCEVerifier(length int) (string, error) {
 		length = 128
 	}
 
-	// Generate random bytes
 	bytes := make([]byte, length)
 	if _, err := rand.Read(bytes); err != nil {
 		return "", err
 	}
 
-	// Use base64url encoding without padding (RFC 7636 compliant)
 	verifier := base64.RawURLEncoding.EncodeToString(bytes)
 
-	// Trim to exact length
 	if len(verifier) > length {
 		verifier = verifier[:length]
 	}
@@ -199,15 +189,12 @@ func generatePKCEVerifier(length int) (string, error) {
 	return verifier, nil
 }
 
-// generatePKCEChallenge generates a code challenge from verifier using S256 method
 func generatePKCEChallenge(verifier string) string {
 	hash := sha256.Sum256([]byte(verifier))
 	// Base64url encode without padding (RFC 7636)
 	return base64.RawURLEncoding.EncodeToString(hash[:])
 }
 
-// authGeneratePKCE generates a PKCE code verifier and challenge pair
-// Returns: { verifier: string, challenge: string, method: "S256" }
 func (r *ExtensionRuntime) authGeneratePKCE(call goja.FunctionCall) goja.Value {
 	// Default length is 64 characters
 	length := 64
@@ -227,7 +214,6 @@ func (r *ExtensionRuntime) authGeneratePKCE(call goja.FunctionCall) goja.Value {
 
 	challenge := generatePKCEChallenge(verifier)
 
-	// Store in auth state for later use
 	extensionAuthStateMu.Lock()
 	state, exists := extensionAuthState[r.extensionID]
 	if !exists {
@@ -247,7 +233,6 @@ func (r *ExtensionRuntime) authGeneratePKCE(call goja.FunctionCall) goja.Value {
 	})
 }
 
-// authGetPKCE returns the current PKCE verifier and challenge (if generated)
 func (r *ExtensionRuntime) authGetPKCE(call goja.FunctionCall) goja.Value {
 	extensionAuthStateMu.RLock()
 	defer extensionAuthStateMu.RUnlock()
@@ -405,7 +390,6 @@ func (r *ExtensionRuntime) authExchangeCodeWithPKCE(call goja.FunctionCall) goja
 		})
 	}
 
-	// Get stored PKCE verifier
 	extensionAuthStateMu.RLock()
 	state, exists := extensionAuthState[r.extensionID]
 	var verifier string
@@ -421,7 +405,6 @@ func (r *ExtensionRuntime) authExchangeCodeWithPKCE(call goja.FunctionCall) goja
 		})
 	}
 
-	// Validate domain
 	if err := r.validateDomain(tokenURL); err != nil {
 		return r.vm.ToValue(map[string]interface{}{
 			"success": false,
@@ -429,7 +412,6 @@ func (r *ExtensionRuntime) authExchangeCodeWithPKCE(call goja.FunctionCall) goja
 		})
 	}
 
-	// Build token request body
 	formData := url.Values{}
 	formData.Set("grant_type", "authorization_code")
 	formData.Set("client_id", clientID)
@@ -439,14 +421,12 @@ func (r *ExtensionRuntime) authExchangeCodeWithPKCE(call goja.FunctionCall) goja
 		formData.Set("redirect_uri", redirectURI)
 	}
 
-	// Add extra params
 	if extraParams, ok := config["extraParams"].(map[string]interface{}); ok {
 		for k, v := range extraParams {
 			formData.Set(k, fmt.Sprintf("%v", v))
 		}
 	}
 
-	// Make token request
 	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(formData.Encode()))
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -475,7 +455,6 @@ func (r *ExtensionRuntime) authExchangeCodeWithPKCE(call goja.FunctionCall) goja
 		})
 	}
 
-	// Parse response
 	var tokenResp map[string]interface{}
 	if err := json.Unmarshal(body, &tokenResp); err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -485,7 +464,6 @@ func (r *ExtensionRuntime) authExchangeCodeWithPKCE(call goja.FunctionCall) goja
 		})
 	}
 
-	// Check for error in response
 	if errMsg, ok := tokenResp["error"].(string); ok {
 		errDesc, _ := tokenResp["error_description"].(string)
 		return r.vm.ToValue(map[string]interface{}{
@@ -495,7 +473,6 @@ func (r *ExtensionRuntime) authExchangeCodeWithPKCE(call goja.FunctionCall) goja
 		})
 	}
 
-	// Extract tokens
 	accessToken, _ := tokenResp["access_token"].(string)
 	refreshToken, _ := tokenResp["refresh_token"].(string)
 	expiresIn, _ := tokenResp["expires_in"].(float64)
@@ -508,7 +485,6 @@ func (r *ExtensionRuntime) authExchangeCodeWithPKCE(call goja.FunctionCall) goja
 		})
 	}
 
-	// Store tokens in auth state
 	extensionAuthStateMu.Lock()
 	state, exists = extensionAuthState[r.extensionID]
 	if !exists {
@@ -521,14 +497,12 @@ func (r *ExtensionRuntime) authExchangeCodeWithPKCE(call goja.FunctionCall) goja
 	if expiresIn > 0 {
 		state.ExpiresAt = time.Now().Add(time.Duration(expiresIn) * time.Second)
 	}
-	// Clear PKCE after successful exchange
 	state.PKCEVerifier = ""
 	state.PKCEChallenge = ""
 	extensionAuthStateMu.Unlock()
 
 	GoLog("[Extension:%s] PKCE token exchange successful\n", r.extensionID)
 
-	// Return full token response
 	result := map[string]interface{}{
 		"success":       true,
 		"access_token":  accessToken,
@@ -538,7 +512,6 @@ func (r *ExtensionRuntime) authExchangeCodeWithPKCE(call goja.FunctionCall) goja
 	if expiresIn > 0 {
 		result["expires_in"] = expiresIn
 	}
-	// Include any additional fields from response
 	if scope, ok := tokenResp["scope"].(string); ok {
 		result["scope"] = scope
 	}

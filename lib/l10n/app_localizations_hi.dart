@@ -403,6 +403,9 @@ class AppLocalizationsHi extends AppLocalizations {
       'The talented artist who created our beautiful app logo!';
 
   @override
+  String get aboutTranslators => 'Translators';
+
+  @override
   String get aboutSpecialThanks => 'Special Thanks';
 
   @override
@@ -892,6 +895,11 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String dialogImportPlaylistMessage(int count) {
     return 'Found $count tracks in CSV. Add them to download queue?';
+  }
+
+  @override
+  String csvImportTracks(int count) {
+    return '$count tracks from CSV';
   }
 
   @override
@@ -1428,6 +1436,35 @@ class AppLocalizationsHi extends AppLocalizations {
   String get sectionFileSettings => 'File Settings';
 
   @override
+  String get sectionLyrics => 'Lyrics';
+
+  @override
+  String get lyricsMode => 'Lyrics Mode';
+
+  @override
+  String get lyricsModeDescription =>
+      'Choose how lyrics are saved with your downloads';
+
+  @override
+  String get lyricsModeEmbed => 'Embed in file';
+
+  @override
+  String get lyricsModeEmbedSubtitle => 'Lyrics stored inside FLAC metadata';
+
+  @override
+  String get lyricsModeExternal => 'External .lrc file';
+
+  @override
+  String get lyricsModeExternalSubtitle =>
+      'Separate .lrc file for players like Samsung Music';
+
+  @override
+  String get lyricsModeBoth => 'Both';
+
+  @override
+  String get lyricsModeBothSubtitle => 'Embed and save .lrc file';
+
+  @override
   String get sectionColor => 'Color';
 
   @override
@@ -1538,6 +1575,15 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get trackReleaseDate => 'Release date';
+
+  @override
+  String get trackGenre => 'Genre';
+
+  @override
+  String get trackLabel => 'Label';
+
+  @override
+  String get trackCopyright => 'Copyright';
 
   @override
   String get trackDownloaded => 'Downloaded';
@@ -1783,6 +1829,22 @@ class AppLocalizationsHi extends AppLocalizations {
   String get qualityHiResFlacMaxSubtitle => '24-bit / up to 192kHz';
 
   @override
+  String get qualityMp3 => 'MP3';
+
+  @override
+  String get qualityMp3Subtitle => '320kbps (converted from FLAC)';
+
+  @override
+  String get enableMp3Option => 'Enable MP3 Option';
+
+  @override
+  String get enableMp3OptionSubtitleOn => 'MP3 quality option is available';
+
+  @override
+  String get enableMp3OptionSubtitleOff =>
+      'Downloads FLAC then converts to 320kbps MP3';
+
+  @override
   String get qualityNote =>
       'Actual quality depends on track availability from the service';
 
@@ -1972,6 +2034,11 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get downloadedAlbumSelectToDelete => 'Select tracks to delete';
+
+  @override
+  String downloadedAlbumDiscHeader(int discNumber) {
+    return 'Disc $discNumber';
+  }
 
   @override
   String get utilityFunctions => 'Utility Functions';

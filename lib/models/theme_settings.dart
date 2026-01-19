@@ -9,7 +9,6 @@ const String kUseAmoledKey = 'use_amoled';
 /// Default Spotify green color for fallback
 const int kDefaultSeedColor = 0xFF1DB954;
 
-/// Theme settings model for Material Expressive 3
 class ThemeSettings {
   final ThemeMode themeMode;
   final bool useDynamicColor;
@@ -23,10 +22,8 @@ class ThemeSettings {
     this.useAmoled = false,
   });
 
-  /// Get seed color as Color object
   Color get seedColor => Color(seedColorValue);
 
-  /// Create a copy with updated values
   ThemeSettings copyWith({
     ThemeMode? themeMode,
     bool? useDynamicColor,
@@ -41,7 +38,6 @@ class ThemeSettings {
     );
   }
 
-  /// Convert to JSON map for persistence
   Map<String, dynamic> toJson() => {
         kThemeModeKey: themeMode.name,
         kUseDynamicColorKey: useDynamicColor,
@@ -49,7 +45,6 @@ class ThemeSettings {
         kUseAmoledKey: useAmoled,
       };
 
-  /// Create from JSON map
   factory ThemeSettings.fromJson(Map<String, dynamic> json) {
     return ThemeSettings(
       themeMode: _themeModeFromString(json[kThemeModeKey] as String?),
@@ -74,7 +69,6 @@ class ThemeSettings {
       themeMode.hashCode ^ useDynamicColor.hashCode ^ seedColorValue.hashCode ^ useAmoled.hashCode;
 }
 
-/// Helper to convert string to ThemeMode
 ThemeMode _themeModeFromString(String? value) {
   if (value == null) return ThemeMode.system;
   return ThemeMode.values.firstWhere(

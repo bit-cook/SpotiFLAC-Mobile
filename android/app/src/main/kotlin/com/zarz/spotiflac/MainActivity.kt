@@ -284,6 +284,13 @@ class MainActivity: FlutterActivity() {
                             }
                             result.success(response)
                         }
+                        "getDeezerExtendedMetadata" -> {
+                            val trackId = call.argument<String>("track_id") ?: ""
+                            val response = withContext(Dispatchers.IO) {
+                                Gobackend.getDeezerExtendedMetadata(trackId)
+                            }
+                            result.success(response)
+                        }
                         "convertSpotifyToDeezer" -> {
                             val resourceType = call.argument<String>("resource_type") ?: ""
                             val spotifyId = call.argument<String>("spotify_id") ?: ""
@@ -437,6 +444,14 @@ class MainActivity: FlutterActivity() {
                                 Gobackend.setExtensionSettingsJSON(extensionId, settingsJson)
                             }
                             result.success(null)
+                        }
+                        "invokeExtensionAction" -> {
+                            val extensionId = call.argument<String>("extension_id") ?: ""
+                            val actionName = call.argument<String>("action") ?: ""
+                            val response = withContext(Dispatchers.IO) {
+                                Gobackend.invokeExtensionActionJSON(extensionId, actionName)
+                            }
+                            result.success(response)
                         }
                         "searchTracksWithExtensions" -> {
                             val query = call.argument<String>("query") ?: ""

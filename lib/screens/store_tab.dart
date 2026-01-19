@@ -122,7 +122,7 @@ class _StoreTabState extends ConsumerState<StoreTab> {
                   ),
                   onChanged: (value) {
                     ref.read(storeProvider.notifier).setSearchQuery(value);
-                    setState(() {}); // Update suffix icon
+                    setState(() {});
                   },
                 ),
               ),

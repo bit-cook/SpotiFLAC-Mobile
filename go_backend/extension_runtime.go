@@ -1,4 +1,3 @@
-// Package gobackend provides extension runtime with sandboxed execution
 package gobackend
 
 import (
@@ -17,7 +16,6 @@ var (
 	extensionAuthStateMu sync.RWMutex
 )
 
-// ExtensionAuthState holds auth state for an extension
 type ExtensionAuthState struct {
 	PendingAuthURL  string
 	AuthCode        string
@@ -30,7 +28,6 @@ type ExtensionAuthState struct {
 	PKCEChallenge string
 }
 
-// PendingAuthRequest holds a pending OAuth request that needs Flutter to open URL
 type PendingAuthRequest struct {
 	ExtensionID string
 	AuthURL     string
@@ -55,7 +52,6 @@ func ClearPendingAuthRequest(extensionID string) {
 	delete(pendingAuthRequests, extensionID)
 }
 
-// SetExtensionAuthCode sets auth code for an extension (called from Flutter after OAuth callback)
 func SetExtensionAuthCode(extensionID string, authCode string) {
 	extensionAuthStateMu.Lock()
 	defer extensionAuthStateMu.Unlock()
@@ -68,7 +64,6 @@ func SetExtensionAuthCode(extensionID string, authCode string) {
 	state.AuthCode = authCode
 }
 
-// SetExtensionTokens sets access/refresh tokens for an extension
 func SetExtensionTokens(extensionID string, accessToken, refreshToken string, expiresAt time.Time) {
 	extensionAuthStateMu.Lock()
 	defer extensionAuthStateMu.Unlock()
@@ -84,7 +79,6 @@ func SetExtensionTokens(extensionID string, accessToken, refreshToken string, ex
 	state.IsAuthenticated = accessToken != ""
 }
 
-// ExtensionRuntime provides sandboxed APIs for extensions
 type ExtensionRuntime struct {
 	extensionID string
 	manifest    *ExtensionManifest
@@ -95,7 +89,6 @@ type ExtensionRuntime struct {
 	vm          *goja.Runtime
 }
 
-// NewExtensionRuntime creates a new runtime for an extension
 func NewExtensionRuntime(ext *LoadedExtension) *ExtensionRuntime {
 	jar, _ := newSimpleCookieJar()
 
@@ -108,7 +101,6 @@ func NewExtensionRuntime(ext *LoadedExtension) *ExtensionRuntime {
 		vm:          ext.VM,
 	}
 
-	// Create HTTP client with redirect validation to prevent SSRF via open redirect
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 		Jar:     jar,
@@ -119,7 +111,6 @@ func NewExtensionRuntime(ext *LoadedExtension) *ExtensionRuntime {
 				GoLog("[Extension:%s] Redirect blocked: domain '%s' not in allowed list\n", ext.ID, domain)
 				return &RedirectBlockedError{Domain: domain}
 			}
-			// Also block redirects to private/local networks (SSRF protection)
 			if isPrivateIP(domain) {
 				GoLog("[Extension:%s] Redirect blocked: private IP '%s'\n", ext.ID, domain)
 				return &RedirectBlockedError{Domain: domain, IsPrivate: true}
@@ -136,7 +127,6 @@ func NewExtensionRuntime(ext *LoadedExtension) *ExtensionRuntime {
 	return runtime
 }
 
-// RedirectBlockedError is returned when a redirect is blocked due to domain validation
 type RedirectBlockedError struct {
 	Domain    string
 	IsPrivate bool
@@ -162,10 +152,10 @@ func isPrivateIP(host string) bool {
 		"172.24.", "172.25.", "172.26.", "172.27.",
 		"172.28.", "172.29.", "172.30.", "172.31.",
 		"192.168.",
-		"169.254.", // Link-local
-		"::1",      // IPv6 localhost
-		"fc00:",    // IPv6 private
-		"fe80:",    // IPv6 link-local
+		"169.254.",
+		"::1",
+		"fc00:",
+		"fe80:",
 	}
 
 	hostLower := host
@@ -183,7 +173,6 @@ func isPrivateIP(host string) bool {
 	return false
 }
 
-// simpleCookieJar is a simple in-memory cookie jar
 type simpleCookieJar struct {
 	cookies map[string][]*http.Cookie
 	mu      sync.RWMutex
@@ -208,7 +197,6 @@ func (j *simpleCookieJar) Cookies(u *url.URL) []*http.Cookie {
 	return j.cookies[u.Host]
 }
 
-// SetSettings updates the runtime settings
 func (r *ExtensionRuntime) SetSettings(settings map[string]interface{}) {
 	r.settings = settings
 }
@@ -228,7 +216,6 @@ func (r *ExtensionRuntime) RegisterAPIs(vm *goja.Runtime) {
 	httpObj.Set("clearCookies", r.httpClearCookies)
 	vm.Set("http", httpObj)
 
-	// Storage API
 	storageObj := vm.NewObject()
 	storageObj.Set("get", r.storageGet)
 	storageObj.Set("set", r.storageSet)
@@ -243,7 +230,6 @@ func (r *ExtensionRuntime) RegisterAPIs(vm *goja.Runtime) {
 	credentialsObj.Set("has", r.credentialsHas)
 	vm.Set("credentials", credentialsObj)
 
-	// Auth API (for OAuth and other auth flows)
 	authObj := vm.NewObject()
 	authObj.Set("openAuthUrl", r.authOpenUrl)
 	authObj.Set("getAuthCode", r.authGetCode)
@@ -270,7 +256,6 @@ func (r *ExtensionRuntime) RegisterAPIs(vm *goja.Runtime) {
 	fileObj.Set("getSize", r.fileGetSize)
 	vm.Set("file", fileObj)
 
-	// FFmpeg API (for post-processing)
 	ffmpegObj := vm.NewObject()
 	ffmpegObj.Set("execute", r.ffmpegExecute)
 	ffmpegObj.Set("getInfo", r.ffmpegGetInfo)
@@ -284,7 +269,6 @@ func (r *ExtensionRuntime) RegisterAPIs(vm *goja.Runtime) {
 	matchingObj.Set("normalizeString", r.matchingNormalizeString)
 	vm.Set("matching", matchingObj)
 
-	// Utilities
 	utilsObj := vm.NewObject()
 	utilsObj.Set("base64Encode", r.base64Encode)
 	utilsObj.Set("base64Decode", r.base64Decode)
@@ -299,6 +283,7 @@ func (r *ExtensionRuntime) RegisterAPIs(vm *goja.Runtime) {
 	utilsObj.Set("encrypt", r.cryptoEncrypt)
 	utilsObj.Set("decrypt", r.cryptoDecrypt)
 	utilsObj.Set("generateKey", r.cryptoGenerateKey)
+	utilsObj.Set("randomUserAgent", r.randomUserAgent)
 	vm.Set("utils", utilsObj)
 
 	// Log object (already set in extension_manager.go, but we can enhance it)
@@ -309,7 +294,6 @@ func (r *ExtensionRuntime) RegisterAPIs(vm *goja.Runtime) {
 	logObj.Set("error", r.logError)
 	vm.Set("log", logObj)
 
-	// Go backend functions
 	gobackendObj := vm.NewObject()
 	gobackendObj.Set("sanitizeFilename", r.sanitizeFilenameWrapper)
 	vm.Set("gobackend", gobackendObj)
@@ -320,16 +304,12 @@ func (r *ExtensionRuntime) RegisterAPIs(vm *goja.Runtime) {
 	// Global fetch() - Promise-style HTTP API (browser-compatible)
 	vm.Set("fetch", r.fetchPolyfill)
 
-	// Global atob/btoa - Base64 encoding (browser-compatible)
 	vm.Set("atob", r.atobPolyfill)
 	vm.Set("btoa", r.btoaPolyfill)
 
-	// TextEncoder/TextDecoder constructors
 	r.registerTextEncoderDecoder(vm)
 
-	// URL class for URL parsing
 	r.registerURLClass(vm)
 
-	// JSON global (browser-compatible)
 	r.registerJSONGlobal(vm)
 }

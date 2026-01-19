@@ -52,7 +52,6 @@ func (r *ExtensionRuntime) httpGet(call goja.FunctionCall) goja.Value {
 
 	urlStr := call.Arguments[0].String()
 
-	// Validate domain
 	if err := r.validateDomain(urlStr); err != nil {
 		GoLog("[Extension:%s] HTTP blocked: %v\n", r.extensionID, err)
 		return r.vm.ToValue(map[string]interface{}{
@@ -60,7 +59,6 @@ func (r *ExtensionRuntime) httpGet(call goja.FunctionCall) goja.Value {
 		})
 	}
 
-	// Get headers if provided
 	headers := make(map[string]string)
 	if len(call.Arguments) > 1 && !goja.IsUndefined(call.Arguments[1]) && !goja.IsNull(call.Arguments[1]) {
 		headersObj := call.Arguments[1].Export()
@@ -71,7 +69,6 @@ func (r *ExtensionRuntime) httpGet(call goja.FunctionCall) goja.Value {
 		}
 	}
 
-	// Create request
 	req, err := http.NewRequest("GET", urlStr, nil)
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -97,7 +94,6 @@ func (r *ExtensionRuntime) httpGet(call goja.FunctionCall) goja.Value {
 	}
 	defer resp.Body.Close()
 
-	// Read body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -134,7 +130,6 @@ func (r *ExtensionRuntime) httpPost(call goja.FunctionCall) goja.Value {
 
 	urlStr := call.Arguments[0].String()
 
-	// Validate domain
 	if err := r.validateDomain(urlStr); err != nil {
 		GoLog("[Extension:%s] HTTP blocked: %v\n", r.extensionID, err)
 		return r.vm.ToValue(map[string]interface{}{
@@ -175,7 +170,6 @@ func (r *ExtensionRuntime) httpPost(call goja.FunctionCall) goja.Value {
 		}
 	}
 
-	// Create request
 	req, err := http.NewRequest("POST", urlStr, strings.NewReader(bodyStr))
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -204,7 +198,6 @@ func (r *ExtensionRuntime) httpPost(call goja.FunctionCall) goja.Value {
 	}
 	defer resp.Body.Close()
 
-	// Read body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -231,8 +224,6 @@ func (r *ExtensionRuntime) httpPost(call goja.FunctionCall) goja.Value {
 	})
 }
 
-// httpRequest performs a generic HTTP request (GET, POST, PUT, DELETE, etc.)
-// Usage: http.request(url, options) where options = { method, body, headers }
 func (r *ExtensionRuntime) httpRequest(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
 		return r.vm.ToValue(map[string]interface{}{
@@ -242,7 +233,6 @@ func (r *ExtensionRuntime) httpRequest(call goja.FunctionCall) goja.Value {
 
 	urlStr := call.Arguments[0].String()
 
-	// Validate domain
 	if err := r.validateDomain(urlStr); err != nil {
 		GoLog("[Extension:%s] HTTP blocked: %v\n", r.extensionID, err)
 		return r.vm.ToValue(map[string]interface{}{
@@ -326,7 +316,6 @@ func (r *ExtensionRuntime) httpRequest(call goja.FunctionCall) goja.Value {
 	}
 	defer resp.Body.Close()
 
-	// Read body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -354,7 +343,6 @@ func (r *ExtensionRuntime) httpRequest(call goja.FunctionCall) goja.Value {
 	})
 }
 
-// httpPut performs a PUT request (shortcut for http.request with method: "PUT")
 func (r *ExtensionRuntime) httpPut(call goja.FunctionCall) goja.Value {
 	return r.httpMethodShortcut("PUT", call)
 }
@@ -364,7 +352,6 @@ func (r *ExtensionRuntime) httpDelete(call goja.FunctionCall) goja.Value {
 	return r.httpMethodShortcut("DELETE", call)
 }
 
-// httpPatch performs a PATCH request (shortcut for http.request with method: "PATCH")
 func (r *ExtensionRuntime) httpPatch(call goja.FunctionCall) goja.Value {
 	return r.httpMethodShortcut("PATCH", call)
 }
@@ -380,7 +367,6 @@ func (r *ExtensionRuntime) httpMethodShortcut(method string, call goja.FunctionC
 
 	urlStr := call.Arguments[0].String()
 
-	// Validate domain
 	if err := r.validateDomain(urlStr); err != nil {
 		GoLog("[Extension:%s] HTTP blocked: %v\n", r.extensionID, err)
 		return r.vm.ToValue(map[string]interface{}{
@@ -465,7 +451,6 @@ func (r *ExtensionRuntime) httpMethodShortcut(method string, call goja.FunctionC
 	}
 	defer resp.Body.Close()
 
-	// Read body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -492,7 +477,6 @@ func (r *ExtensionRuntime) httpMethodShortcut(method string, call goja.FunctionC
 	})
 }
 
-// httpClearCookies clears all cookies for this extension
 func (r *ExtensionRuntime) httpClearCookies(call goja.FunctionCall) goja.Value {
 	if jar, ok := r.cookieJar.(*simpleCookieJar); ok {
 		jar.mu.Lock()

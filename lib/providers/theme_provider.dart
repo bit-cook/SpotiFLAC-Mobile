@@ -34,7 +34,6 @@ class ThemeNotifier extends Notifier<ThemeSettings> {
       );
     } catch (e) {
       debugPrint('Error loading theme settings: $e');
-      // Keep default state on error
     }
   }
 

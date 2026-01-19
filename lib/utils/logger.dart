@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 
-/// Log entry with timestamp and level
 class LogEntry {
   final DateTime timestamp;
   final String level;
@@ -38,7 +37,6 @@ class LogEntry {
   }
 }
 
-/// Circular buffer for storing logs in memory
 class LogBuffer extends ChangeNotifier {
   static final LogBuffer _instance = LogBuffer._internal();
   factory LogBuffer() => _instance;
@@ -134,7 +132,6 @@ class LogBuffer extends ChangeNotifier {
       
       _lastGoLogIndex = nextIndex;
     } catch (e) {
-      // Ignore errors - Go backend might not be ready
       if (kDebugMode) {
         debugPrint('Failed to fetch Go logs: $e');
       }
@@ -180,7 +177,6 @@ class LogBuffer extends ChangeNotifier {
   }
 }
 
-/// Custom log output that writes to both console and buffer
 class BufferedOutput extends LogOutput {
   final String tag;
 
@@ -236,9 +232,6 @@ final log = Logger(
   level: Level.debug,
 );
 
-/// Logger with class/tag prefix for better traceability
-/// Now also writes to LogBuffer for in-app viewing
-/// Works in both debug and release mode
 class AppLogger {
   final String _tag;
   late final Logger? _logger;

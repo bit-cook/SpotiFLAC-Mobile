@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
+import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/models/track.dart';
 import 'package:spotiflac_android/models/download_item.dart';
@@ -95,10 +96,16 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
   String? _headerImageUrl;
   int? _monthlyListeners;
   String? _error;
+  
+  bool _showTitleInAppBar = false;
+  final ScrollController _scrollController = ScrollController();
 
-  @override
+@override
   void initState() {
     super.initState();
+    
+    // Setup scroll listener for sticky title
+    _scrollController.addListener(_onScroll);
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final providerId = widget.extensionId ?? 
@@ -141,7 +148,22 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
       }
     } else {
       _fetchDiscography();
+}
+  }
+
+  void _onScroll() {
+    // Show title when scrolled past the header (280px trigger)
+    final shouldShow = _scrollController.offset > 280;
+    if (shouldShow != _showTitleInAppBar) {
+      setState(() => _showTitleInAppBar = shouldShow);
     }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchDiscography() async {
@@ -256,8 +278,9 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
     final singles = albums.where((a) => a.albumType == 'single').toList();
     final compilations = albums.where((a) => a.albumType == 'compilation').toList();
 
-    return Scaffold(
+return Scaffold(
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
           _buildHeader(context, colorScheme),
           if (_isLoadingDiscography)
@@ -286,7 +309,6 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
     );
   }
 
-  /// Build Spotify-style header with full-width image and artist name overlay
   Widget _buildHeader(BuildContext context, ColorScheme colorScheme) {
     String? imageUrl = _headerImageUrl;
     if (imageUrl == null || imageUrl.isEmpty) {
@@ -307,22 +329,38 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
       listenersText = context.l10n.artistMonthlyListeners(formatter.format(listeners));
     }
     
-    return SliverAppBar(
+return SliverAppBar(
       expandedHeight: 380,
       pinned: true,
       stretch: true,
       backgroundColor: colorScheme.surface,
       surfaceTintColor: Colors.transparent,
+      title: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: _showTitleInAppBar ? 1.0 : 0.0,
+        child: Text(
+          widget.artistName,
+          style: TextStyle(
+            color: colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
       flexibleSpace: FlexibleSpaceBar(
+        collapseMode: CollapseMode.none,
         background: Stack(
           fit: StackFit.expand,
           children: [
-            if (hasValidImage)
+if (hasValidImage)
               CachedNetworkImage(
                 imageUrl: imageUrl,
                 fit: BoxFit.cover,
                 alignment: Alignment.topCenter, // Show top of image (faces)
                 memCacheWidth: 800,
+                cacheManager: CoverCacheManager.instance,
                 placeholder: (context, url) => Container(
                   color: colorScheme.surfaceContainerHighest,
                 ),
@@ -439,11 +477,10 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
     );
   }
 
-  /// Build a single popular track item with dynamic download status
   Widget _buildPopularTrackItem(int rank, Track track, ColorScheme colorScheme) {
-    final queueItem = ref.watch(downloadQueueProvider.select((state) {
-      return state.items.where((item) => item.track.id == track.id).firstOrNull;
-    }));
+    final queueItem = ref.watch(
+      downloadQueueLookupProvider.select((lookup) => lookup.byTrackId[track.id]),
+    );
     
     final isInHistory = ref.watch(downloadHistoryProvider.select((state) {
       return state.isDownloaded(track.id);
@@ -477,12 +514,13 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: track.coverUrl != null
-                  ? CachedNetworkImage(
+? CachedNetworkImage(
                       imageUrl: track.coverUrl!,
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,
                       memCacheWidth: 96,
+                      cacheManager: CoverCacheManager.instance,
                       placeholder: (context, url) => Container(
                         width: 48,
                         height: 48,
@@ -567,7 +605,6 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
     _downloadTrack(track);
   }
 
-  /// Build download button with status indicator for popular tracks
   Widget _buildPopularDownloadButton({
     required Track track,
     required ColorScheme colorScheme,
@@ -713,12 +750,13 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: album.coverUrl != null
-                  ? CachedNetworkImage(
+? CachedNetworkImage(
                       imageUrl: album.coverUrl!,
                       width: 140,
                       height: 140,
                       fit: BoxFit.cover,
                       memCacheWidth: 280,
+                      cacheManager: CoverCacheManager.instance,
                       placeholder: (context, url) => Container(
                         width: 140,
                         height: 140,

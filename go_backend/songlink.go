@@ -11,12 +11,10 @@ import (
 	"time"
 )
 
-// SongLinkClient handles song.link API interactions
 type SongLinkClient struct {
 	client *http.Client
 }
 
-// TrackAvailability represents track availability on different platforms
 type TrackAvailability struct {
 	SpotifyID string `json:"spotify_id"`
 	Tidal     bool   `json:"tidal"`
@@ -35,7 +33,6 @@ var (
 	songLinkClientOnce   sync.Once
 )
 
-// NewSongLinkClient creates a new SongLink client (returns singleton for connection reuse)
 func NewSongLinkClient() *SongLinkClient {
 	songLinkClientOnce.Do(func() {
 		globalSongLinkClient = &SongLinkClient{
@@ -45,7 +42,6 @@ func NewSongLinkClient() *SongLinkClient {
 	return globalSongLinkClient
 }
 
-// CheckTrackAvailability checks track availability on streaming platforms
 func (s *SongLinkClient) CheckTrackAvailability(spotifyTrackID string, isrc string) (*TrackAvailability, error) {
 	if spotifyTrackID == "" {
 		return nil, fmt.Errorf("spotify track ID is empty")
@@ -126,7 +122,6 @@ func (s *SongLinkClient) CheckTrackAvailability(spotifyTrackID string, isrc stri
 	return availability, nil
 }
 
-// GetStreamingURLs gets streaming URLs for a Spotify track
 func (s *SongLinkClient) GetStreamingURLs(spotifyTrackID string) (map[string]string, error) {
 	availability, err := s.CheckTrackAvailability(spotifyTrackID, "")
 	if err != nil {
@@ -191,7 +186,6 @@ func extractDeezerIDFromURL(deezerURL string) string {
 	return ""
 }
 
-// GetDeezerIDFromSpotify converts a Spotify track ID to Deezer track ID using SongLink
 func (s *SongLinkClient) GetDeezerIDFromSpotify(spotifyTrackID string) (string, error) {
 	availability, err := s.CheckTrackAvailability(spotifyTrackID, "")
 	if err != nil {
@@ -213,7 +207,6 @@ type AlbumAvailability struct {
 	DeezerID  string `json:"deezer_id,omitempty"`
 }
 
-// CheckAlbumAvailability checks album availability on streaming platforms using SongLink
 func (s *SongLinkClient) CheckAlbumAvailability(spotifyAlbumID string) (*AlbumAvailability, error) {
 	// Use global rate limiter
 	songLinkRateLimiter.WaitForSlot()
@@ -283,11 +276,6 @@ func (s *SongLinkClient) GetDeezerAlbumIDFromSpotify(spotifyAlbumID string) (str
 	return availability.DeezerID, nil
 }
 
-// ========================================
-// Deezer ID Support - Query SongLink using Deezer as source
-// ========================================
-
-// CheckAvailabilityFromDeezer checks track availability using Deezer track ID as source
 // This is useful when we have Deezer metadata and want to find the track on other platforms
 func (s *SongLinkClient) CheckAvailabilityFromDeezer(deezerTrackID string) (*TrackAvailability, error) {
 	if deezerTrackID == "" {
@@ -374,7 +362,6 @@ func (s *SongLinkClient) CheckAvailabilityFromDeezer(deezerTrackID string) (*Tra
 	return availability, nil
 }
 
-// CheckAvailabilityByPlatform checks track availability using any supported platform
 // platform: "spotify", "deezer", "tidal", "amazonMusic", "appleMusic", "youtube", etc.
 // entityType: "song" or "album"
 // entityID: the ID on that platform
@@ -472,7 +459,6 @@ func extractSpotifyIDFromURL(spotifyURL string) string {
 	return ""
 }
 
-// GetSpotifyIDFromDeezer converts a Deezer track ID to Spotify track ID using SongLink
 func (s *SongLinkClient) GetSpotifyIDFromDeezer(deezerTrackID string) (string, error) {
 	availability, err := s.CheckAvailabilityFromDeezer(deezerTrackID)
 	if err != nil {
@@ -500,7 +486,6 @@ func (s *SongLinkClient) GetTidalURLFromDeezer(deezerTrackID string) (string, er
 	return availability.TidalURL, nil
 }
 
-// GetAmazonURLFromDeezer converts a Deezer track ID to Amazon Music URL using SongLink
 func (s *SongLinkClient) GetAmazonURLFromDeezer(deezerTrackID string) (string, error) {
 	availability, err := s.CheckAvailabilityFromDeezer(deezerTrackID)
 	if err != nil {

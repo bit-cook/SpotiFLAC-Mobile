@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _recentAccessKey = 'recent_access_history';
+const _hiddenDownloadsKey = 'hidden_downloads_in_recents';
 const _maxRecentItems = 20;
 
 /// Types of items that can be accessed
@@ -75,19 +76,23 @@ class RecentAccessItem {
 /// State for recent access history
 class RecentAccessState {
   final List<RecentAccessItem> items;
+  final Set<String> hiddenDownloadIds; // IDs of downloads hidden from recents
   final bool isLoaded;
 
   const RecentAccessState({
     this.items = const [],
+    this.hiddenDownloadIds = const {},
     this.isLoaded = false,
   });
 
   RecentAccessState copyWith({
     List<RecentAccessItem>? items,
+    Set<String>? hiddenDownloadIds,
     bool? isLoaded,
   }) {
     return RecentAccessState(
       items: items ?? this.items,
+      hiddenDownloadIds: hiddenDownloadIds ?? this.hiddenDownloadIds,
       isLoaded: isLoaded ?? this.isLoaded,
     );
   }
@@ -104,25 +109,37 @@ class RecentAccessNotifier extends Notifier<RecentAccessState> {
   Future<void> _loadHistory() async {
     final prefs = await SharedPreferences.getInstance();
     final json = prefs.getString(_recentAccessKey);
+    final hiddenJson = prefs.getStringList(_hiddenDownloadsKey);
+    
+    List<RecentAccessItem> items = [];
+    Set<String> hiddenIds = {};
+    
     if (json != null) {
       try {
         final List<dynamic> decoded = jsonDecode(json);
-        final items = decoded
+        items = decoded
             .map((e) => RecentAccessItem.fromJson(e as Map<String, dynamic>))
             .toList();
-        state = state.copyWith(items: items, isLoaded: true);
       } catch (e) {
-        state = state.copyWith(isLoaded: true);
       }
-    } else {
-      state = state.copyWith(isLoaded: true);
     }
+    
+    if (hiddenJson != null) {
+      hiddenIds = hiddenJson.toSet();
+    }
+    
+    state = state.copyWith(items: items, hiddenDownloadIds: hiddenIds, isLoaded: true);
   }
 
   Future<void> _saveHistory() async {
     final prefs = await SharedPreferences.getInstance();
     final json = jsonEncode(state.items.map((e) => e.toJson()).toList());
     await prefs.setString(_recentAccessKey, json);
+  }
+
+  Future<void> _saveHiddenDownloads() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_hiddenDownloadsKey, state.hiddenDownloadIds.toList());
   }
 
   /// Record an access to an artist
@@ -200,9 +217,6 @@ class RecentAccessNotifier extends Notifier<RecentAccessState> {
   }
 
   void _recordAccess(RecentAccessItem item) {
-    // ignore: avoid_print
-    print('[RecentAccess] Recording: ${item.type.name} - ${item.name} (${item.id})');
-    
     final updatedItems = state.items
         .where((e) => e.uniqueKey != item.uniqueKey)
         .toList();
@@ -215,9 +229,6 @@ class RecentAccessNotifier extends Notifier<RecentAccessState> {
     
     state = state.copyWith(items: updatedItems);
     _saveHistory();
-    
-    // ignore: avoid_print
-    print('[RecentAccess] Total items now: ${updatedItems.length}');
   }
 
   /// Remove a specific item from history
@@ -229,14 +240,31 @@ class RecentAccessNotifier extends Notifier<RecentAccessState> {
     _saveHistory();
   }
 
+  /// Hide a download item from recents (without deleting the actual download)
+  void hideDownloadFromRecents(String downloadId) {
+    final updatedHidden = {...state.hiddenDownloadIds, downloadId};
+    state = state.copyWith(hiddenDownloadIds: updatedHidden);
+    _saveHiddenDownloads();
+  }
+
+  /// Check if a download is hidden from recents
+  bool isDownloadHidden(String downloadId) {
+    return state.hiddenDownloadIds.contains(downloadId);
+  }
+
   /// Clear all history
   void clearHistory() {
     state = state.copyWith(items: []);
     _saveHistory();
   }
+
+  /// Clear hidden downloads (show all again)
+  void clearHiddenDownloads() {
+    state = state.copyWith(hiddenDownloadIds: {});
+    _saveHiddenDownloads();
+  }
 }
 
-/// Provider instance
 final recentAccessProvider = NotifierProvider<RecentAccessNotifier, RecentAccessState>(
   RecentAccessNotifier.new,
 );

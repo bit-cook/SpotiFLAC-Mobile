@@ -36,7 +36,12 @@ class SpotiFLACApp extends ConsumerWidget {
     
     Locale? locale;
     if (localeString != 'system') {
-      locale = Locale(localeString);
+      if (localeString.contains('_')) {
+        final parts = localeString.split('_');
+        locale = Locale(parts[0], parts[1]);
+      } else {
+        locale = Locale(localeString);
+      }
     }
     
     return DynamicColorWrapper(

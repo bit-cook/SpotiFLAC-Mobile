@@ -107,6 +107,7 @@ abstract class AppLocalizations {
     Locale('de'),
     Locale('en'),
     Locale('es'),
+    Locale('es', 'ES'),
     Locale('fr'),
     Locale('hi'),
     Locale('id'),
@@ -114,6 +115,7 @@ abstract class AppLocalizations {
     Locale('ko'),
     Locale('nl'),
     Locale('pt'),
+    Locale('pt', 'PT'),
     Locale('ru'),
     Locale('zh'),
     Locale('zh', 'CN'),
@@ -815,6 +817,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The talented artist who created our beautiful app logo!'**
   String get aboutLogoArtist;
+
+  /// Section for translators
+  ///
+  /// In en, this message translates to:
+  /// **'Translators'**
+  String get aboutTranslators;
 
   /// Section for special thanks
   ///
@@ -1679,6 +1687,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Found {count} tracks in CSV. Add them to download queue?'**
   String dialogImportPlaylistMessage(int count);
+
+  /// Label shown in quality picker for CSV import
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tracks from CSV'**
+  String csvImportTracks(int count);
 
   /// Snackbar - track added to download queue
   ///
@@ -2607,6 +2621,60 @@ abstract class AppLocalizations {
   /// Settings section header
   ///
   /// In en, this message translates to:
+  /// **'Lyrics'**
+  String get sectionLyrics;
+
+  /// Setting - how to save lyrics
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics Mode'**
+  String get lyricsMode;
+
+  /// Lyrics mode picker description
+  ///
+  /// In en, this message translates to:
+  /// **'Choose how lyrics are saved with your downloads'**
+  String get lyricsModeDescription;
+
+  /// Lyrics mode option - embed in audio file
+  ///
+  /// In en, this message translates to:
+  /// **'Embed in file'**
+  String get lyricsModeEmbed;
+
+  /// Subtitle for embed option
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics stored inside FLAC metadata'**
+  String get lyricsModeEmbedSubtitle;
+
+  /// Lyrics mode option - separate LRC file
+  ///
+  /// In en, this message translates to:
+  /// **'External .lrc file'**
+  String get lyricsModeExternal;
+
+  /// Subtitle for external option
+  ///
+  /// In en, this message translates to:
+  /// **'Separate .lrc file for players like Samsung Music'**
+  String get lyricsModeExternalSubtitle;
+
+  /// Lyrics mode option - embed and external
+  ///
+  /// In en, this message translates to:
+  /// **'Both'**
+  String get lyricsModeBoth;
+
+  /// Subtitle for both option
+  ///
+  /// In en, this message translates to:
+  /// **'Embed and save .lrc file'**
+  String get lyricsModeBothSubtitle;
+
+  /// Settings section header
+  ///
+  /// In en, this message translates to:
   /// **'Color'**
   String get sectionColor;
 
@@ -2807,6 +2875,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Release date'**
   String get trackReleaseDate;
+
+  /// Metadata label - music genre
+  ///
+  /// In en, this message translates to:
+  /// **'Genre'**
+  String get trackGenre;
+
+  /// Metadata label - record label
+  ///
+  /// In en, this message translates to:
+  /// **'Label'**
+  String get trackLabel;
+
+  /// Metadata label - copyright information
+  ///
+  /// In en, this message translates to:
+  /// **'Copyright'**
+  String get trackCopyright;
 
   /// Metadata label - download date
   ///
@@ -3252,6 +3338,36 @@ abstract class AppLocalizations {
   /// **'24-bit / up to 192kHz'**
   String get qualityHiResFlacMaxSubtitle;
 
+  /// Quality option - MP3 lossy format
+  ///
+  /// In en, this message translates to:
+  /// **'MP3'**
+  String get qualityMp3;
+
+  /// Technical spec for MP3
+  ///
+  /// In en, this message translates to:
+  /// **'320kbps (converted from FLAC)'**
+  String get qualityMp3Subtitle;
+
+  /// Setting - enable MP3 quality option
+  ///
+  /// In en, this message translates to:
+  /// **'Enable MP3 Option'**
+  String get enableMp3Option;
+
+  /// Subtitle when MP3 is enabled
+  ///
+  /// In en, this message translates to:
+  /// **'MP3 quality option is available'**
+  String get enableMp3OptionSubtitleOn;
+
+  /// Subtitle when MP3 is disabled
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads FLAC then converts to 320kbps MP3'**
+  String get enableMp3OptionSubtitleOff;
+
   /// Note about quality availability
   ///
   /// In en, this message translates to:
@@ -3588,6 +3704,12 @@ abstract class AppLocalizations {
   /// **'Select tracks to delete'**
   String get downloadedAlbumSelectToDelete;
 
+  /// Header for disc separator in multi-disc albums
+  ///
+  /// In en, this message translates to:
+  /// **'Disc {discNumber}'**
+  String downloadedAlbumDiscHeader(int discNumber);
+
   /// Extension capability - utility functions
   ///
   /// In en, this message translates to:
@@ -3663,6 +3785,22 @@ class _AppLocalizationsDelegate
 AppLocalizations lookupAppLocalizations(Locale locale) {
   // Lookup logic when language+country codes are specified.
   switch (locale.languageCode) {
+    case 'es':
+      {
+        switch (locale.countryCode) {
+          case 'ES':
+            return AppLocalizationsEsEs();
+        }
+        break;
+      }
+    case 'pt':
+      {
+        switch (locale.countryCode) {
+          case 'PT':
+            return AppLocalizationsPtPt();
+        }
+        break;
+      }
     case 'zh':
       {
         switch (locale.countryCode) {

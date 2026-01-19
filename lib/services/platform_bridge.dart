@@ -4,25 +4,21 @@ import 'package:spotiflac_android/utils/logger.dart';
 
 final _log = AppLogger('PlatformBridge');
 
-/// Bridge to communicate with Go backend via platform channels
 class PlatformBridge {
   static const _channel = MethodChannel('com.zarz.spotiflac/backend');
 
-  /// Parse and validate Spotify URL
   static Future<Map<String, dynamic>> parseSpotifyUrl(String url) async {
     _log.d('parseSpotifyUrl: $url');
     final result = await _channel.invokeMethod('parseSpotifyUrl', {'url': url});
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Get Spotify metadata from URL
   static Future<Map<String, dynamic>> getSpotifyMetadata(String url) async {
     _log.d('getSpotifyMetadata: $url');
     final result = await _channel.invokeMethod('getSpotifyMetadata', {'url': url});
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Search Spotify
   static Future<Map<String, dynamic>> searchSpotify(String query, {int limit = 10}) async {
     _log.d('searchSpotify: "$query" (limit: $limit)');
     final result = await _channel.invokeMethod('searchSpotify', {
@@ -32,7 +28,6 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Search Spotify for tracks and artists
   static Future<Map<String, dynamic>> searchSpotifyAll(String query, {int trackLimit = 15, int artistLimit = 3}) async {
     _log.d('searchSpotifyAll: "$query"');
     final result = await _channel.invokeMethod('searchSpotifyAll', {
@@ -43,7 +38,6 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Check track availability on streaming services
   static Future<Map<String, dynamic>> checkAvailability(String spotifyId, String isrc) async {
     _log.d('checkAvailability: $spotifyId (ISRC: $isrc)');
     final result = await _channel.invokeMethod('checkAvailability', {
@@ -53,7 +47,6 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Download a track from specific service
   static Future<Map<String, dynamic>> downloadTrack({
     required String isrc,
     required String service,
@@ -108,7 +101,6 @@ class PlatformBridge {
     return response;
   }
 
-  /// Download with automatic fallback to other services
   static Future<Map<String, dynamic>> downloadWithFallback({
     required String isrc,
     required String spotifyId,
@@ -129,6 +121,10 @@ class PlatformBridge {
     String preferredService = 'tidal',
     String? itemId,
     int durationMs = 0,
+    String? genre,
+    String? label,
+    String? copyright,
+    String lyricsMode = 'embed',
   }) async {
     _log.i('downloadWithFallback: "$trackName" by $artistName (preferred: $preferredService)');
     final request = jsonEncode({
@@ -151,6 +147,10 @@ class PlatformBridge {
       'release_date': releaseDate ?? '',
       'item_id': itemId ?? '',
       'duration_ms': durationMs,
+      'genre': genre ?? '',
+      'label': label ?? '',
+      'copyright': copyright ?? '',
+      'lyrics_mode': lyricsMode,
     });
     
     final result = await _channel.invokeMethod('downloadWithFallback', request);
@@ -172,44 +172,36 @@ class PlatformBridge {
     return response;
   }
 
-  /// Get download progress (legacy single download)
   static Future<Map<String, dynamic>> getDownloadProgress() async {
     final result = await _channel.invokeMethod('getDownloadProgress');
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Get progress for all active downloads (concurrent mode)
   static Future<Map<String, dynamic>> getAllDownloadProgress() async {
     final result = await _channel.invokeMethod('getAllDownloadProgress');
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Initialize progress tracking for a download item
   static Future<void> initItemProgress(String itemId) async {
     await _channel.invokeMethod('initItemProgress', {'item_id': itemId});
   }
 
-  /// Finish progress tracking for a download item
   static Future<void> finishItemProgress(String itemId) async {
     await _channel.invokeMethod('finishItemProgress', {'item_id': itemId});
   }
 
-  /// Clear progress tracking for a download item
   static Future<void> clearItemProgress(String itemId) async {
     await _channel.invokeMethod('clearItemProgress', {'item_id': itemId});
   }
 
-  /// Cancel an in-progress download
   static Future<void> cancelDownload(String itemId) async {
     await _channel.invokeMethod('cancelDownload', {'item_id': itemId});
   }
 
-  /// Set download directory
   static Future<void> setDownloadDirectory(String path) async {
     await _channel.invokeMethod('setDownloadDirectory', {'path': path});
   }
 
-  /// Check if file with ISRC already exists
   static Future<Map<String, dynamic>> checkDuplicate(String outputDir, String isrc) async {
     final result = await _channel.invokeMethod('checkDuplicate', {
       'output_dir': outputDir,
@@ -218,7 +210,6 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Build filename from template
   static Future<String> buildFilename(String template, Map<String, dynamic> metadata) async {
     final result = await _channel.invokeMethod('buildFilename', {
       'template': template,
@@ -227,7 +218,6 @@ class PlatformBridge {
     return result as String;
   }
 
-  /// Sanitize filename
   static Future<String> sanitizeFilename(String filename) async {
     final result = await _channel.invokeMethod('sanitizeFilename', {
       'filename': filename,
@@ -235,8 +225,6 @@ class PlatformBridge {
     return result as String;
   }
 
-  /// Fetch lyrics for a track
-  /// [durationMs] is the track duration in milliseconds for better matching
   static Future<Map<String, dynamic>> fetchLyrics(
     String spotifyId,
     String trackName,
@@ -252,9 +240,6 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Get lyrics in LRC format
-  /// First tries to extract from embedded file, then falls back to internet
-  /// [durationMs] is the track duration in milliseconds for better matching
   static Future<String> getLyricsLRC(
     String spotifyId,
     String trackName,
@@ -272,7 +257,6 @@ class PlatformBridge {
     return result as String;
   }
 
-  /// Embed lyrics into an existing FLAC file
   static Future<Map<String, dynamic>> embedLyricsToFile(
     String filePath,
     String lyrics,
@@ -284,15 +268,10 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Cleanup idle HTTP connections to prevent TCP exhaustion
-  /// Call this periodically during large batch downloads
   static Future<void> cleanupConnections() async {
     await _channel.invokeMethod('cleanupConnections');
   }
 
-  /// Read metadata directly from a FLAC file
-  /// Returns all embedded metadata (title, artist, album, track number, etc.)
-  /// This reads from the actual file, not from cached/database data
   static Future<Map<String, dynamic>> readFileMetadata(String filePath) async {
     final result = await _channel.invokeMethod('readFileMetadata', {
       'file_path': filePath,
@@ -300,7 +279,6 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Start foreground download service to keep downloads running in background
   static Future<void> startDownloadService({
     String trackName = '',
     String artistName = '',
@@ -313,12 +291,10 @@ class PlatformBridge {
     });
   }
 
-  /// Stop foreground download service
   static Future<void> stopDownloadService() async {
     await _channel.invokeMethod('stopDownloadService');
   }
 
-  /// Update download service notification progress
   static Future<void> updateDownloadServiceProgress({
     required String trackName,
     required String artistName,
@@ -335,13 +311,11 @@ class PlatformBridge {
     });
   }
 
-  /// Check if download service is running
   static Future<bool> isDownloadServiceRunning() async {
     final result = await _channel.invokeMethod('isDownloadServiceRunning');
     return result as bool;
   }
 
-  /// Set custom Spotify API credentials
   static Future<void> setSpotifyCredentials(String clientId, String clientSecret) async {
     await _channel.invokeMethod('setSpotifyCredentials', {
       'client_id': clientId,
@@ -349,35 +323,26 @@ class PlatformBridge {
     });
   }
 
-  /// Check if Spotify credentials are configured
   /// Returns true if credentials are available (custom or env vars)
   static Future<bool> hasSpotifyCredentials() async {
     final result = await _channel.invokeMethod('hasSpotifyCredentials');
     return result as bool;
   }
 
-  /// Pre-warm track ID cache for album/playlist tracks
-  /// This runs in background and returns immediately
-  /// Speeds up subsequent downloads by caching ISRC → Track ID mappings
   static Future<void> preWarmTrackCache(List<Map<String, String>> tracks) async {
     final tracksJson = jsonEncode(tracks);
     await _channel.invokeMethod('preWarmTrackCache', {'tracks': tracksJson});
   }
 
-  /// Get current track cache size
   static Future<int> getTrackCacheSize() async {
     final result = await _channel.invokeMethod('getTrackCacheSize');
     return result as int;
   }
 
-  /// Clear track ID cache
   static Future<void> clearTrackCache() async {
     await _channel.invokeMethod('clearTrackCache');
   }
 
-  // ==================== DEEZER API ====================
-
-  /// Search Deezer for tracks and artists (no API key required)
   static Future<Map<String, dynamic>> searchDeezerAll(String query, {int trackLimit = 15, int artistLimit = 3}) async {
     final result = await _channel.invokeMethod('searchDeezerAll', {
       'query': query,
@@ -387,7 +352,6 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Get Deezer metadata by type and ID
   static Future<Map<String, dynamic>> getDeezerMetadata(String resourceType, String resourceId) async {
     final result = await _channel.invokeMethod('getDeezerMetadata', {
       'resource_type': resourceType,
@@ -399,19 +363,33 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Parse Deezer URL and return type and ID
   static Future<Map<String, dynamic>> parseDeezerUrl(String url) async {
     final result = await _channel.invokeMethod('parseDeezerUrl', {'url': url});
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Search Deezer by ISRC
   static Future<Map<String, dynamic>> searchDeezerByISRC(String isrc) async {
     final result = await _channel.invokeMethod('searchDeezerByISRC', {'isrc': isrc});
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Convert Spotify track to Deezer and get metadata (for rate limit fallback)
+  static Future<Map<String, String>?> getDeezerExtendedMetadata(String trackId) async {
+    try {
+      final result = await _channel.invokeMethod('getDeezerExtendedMetadata', {
+        'track_id': trackId,
+      });
+      if (result == null) return null;
+      final data = jsonDecode(result as String) as Map<String, dynamic>;
+      return {
+        'genre': data['genre'] as String? ?? '',
+        'label': data['label'] as String? ?? '',
+      };
+    } catch (e) {
+      _log.w('Failed to get Deezer extended metadata for $trackId: $e');
+      return null;
+    }
+  }
+
   static Future<Map<String, dynamic>> convertSpotifyToDeezer(String resourceType, String spotifyId) async {
     final result = await _channel.invokeMethod('convertSpotifyToDeezer', {
       'resource_type': resourceType,
@@ -420,15 +398,11 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Get Spotify metadata with automatic Deezer fallback on rate limit
   static Future<Map<String, dynamic>> getSpotifyMetadataWithFallback(String url) async {
     final result = await _channel.invokeMethod('getSpotifyMetadataWithFallback', {'url': url});
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  // ==================== GO BACKEND LOGS ====================
-
-  /// Get all logs from Go backend
   static Future<List<Map<String, dynamic>>> getGoLogs() async {
     final result = await _channel.invokeMethod('getLogs');
     final logs = jsonDecode(result as String) as List<dynamic>;
@@ -441,25 +415,20 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Clear Go backend logs
   static Future<void> clearGoLogs() async {
     await _channel.invokeMethod('clearLogs');
   }
 
-  /// Get Go backend log count
   static Future<int> getGoLogCount() async {
     final result = await _channel.invokeMethod('getLogCount');
     return result as int;
   }
 
-  /// Enable or disable Go backend logging
   static Future<void> setGoLoggingEnabled(bool enabled) async {
     await _channel.invokeMethod('setLoggingEnabled', {'enabled': enabled});
   }
 
-  // ==================== EXTENSION SYSTEM ====================
 
-  /// Initialize the extension system
   static Future<void> initExtensionSystem(String extensionsDir, String dataDir) async {
     _log.d('initExtensionSystem: $extensionsDir, $dataDir');
     await _channel.invokeMethod('initExtensionSystem', {
@@ -468,7 +437,6 @@ class PlatformBridge {
     });
   }
 
-  /// Load all extensions from directory
   static Future<Map<String, dynamic>> loadExtensionsFromDir(String dirPath) async {
     _log.d('loadExtensionsFromDir: $dirPath');
     final result = await _channel.invokeMethod('loadExtensionsFromDir', {
@@ -477,7 +445,6 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Load a single extension from file
   static Future<Map<String, dynamic>> loadExtensionFromPath(String filePath) async {
     _log.d('loadExtensionFromPath: $filePath');
     final result = await _channel.invokeMethod('loadExtensionFromPath', {
@@ -486,7 +453,6 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Unload an extension
   static Future<void> unloadExtension(String extensionId) async {
     _log.d('unloadExtension: $extensionId');
     await _channel.invokeMethod('unloadExtension', {
@@ -494,7 +460,6 @@ class PlatformBridge {
     });
   }
 
-  /// Remove an extension completely (unload + delete files)
   static Future<void> removeExtension(String extensionId) async {
     _log.d('removeExtension: $extensionId');
     await _channel.invokeMethod('removeExtension', {
@@ -502,7 +467,6 @@ class PlatformBridge {
     });
   }
 
-  /// Upgrade an existing extension from a new package file
   static Future<Map<String, dynamic>> upgradeExtension(String filePath) async {
     _log.d('upgradeExtension: $filePath');
     final result = await _channel.invokeMethod('upgradeExtension', {
@@ -511,7 +475,6 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Check if a package file is an upgrade for an existing extension
   static Future<Map<String, dynamic>> checkExtensionUpgrade(String filePath) async {
     _log.d('checkExtensionUpgrade: $filePath');
     final result = await _channel.invokeMethod('checkExtensionUpgrade', {
@@ -520,14 +483,12 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Get all installed extensions
   static Future<List<Map<String, dynamic>>> getInstalledExtensions() async {
     final result = await _channel.invokeMethod('getInstalledExtensions');
     final list = jsonDecode(result as String) as List<dynamic>;
     return list.map((e) => e as Map<String, dynamic>).toList();
   }
 
-  /// Enable or disable an extension
   static Future<void> setExtensionEnabled(String extensionId, bool enabled) async {
     _log.d('setExtensionEnabled: $extensionId = $enabled');
     await _channel.invokeMethod('setExtensionEnabled', {
@@ -536,7 +497,6 @@ class PlatformBridge {
     });
   }
 
-  /// Set provider priority order
   static Future<void> setProviderPriority(List<String> providerIds) async {
     _log.d('setProviderPriority: $providerIds');
     await _channel.invokeMethod('setProviderPriority', {
@@ -544,14 +504,12 @@ class PlatformBridge {
     });
   }
 
-  /// Get provider priority order
   static Future<List<String>> getProviderPriority() async {
     final result = await _channel.invokeMethod('getProviderPriority');
     final list = jsonDecode(result as String) as List<dynamic>;
     return list.map((e) => e as String).toList();
   }
 
-  /// Set metadata provider priority order
   static Future<void> setMetadataProviderPriority(List<String> providerIds) async {
     _log.d('setMetadataProviderPriority: $providerIds');
     await _channel.invokeMethod('setMetadataProviderPriority', {
@@ -559,14 +517,12 @@ class PlatformBridge {
     });
   }
 
-  /// Get metadata provider priority order
   static Future<List<String>> getMetadataProviderPriority() async {
     final result = await _channel.invokeMethod('getMetadataProviderPriority');
     final list = jsonDecode(result as String) as List<dynamic>;
     return list.map((e) => e as String).toList();
   }
 
-  /// Get extension settings
   static Future<Map<String, dynamic>> getExtensionSettings(String extensionId) async {
     final result = await _channel.invokeMethod('getExtensionSettings', {
       'extension_id': extensionId,
@@ -574,7 +530,6 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Set extension settings
   static Future<void> setExtensionSettings(String extensionId, Map<String, dynamic> settings) async {
     _log.d('setExtensionSettings: $extensionId');
     await _channel.invokeMethod('setExtensionSettings', {
@@ -583,7 +538,18 @@ class PlatformBridge {
     });
   }
 
-  /// Search tracks using extension providers
+  static Future<Map<String, dynamic>> invokeExtensionAction(String extensionId, String actionName) async {
+    _log.d('invokeExtensionAction: $extensionId.$actionName');
+    final result = await _channel.invokeMethod('invokeExtensionAction', {
+      'extension_id': extensionId,
+      'action': actionName,
+    });
+    if (result == null || (result as String).isEmpty) {
+      return {'success': true};
+    }
+    return jsonDecode(result) as Map<String, dynamic>;
+  }
+
   static Future<List<Map<String, dynamic>>> searchTracksWithExtensions(String query, {int limit = 20}) async {
     _log.d('searchTracksWithExtensions: "$query"');
     final result = await _channel.invokeMethod('searchTracksWithExtensions', {
@@ -594,7 +560,6 @@ class PlatformBridge {
     return list.map((e) => e as Map<String, dynamic>).toList();
   }
 
-  /// Download with extension providers (includes fallback)
   static Future<Map<String, dynamic>> downloadWithExtensions({
     required String isrc,
     required String spotifyId,
@@ -614,7 +579,10 @@ class PlatformBridge {
     String? releaseDate,
     String? itemId,
     int durationMs = 0,
-    String? source, // Extension ID that provided this track (prioritize this extension)
+    String? source,
+    String? genre,
+    String? label,
+    String lyricsMode = 'embed',
   }) async {
     _log.i('downloadWithExtensions: "$trackName" by $artistName${source != null ? ' (source: $source)' : ''}');
     final request = jsonEncode({
@@ -636,22 +604,21 @@ class PlatformBridge {
       'release_date': releaseDate ?? '',
       'item_id': itemId ?? '',
       'duration_ms': durationMs,
-      'source': source ?? '', // Extension ID that provided this track
+      'source': source ?? '',
+      'genre': genre ?? '',
+      'label': label ?? '',
+      'lyrics_mode': lyricsMode,
     });
     
     final result = await _channel.invokeMethod('downloadWithExtensions', request);
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Cleanup all extensions (call on app close)
   static Future<void> cleanupExtensions() async {
     _log.d('cleanupExtensions');
     await _channel.invokeMethod('cleanupExtensions');
   }
 
-  // ==================== EXTENSION AUTH API ====================
-
-  /// Get pending auth request for an extension (if any)
   static Future<Map<String, dynamic>?> getExtensionPendingAuth(String extensionId) async {
     final result = await _channel.invokeMethod('getExtensionPendingAuth', {
       'extension_id': extensionId,
@@ -660,7 +627,6 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Set auth code for an extension (after OAuth callback)
   static Future<void> setExtensionAuthCode(String extensionId, String authCode) async {
     _log.d('setExtensionAuthCode: $extensionId');
     await _channel.invokeMethod('setExtensionAuthCode', {
@@ -669,7 +635,6 @@ class PlatformBridge {
     });
   }
 
-  /// Set tokens for an extension (after token exchange)
   static Future<void> setExtensionTokens(
     String extensionId, {
     required String accessToken,
@@ -685,14 +650,12 @@ class PlatformBridge {
     });
   }
 
-  /// Clear pending auth request for an extension
   static Future<void> clearExtensionPendingAuth(String extensionId) async {
     await _channel.invokeMethod('clearExtensionPendingAuth', {
       'extension_id': extensionId,
     });
   }
 
-  /// Check if extension is authenticated
   static Future<bool> isExtensionAuthenticated(String extensionId) async {
     final result = await _channel.invokeMethod('isExtensionAuthenticated', {
       'extension_id': extensionId,
@@ -700,16 +663,12 @@ class PlatformBridge {
     return result as bool;
   }
 
-  /// Get all pending auth requests (for polling)
   static Future<List<Map<String, dynamic>>> getAllPendingAuthRequests() async {
     final result = await _channel.invokeMethod('getAllPendingAuthRequests');
     final list = jsonDecode(result as String) as List<dynamic>;
     return list.map((e) => e as Map<String, dynamic>).toList();
   }
 
-  // ==================== EXTENSION FFMPEG API ====================
-
-  /// Get pending FFmpeg command for execution
   static Future<Map<String, dynamic>?> getPendingFFmpegCommand(String commandId) async {
     final result = await _channel.invokeMethod('getPendingFFmpegCommand', {
       'command_id': commandId,
@@ -718,7 +677,6 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Set FFmpeg command result
   static Future<void> setFFmpegCommandResult(
     String commandId, {
     required bool success,
@@ -733,16 +691,12 @@ class PlatformBridge {
     });
   }
 
-  /// Get all pending FFmpeg commands
   static Future<List<Map<String, dynamic>>> getAllPendingFFmpegCommands() async {
     final result = await _channel.invokeMethod('getAllPendingFFmpegCommands');
     final list = jsonDecode(result as String) as List<dynamic>;
     return list.map((e) => e as Map<String, dynamic>).toList();
   }
 
-  // ==================== EXTENSION CUSTOM SEARCH ====================
-
-  /// Perform custom search using an extension
   static Future<List<Map<String, dynamic>>> customSearchWithExtension(
     String extensionId,
     String query, {
@@ -757,17 +711,12 @@ class PlatformBridge {
     return list.map((e) => e as Map<String, dynamic>).toList();
   }
 
-  /// Get all extensions that provide custom search
   static Future<List<Map<String, dynamic>>> getSearchProviders() async {
     final result = await _channel.invokeMethod('getSearchProviders');
     final list = jsonDecode(result as String) as List<dynamic>;
     return list.map((e) => e as Map<String, dynamic>).toList();
   }
 
-  // ==================== EXTENSION URL HANDLER ====================
-
-  /// Handle a URL with any matching extension
-  /// Returns null if no extension can handle the URL
   static Future<Map<String, dynamic>?> handleURLWithExtension(String url) async {
     try {
       final result = await _channel.invokeMethod('handleURLWithExtension', {
@@ -780,8 +729,6 @@ class PlatformBridge {
     }
   }
 
-  /// Find an extension that can handle the given URL
-  /// Returns extension ID or null if none found
   static Future<String?> findURLHandler(String url) async {
     final result = await _channel.invokeMethod('findURLHandler', {
       'url': url,
@@ -790,14 +737,12 @@ class PlatformBridge {
     return result as String;
   }
 
-  /// Get all extensions that handle custom URLs
   static Future<List<Map<String, dynamic>>> getURLHandlers() async {
     final result = await _channel.invokeMethod('getURLHandlers');
     final list = jsonDecode(result as String) as List<dynamic>;
     return list.map((e) => e as Map<String, dynamic>).toList();
   }
 
-  /// Get album tracks using an extension
   static Future<Map<String, dynamic>?> getAlbumWithExtension(
     String extensionId,
     String albumId,
@@ -815,7 +760,6 @@ class PlatformBridge {
     }
   }
 
-  /// Get playlist tracks using an extension
   static Future<Map<String, dynamic>?> getPlaylistWithExtension(
     String extensionId,
     String playlistId,
@@ -833,7 +777,6 @@ class PlatformBridge {
     }
   }
 
-  /// Get artist info and albums using an extension
   static Future<Map<String, dynamic>?> getArtistWithExtension(
     String extensionId,
     String artistId,
@@ -851,9 +794,7 @@ class PlatformBridge {
     }
   }
 
-  // ==================== EXTENSION POST-PROCESSING ====================
 
-  /// Run post-processing hooks on a file
   static Future<Map<String, dynamic>> runPostProcessing(
     String filePath, {
     Map<String, dynamic>? metadata,
@@ -865,22 +806,18 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Get all extensions that provide post-processing
   static Future<List<Map<String, dynamic>>> getPostProcessingProviders() async {
     final result = await _channel.invokeMethod('getPostProcessingProviders');
     final list = jsonDecode(result as String) as List<dynamic>;
     return list.map((e) => e as Map<String, dynamic>).toList();
   }
 
-  // ==================== EXTENSION STORE ====================
 
-  /// Initialize extension store
   static Future<void> initExtensionStore(String cacheDir) async {
     _log.d('initExtensionStore: $cacheDir');
     await _channel.invokeMethod('initExtensionStore', {'cache_dir': cacheDir});
   }
 
-  /// Get all extensions from store with installation status
   static Future<List<Map<String, dynamic>>> getStoreExtensions({bool forceRefresh = false}) async {
     _log.d('getStoreExtensions (forceRefresh: $forceRefresh)');
     final result = await _channel.invokeMethod('getStoreExtensions', {
@@ -890,7 +827,6 @@ class PlatformBridge {
     return list.map((e) => e as Map<String, dynamic>).toList();
   }
 
-  /// Search extensions in store
   static Future<List<Map<String, dynamic>>> searchStoreExtensions(String query, {String? category}) async {
     _log.d('searchStoreExtensions: "$query" (category: $category)');
     final result = await _channel.invokeMethod('searchStoreExtensions', {
@@ -901,14 +837,12 @@ class PlatformBridge {
     return list.map((e) => e as Map<String, dynamic>).toList();
   }
 
-  /// Get store categories
   static Future<List<String>> getStoreCategories() async {
     final result = await _channel.invokeMethod('getStoreCategories');
     final list = jsonDecode(result as String) as List<dynamic>;
     return list.cast<String>();
   }
 
-  /// Download extension from store
   static Future<String> downloadStoreExtension(String extensionId, String destDir) async {
     _log.i('downloadStoreExtension: $extensionId to $destDir');
     final result = await _channel.invokeMethod('downloadStoreExtension', {
@@ -918,7 +852,6 @@ class PlatformBridge {
     return result as String;
   }
 
-  /// Clear store cache
   static Future<void> clearStoreCache() async {
     _log.d('clearStoreCache');
     await _channel.invokeMethod('clearStoreCache');

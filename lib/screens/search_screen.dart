@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:spotiflac_android/services/cover_cache_manager.dart';
+import 'package:spotiflac_android/models/track.dart';
 import 'package:spotiflac_android/providers/track_provider.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
@@ -43,22 +45,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
   }
 
-  void _downloadTrack(int index) {
-    final trackState = ref.read(trackProvider);
-    if (index >= 0 && index < trackState.tracks.length) {
-      final track = trackState.tracks[index];
-      final settings = ref.read(settingsProvider);
-      ref.read(downloadQueueProvider.notifier).addToQueue(track, settings.defaultService);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added "${track.name}" to queue')),
-      );
-    }
+  void _downloadTrack(Track track) {
+    final settings = ref.read(settingsProvider);
+    ref.read(downloadQueueProvider.notifier).addToQueue(
+      track,
+      settings.defaultService,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Added "${track.name}" to queue')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final trackState = ref.watch(trackProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    final tracks = trackState.tracks;
 
     return Scaffold(
       appBar: AppBar(
@@ -95,11 +97,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
             ),
           Expanded(
-            child: trackState.tracks.isEmpty
+            child: tracks.isEmpty
                 ? _buildEmptyState(colorScheme)
                 : ListView.builder(
-                    itemCount: trackState.tracks.length,
-                    itemBuilder: (context, index) => _buildTrackTile(index, colorScheme),
+                    itemCount: tracks.length,
+                    itemBuilder: (context, index) =>
+                        _buildTrackTile(tracks[index], colorScheme),
                   ),
           ),
         ],
@@ -129,17 +132,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  Widget _buildTrackTile(int index, ColorScheme colorScheme) {
-    final track = ref.watch(trackProvider).tracks[index];
+  Widget _buildTrackTile(Track track, ColorScheme colorScheme) {
     return ListTile(
       leading: track.coverUrl != null
           ? ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: CachedNetworkImage(
+child: CachedNetworkImage(
                 imageUrl: track.coverUrl!,
                 width: 48,
                 height: 48,
                 fit: BoxFit.cover,
+                cacheManager: CoverCacheManager.instance,
               ),
             )
           : Container(
@@ -173,9 +176,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       ),
       trailing: IconButton(
         icon: Icon(Icons.download, color: colorScheme.primary),
-        onPressed: () => _downloadTrack(index),
+        onPressed: () => _downloadTrack(track),
       ),
-      onTap: () => _downloadTrack(index),
+      onTap: () => _downloadTrack(track),
     );
   }
 }

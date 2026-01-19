@@ -5,7 +5,6 @@ import 'package:spotiflac_android/providers/settings_provider.dart';
 
 final _log = AppLogger('ExtensionProvider');
 
-/// Represents an installed extension
 class Extension {
   final String id;
   final String name;
@@ -14,19 +13,19 @@ class Extension {
   final String author;
   final String description;
   final bool enabled;
-  final String status; // 'loaded', 'error', 'disabled'
+  final String status;
   final String? errorMessage;
-  final String? iconPath; // Path to extension icon
+  final String? iconPath;
   final List<String> permissions;
   final List<ExtensionSetting> settings;
-  final List<QualityOption> qualityOptions; // Custom quality options for download providers
+  final List<QualityOption> qualityOptions;
   final bool hasMetadataProvider;
   final bool hasDownloadProvider;
   final bool skipMetadataEnrichment; // If true, use metadata from extension instead of enriching
-  final SearchBehavior? searchBehavior; // Custom search behavior
-  final URLHandler? urlHandler; // Custom URL handling
-  final TrackMatching? trackMatching; // Custom track matching
-  final PostProcessing? postProcessing; // Post-processing hooks
+  final SearchBehavior? searchBehavior;
+  final URLHandler? urlHandler;
+  final TrackMatching? trackMatching;
+  final PostProcessing? postProcessing;
 
   const Extension({
     required this.id,
@@ -140,7 +139,6 @@ class Extension {
   bool get hasPostProcessing => postProcessing?.enabled ?? false;
 }
 
-/// Custom search behavior configuration
 class SearchBehavior {
   final bool enabled;
   final String? placeholder;
@@ -172,8 +170,6 @@ class SearchBehavior {
     );
   }
 
-  /// Get thumbnail size based on configuration
-  /// Returns (width, height) tuple
   (double, double) getThumbnailSize({double defaultSize = 56}) {
     if (thumbnailWidth != null && thumbnailHeight != null) {
       return (thumbnailWidth!.toDouble(), thumbnailHeight!.toDouble());
@@ -191,11 +187,10 @@ class SearchBehavior {
   }
 }
 
-/// Custom track matching configuration
 class TrackMatching {
   final bool customMatching;
-  final String? strategy; // "isrc", "name", "duration", "custom"
-  final int durationTolerance; // in seconds
+  final String? strategy;
+  final int durationTolerance;
 
   const TrackMatching({
     required this.customMatching,
@@ -212,7 +207,6 @@ class TrackMatching {
   }
 }
 
-/// Post-processing configuration
 class PostProcessing {
   final bool enabled;
   final List<PostProcessingHook> hooks;
@@ -262,7 +256,6 @@ class URLHandler {
   }
 }
 
-/// A post-processing hook
 class PostProcessingHook {
   final String id;
   final String name;
@@ -289,12 +282,11 @@ class PostProcessingHook {
   }
 }
 
-/// Represents a quality option for download providers
 class QualityOption {
   final String id;
   final String label;
   final String? description;
-  final List<QualitySpecificSetting> settings; // Quality-specific settings
+  final List<QualitySpecificSetting> settings;
 
   const QualityOption({
     required this.id,
@@ -315,14 +307,13 @@ class QualityOption {
   }
 }
 
-/// Represents a setting that's specific to a quality option
 class QualitySpecificSetting {
   final String key;
   final String label;
-  final String type; // 'string', 'number', 'boolean', 'select'
+  final String type;
   final dynamic defaultValue;
   final String? description;
-  final List<String>? options; // For select type
+  final List<String>? options;
   final bool required;
   final bool secret;
 
@@ -351,15 +342,15 @@ class QualitySpecificSetting {
   }
 }
 
-/// Represents a setting field for an extension
 class ExtensionSetting {
   final String key;
   final String label;
-  final String type; // 'string', 'number', 'boolean', 'select'
+  final String type;
   final dynamic defaultValue;
   final String? description;
-  final List<String>? options; // For select type
+  final List<String>? options;
   final bool required;
+  final String? action;
 
   const ExtensionSetting({
     required this.key,
@@ -369,6 +360,7 @@ class ExtensionSetting {
     this.description,
     this.options,
     this.required = false,
+    this.action,
   });
 
   factory ExtensionSetting.fromJson(Map<String, dynamic> json) {
@@ -380,11 +372,11 @@ class ExtensionSetting {
       description: json['description'] as String?,
       options: (json['options'] as List<dynamic>?)?.cast<String>(),
       required: json['required'] as bool? ?? false,
+      action: json['action'] as String?,
     );
   }
 }
 
-/// State for extension management
 class ExtensionState {
   final List<Extension> extensions;
   final List<String> providerPriority;
@@ -422,7 +414,6 @@ class ExtensionState {
 }
 
 
-/// Provider for managing extensions
 class ExtensionNotifier extends Notifier<ExtensionState> {
   @override
   ExtensionState build() {
@@ -448,7 +439,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  /// Load all extensions from directory
   Future<void> loadExtensions(String dirPath) async {
     state = state.copyWith(isLoading: true, error: null);
     
@@ -483,12 +473,10 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  /// Clear any error state
   void clearError() {
     state = state.copyWith(error: null);
   }
 
-  /// Install extension from file (auto-upgrades if already installed with newer version)
   Future<bool> installExtension(String filePath) async {
     state = state.copyWith(isLoading: true, error: null);
     
@@ -505,8 +493,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  /// Check if a package file is an upgrade for an existing extension
-  /// Returns: {extension_id, current_version, new_version, can_upgrade, is_installed}
   Future<Map<String, dynamic>> checkExtensionUpgrade(String filePath) async {
     try {
       return await PlatformBridge.checkExtensionUpgrade(filePath);
@@ -516,7 +502,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  /// Upgrade an existing extension from a new package file
   Future<bool> upgradeExtension(String filePath) async {
     state = state.copyWith(isLoading: true, error: null);
     
@@ -550,7 +535,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  /// Enable or disable an extension
   Future<void> setExtensionEnabled(String extensionId, bool enabled) async {
     try {
       await PlatformBridge.setExtensionEnabled(extensionId, enabled);
@@ -597,7 +581,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  /// Update settings for an extension
   Future<void> setExtensionSettings(String extensionId, Map<String, dynamic> settings) async {
     try {
       await PlatformBridge.setExtensionSettings(extensionId, settings);
@@ -618,7 +601,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  /// Set provider priority order
   Future<void> setProviderPriority(List<String> priority) async {
     try {
       await PlatformBridge.setProviderPriority(priority);
@@ -640,7 +622,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  /// Set metadata provider priority order
   Future<void> setMetadataProviderPriority(List<String> priority) async {
     try {
       await PlatformBridge.setMetadataProviderPriority(priority);
@@ -662,7 +643,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  /// Get extension by ID
   Extension? getExtension(String extensionId) {
     try {
       return state.extensions.firstWhere((ext) => ext.id == extensionId);
@@ -676,7 +656,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     return state.extensions.where((ext) => ext.enabled).toList();
   }
 
-  /// Get all download providers (built-in + extensions)
   List<String> getAllDownloadProviders() {
     final providers = ['tidal', 'qobuz', 'amazon'];
     for (final ext in state.extensions) {
@@ -697,7 +676,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
     return providers;
   }
-  /// Get all extensions that provide custom search
   List<Extension> get searchProviders {
     return state.extensions.where((ext) => ext.enabled && ext.hasCustomSearch).toList();
   }

@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:palette_generator/palette_generator.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/utils/mime_utils.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
@@ -29,20 +31,87 @@ class DownloadedAlbumScreen extends ConsumerStatefulWidget {
 class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
   bool _isSelectionMode = false;
   final Set<String> _selectedIds = {};
+  Color? _dominantColor;
+  bool _showTitleInAppBar = false;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    _extractDominantColor();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    final shouldShow = _scrollController.offset > 280;
+    if (shouldShow != _showTitleInAppBar) {
+      setState(() => _showTitleInAppBar = shouldShow);
+    }
+  }
+
+  Future<void> _extractDominantColor() async {
+    if (widget.coverUrl == null || widget.coverUrl!.isEmpty) return;
+    
+    // Only use network images for palette extraction
+    final isNetworkUrl = widget.coverUrl!.startsWith('http://') || 
+                         widget.coverUrl!.startsWith('https://');
+    if (!isNetworkUrl) return;
+    
+    try {
+      final paletteGenerator = await PaletteGenerator.fromImageProvider(
+        CachedNetworkImageProvider(widget.coverUrl!),
+        maximumColorCount: 16,
+      );
+      if (mounted) {
+        setState(() {
+          _dominantColor = paletteGenerator.dominantColor?.color ??
+              paletteGenerator.vibrantColor?.color ??
+              paletteGenerator.mutedColor?.color;
+        });
+      }
+    } catch (_) {
+    }
+  }
 
   /// Get tracks for this album from history provider (reactive)
   List<DownloadHistoryItem> _getAlbumTracks(List<DownloadHistoryItem> allItems) {
     return allItems.where((item) {
-      final itemKey = '${item.albumName}|${item.albumArtist ?? item.artistName}';
+      // Use albumArtist if available and not empty, otherwise artistName
+      final itemArtist = (item.albumArtist != null && item.albumArtist!.isNotEmpty) 
+          ? item.albumArtist! 
+          : item.artistName;
+      final itemKey = '${item.albumName}|$itemArtist';
       final albumKey = '${widget.albumName}|${widget.artistName}';
       return itemKey == albumKey;
     }).toList()
       ..sort((a, b) {
+        // Sort by disc number first, then by track number
+        final aDisc = a.discNumber ?? 1;
+        final bDisc = b.discNumber ?? 1;
+        if (aDisc != bDisc) return aDisc.compareTo(bDisc);
         final aNum = a.trackNumber ?? 999;
         final bNum = b.trackNumber ?? 999;
         if (aNum != bNum) return aNum.compareTo(bNum);
         return a.trackName.compareTo(b.trackName);
       });
+  }
+
+  Map<int, List<DownloadHistoryItem>> _groupTracksByDisc(
+    List<DownloadHistoryItem> tracks,
+  ) {
+    final discMap = <int, List<DownloadHistoryItem>>{};
+    for (final track in tracks) {
+      final discNumber = track.discNumber ?? 1;
+      discMap.putIfAbsent(discNumber, () => []).add(track);
+    }
+    return discMap;
   }
 
   void _enterSelectionMode(String itemId) {
@@ -145,12 +214,24 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
   }
 
   void _navigateToMetadataScreen(DownloadHistoryItem item) {
+    _precacheCover(item.coverUrl);
     Navigator.push(context, PageRouteBuilder(
       transitionDuration: const Duration(milliseconds: 300),
       reverseTransitionDuration: const Duration(milliseconds: 250),
       pageBuilder: (context, animation, secondaryAnimation) => TrackMetadataScreen(item: item),
       transitionsBuilder: (context, animation, secondaryAnimation, child) => FadeTransition(opacity: animation, child: child),
     ));
+  }
+
+  void _precacheCover(String? url) {
+    if (url == null || url.isEmpty) return;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      return;
+    }
+    precacheImage(
+      CachedNetworkImageProvider(url, cacheManager: CoverCacheManager.instance),
+      context,
+    );
   }
 
   @override
@@ -161,11 +242,16 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
     final allHistoryItems = ref.watch(downloadHistoryProvider.select((s) => s.items));
     final tracks = _getAlbumTracks(allHistoryItems);
     
-    if (tracks.length < 2) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) Navigator.pop(context);
-      });
-      return const SizedBox.shrink();
+    // Show empty state if no tracks found
+    if (tracks.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(widget.albumName),
+        ),
+        body: Center(
+          child: Text('No tracks found for this album'),
+        ),
+      );
     }
     
     final validIds = tracks.map((t) => t.id).toSet();
@@ -187,6 +273,7 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
         body: Stack(
           children: [
             CustomScrollView(
+              controller: _scrollController,
               slivers: [
                 _buildAppBar(context, colorScheme),
                 _buildInfoCard(context, colorScheme, tracks),
@@ -211,69 +298,99 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
   }
 
   Widget _buildAppBar(BuildContext context, ColorScheme colorScheme) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final coverSize = screenWidth * 0.5; // 50% of screen width
+    final bgColor = _dominantColor ?? colorScheme.surface;
+    
     return SliverAppBar(
-      expandedHeight: 280,
+      expandedHeight: 320,
       pinned: true,
       stretch: true,
-      backgroundColor: colorScheme.surface,
+      backgroundColor: colorScheme.surface, // Use theme color for collapsed state
       surfaceTintColor: Colors.transparent,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (widget.coverUrl != null)
-              CachedNetworkImage(
-                imageUrl: widget.coverUrl!,
-                fit: BoxFit.cover,
-                color: Colors.black.withValues(alpha: 0.5),
-                colorBlendMode: BlendMode.darken,
-                memCacheWidth: 600,
-              ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    colorScheme.surface.withValues(alpha: 0.8),
-                    colorScheme.surface,
-                  ],
-                  stops: const [0.0, 0.7, 1.0],
-                ),
-              ),
-            ),
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 60),
-                child: Container(
-                  width: 140,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: widget.coverUrl != null
-                        ? CachedNetworkImage(imageUrl: widget.coverUrl!, fit: BoxFit.cover, memCacheWidth: 280)
-                        : Container(
-                            color: colorScheme.surfaceContainerHighest,
-                            child: Icon(Icons.album, size: 48, color: colorScheme.onSurfaceVariant),
-                          ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+      title: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: _showTitleInAppBar ? 1.0 : 0.0,
+        child: Text(
+          widget.albumName,
+          style: TextStyle(
+            color: colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-        stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
+      ),
+      flexibleSpace: LayoutBuilder(
+        builder: (context, constraints) {
+          final collapseRatio = (constraints.maxHeight - kToolbarHeight) / (320 - kToolbarHeight);
+          final showContent = collapseRatio > 0.3;
+          
+          return FlexibleSpaceBar(
+            collapseMode: CollapseMode.none,
+            background: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Background with dominant color
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 500),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        bgColor,
+                        bgColor.withValues(alpha: 0.8),
+                        colorScheme.surface,
+                      ],
+                      stops: const [0.0, 0.6, 1.0],
+                    ),
+                  ),
+                ),
+                // Cover image centered - fade out when collapsing
+                AnimatedOpacity(
+                  duration: const Duration(milliseconds: 150),
+                  opacity: showContent ? 1.0 : 0.0,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 60),
+                      child: Container(
+                        width: coverSize,
+                        height: coverSize,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.4),
+                              blurRadius: 30,
+                              offset: const Offset(0, 15),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: widget.coverUrl != null
+? CachedNetworkImage(
+                                  imageUrl: widget.coverUrl!, 
+                                  fit: BoxFit.cover, 
+                                  memCacheWidth: (coverSize * 2).toInt(),
+                                  cacheManager: CoverCacheManager.instance,
+                                )
+                              : Container(
+                                  color: colorScheme.surfaceContainerHighest,
+                                  child: Icon(Icons.album, size: 64, color: colorScheme.onSurfaceVariant),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
+          );
+        },
       ),
       leading: IconButton(
         icon: Container(
@@ -388,16 +505,83 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
   }
 
   Widget _buildTrackList(BuildContext context, ColorScheme colorScheme, List<DownloadHistoryItem> tracks) {
-    return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          final track = tracks[index];
-          return KeyedSubtree(
+    final discMap = _groupTracksByDisc(tracks);
+
+    if (discMap.length <= 1) {
+      return SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final track = tracks[index];
+            return KeyedSubtree(
+              key: ValueKey(track.id),
+              child: _buildTrackItem(context, colorScheme, track),
+            );
+          },
+          childCount: tracks.length,
+        ),
+      );
+    }
+
+    final discNumbers = discMap.keys.toList()..sort();
+    final List<Widget> children = [];
+
+    for (final discNumber in discNumbers) {
+      final discTracks = discMap[discNumber];
+      if (discTracks == null || discTracks.isEmpty) continue;
+
+      // Add disc separator
+      children.add(_buildDiscSeparator(context, colorScheme, discNumber));
+
+      // Add tracks for this disc
+      for (final track in discTracks) {
+        children.add(
+          KeyedSubtree(
             key: ValueKey(track.id),
             child: _buildTrackItem(context, colorScheme, track),
-          );
-        },
-        childCount: tracks.length,
+          ),
+        );
+      }
+    }
+
+    return SliverList(
+      delegate: SliverChildListDelegate(children),
+    );
+  }
+
+  Widget _buildDiscSeparator(BuildContext context, ColorScheme colorScheme, int discNumber) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: colorScheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.album, size: 16, color: colorScheme.onSecondaryContainer),
+                const SizedBox(width: 6),
+                Text(
+                  context.l10n.downloadedAlbumDiscHeader(discNumber),
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: colorScheme.onSecondaryContainer,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Container(
+              height: 1,
+              color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+            ),
+          ),
+        ],
       ),
     );
   }

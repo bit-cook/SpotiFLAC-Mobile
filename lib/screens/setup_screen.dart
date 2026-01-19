@@ -581,7 +581,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       switch (step) {
         case 0: return _storagePermissionGranted;
         case 1: return _selectedDirectory != null;
-        case 2: return false; // Spotify step never shows checkmark (optional)
+        case 2: return false;
       }
     }
     return false;

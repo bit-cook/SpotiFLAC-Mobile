@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/providers/store_provider.dart';
+import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
 
 class ExtensionDetailPage extends ConsumerStatefulWidget {
@@ -342,6 +343,7 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
                       value: _settings[setting.key] ?? setting.defaultValue,
                       showDivider: index < extension.settings.length - 1,
                       onChanged: (value) => _updateSetting(setting.key, value),
+                      extensionId: widget.extensionId,
                     );
                   }).toList(),
                 ),
@@ -587,40 +589,61 @@ class _PermissionItem extends StatelessWidget {
   }
 }
 
-class _SettingItem extends StatelessWidget {
+class _SettingItem extends StatefulWidget {
   final ExtensionSetting setting;
   final dynamic value;
   final bool showDivider;
   final ValueChanged<dynamic> onChanged;
+  final String extensionId;
 
   const _SettingItem({
     required this.setting,
     required this.value,
     required this.onChanged,
+    required this.extensionId,
     this.showDivider = true,
   });
+
+  @override
+  State<_SettingItem> createState() => _SettingItemState();
+}
+
+class _SettingItemState extends State<_SettingItem> {
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     Widget trailing;
-    switch (setting.type) {
+    switch (widget.setting.type) {
       case 'boolean':
         trailing = Switch(
-          value: value as bool? ?? false,
-          onChanged: onChanged,
+          value: widget.value as bool? ?? false,
+          onChanged: widget.onChanged,
         );
         break;
       case 'select':
         trailing = DropdownButton<String>(
-          value: value as String?,
-          items: setting.options?.map((opt) {
+          value: widget.value as String?,
+          items: widget.setting.options?.map((opt) {
             return DropdownMenuItem(value: opt, child: Text(opt));
           }).toList(),
-          onChanged: onChanged,
+          onChanged: widget.onChanged,
           underline: const SizedBox(),
         );
+        break;
+      case 'button':
+        trailing = _isLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : FilledButton.tonal(
+                onPressed: () => _invokeAction(context),
+                child: Text(widget.setting.label),
+              );
         break;
       default:
         trailing = Icon(
@@ -629,11 +652,52 @@ class _SettingItem extends StatelessWidget {
         );
     }
 
+    // For button type, show a different layout
+    if (widget.setting.type == 'button') {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (widget.setting.description != null) ...[
+                        Text(
+                          widget.setting.description!,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                    ],
+                  ),
+                ),
+                trailing,
+              ],
+            ),
+          ),
+          if (widget.showDivider)
+            Divider(
+              height: 1,
+              thickness: 1,
+              indent: 16,
+              endIndent: 16,
+              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+            ),
+        ],
+      );
+    }
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         InkWell(
-          onTap: setting.type == 'string' || setting.type == 'number'
+          onTap: widget.setting.type == 'string' || widget.setting.type == 'number'
               ? () => _showEditDialog(context)
               : null,
           child: Padding(
@@ -645,22 +709,22 @@ class _SettingItem extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        setting.label,
+                        widget.setting.label,
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
-                      if (setting.description != null) ...[
+                      if (widget.setting.description != null) ...[
                         const SizedBox(height: 2),
                         Text(
-                          setting.description!,
+                          widget.setting.description!,
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
-                      if (setting.type == 'string' || setting.type == 'number') ...[
+                      if (widget.setting.type == 'string' || widget.setting.type == 'number') ...[
                         const SizedBox(height: 4),
                         Text(
-                          value?.toString() ?? 'Not set',
+                          widget.value?.toString() ?? 'Not set',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: colorScheme.primary,
                           ),
@@ -674,7 +738,7 @@ class _SettingItem extends StatelessWidget {
             ),
           ),
         ),
-        if (showDivider)
+        if (widget.showDivider)
           Divider(
             height: 1,
             thickness: 1,
@@ -686,21 +750,66 @@ class _SettingItem extends StatelessWidget {
     );
   }
 
+  Future<void> _invokeAction(BuildContext context) async {
+    if (widget.setting.action == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No action defined for this button')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await PlatformBridge.invokeExtensionAction(
+        widget.extensionId,
+        widget.setting.action!,
+      );
+
+      if (context.mounted) {
+        final success = result['success'] as bool? ?? false;
+        if (!success) {
+          final error = result['error'] as String? ?? 'Action failed';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error)),
+          );
+        } else {
+          final message = result['message'] as String?;
+          if (message != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(message)),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   void _showEditDialog(BuildContext context) {
-    final controller = TextEditingController(text: value?.toString() ?? '');
+    final controller = TextEditingController(text: widget.value?.toString() ?? '');
     final colorScheme = Theme.of(context).colorScheme;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(setting.label),
+        title: Text(widget.setting.label),
         content: TextField(
           controller: controller,
-          keyboardType: setting.type == 'number'
+          keyboardType: widget.setting.type == 'number'
               ? TextInputType.number
               : TextInputType.text,
           decoration: InputDecoration(
-            hintText: setting.description ?? 'Enter value',
+            hintText: widget.setting.description ?? 'Enter value',
             filled: true,
             fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
             border: OutlineInputBorder(
@@ -716,10 +825,10 @@ class _SettingItem extends StatelessWidget {
           ),
           FilledButton(
             onPressed: () {
-              final newValue = setting.type == 'number'
+              final newValue = widget.setting.type == 'number'
                   ? num.tryParse(controller.text)
                   : controller.text;
-              onChanged(newValue);
+              widget.onChanged(newValue);
               Navigator.pop(context);
             },
             child: Text(context.l10n.dialogSave),

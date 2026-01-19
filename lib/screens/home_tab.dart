@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/models/track.dart';
 import 'package:spotiflac_android/providers/track_provider.dart';
@@ -17,6 +18,7 @@ import 'package:spotiflac_android/screens/artist_screen.dart';
 import 'package:spotiflac_android/services/csv_import_service.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/screens/playlist_screen.dart';
+import 'package:spotiflac_android/screens/downloaded_album_screen.dart';
 import 'package:spotiflac_android/models/download_item.dart';
 import 'package:spotiflac_android/widgets/download_service_picker.dart';
 
@@ -73,7 +75,6 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
     }
   }
 
-  /// Called when trackState changes - used to sync search bar with state
   void _onTrackStateChanged(TrackState? previous, TrackState next) {
     if (previous != null && 
         !next.hasContent && 
@@ -94,7 +95,6 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
     
     if (searchProvider == null || searchProvider.isEmpty) return false;
     
-    // Check if the extension is enabled and has search capability
     final extension = extState.extensions.where((e) => e.id == searchProvider && e.enabled).firstOrNull;
     return extension != null;
   }
@@ -128,10 +128,7 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
     }
   }
   
-  /// Execute live search with concurrency protection
-  /// Prevents race conditions in extensions by ensuring only one search runs at a time
   Future<void> _executeLiveSearch(String query) async {
-    // If a search is already in progress, queue this one
     if (_isLiveSearchInProgress) {
       _pendingLiveSearchQuery = query;
       return;
@@ -149,13 +146,10 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
       final pending = _pendingLiveSearchQuery;
       _pendingLiveSearchQuery = null;
       
-      // Execute pending query if it's different from what we just searched
-      // and still matches current text field content
       if (pending != null && 
           pending != query && 
           mounted && 
           _urlController.text.trim() == pending) {
-        // Small delay to let extension's state settle
         await Future.delayed(const Duration(milliseconds: 100));
         if (mounted && _urlController.text.trim() == pending) {
           _executeLiveSearch(pending);
@@ -222,7 +216,6 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
     ref.read(settingsProvider.notifier).setHasSearchedBefore();
   }
 
-  /// Navigate to detail screen based on fetched content type
   void _navigateToDetailIfNeeded() {
     final trackState = ref.read(trackProvider);
     
@@ -354,37 +347,63 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
       // ignore: use_build_context_synchronously
       final l10n = context.l10n;
       
-      final confirmed = await showDialog<bool>(
-        context: this.context,
-        builder: (dialogCtx) => AlertDialog(
-          title: Text(l10n.dialogImportPlaylistTitle),
-          content: Text(l10n.dialogImportPlaylistMessage(tracks.length)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx, false),
-              child: Text(l10n.dialogCancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogCtx, true),
-              child: Text(l10n.dialogImport),
-            ),
-          ],
-        ),
-      );
-
-      if (confirmed == true) {
-        ref.read(downloadQueueProvider.notifier).addMultipleToQueue(tracks, settings.defaultService);
-        if (mounted) {
-           ScaffoldMessenger.of(this.context).showSnackBar(
-            SnackBar(
-              content: Text(l10n.snackbarAddedTracksToQueue(tracks.length)),
-              action: SnackBarAction(
-                label: l10n.snackbarViewQueue,
-                onPressed: () {
-                },
+      if (settings.askQualityBeforeDownload) {
+        DownloadServicePicker.show(
+          this.context,
+          trackName: l10n.csvImportTracks(tracks.length),
+          artistName: l10n.dialogImportPlaylistTitle,
+          onSelect: (quality, service) {
+            ref.read(downloadQueueProvider.notifier).addMultipleToQueue(
+              tracks, 
+              service, 
+              qualityOverride: quality,
+            );
+            if (mounted) {
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                SnackBar(
+                  content: Text(l10n.snackbarAddedTracksToQueue(tracks.length)),
+                  action: SnackBarAction(
+                    label: l10n.snackbarViewQueue,
+                    onPressed: () {},
+                  ),
+                ),
+              );
+            }
+          },
+        );
+      } else {
+        // Use default settings without quality picker
+        final confirmed = await showDialog<bool>(
+          context: this.context,
+          builder: (dialogCtx) => AlertDialog(
+            title: Text(l10n.dialogImportPlaylistTitle),
+            content: Text(l10n.dialogImportPlaylistMessage(tracks.length)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx, false),
+                child: Text(l10n.dialogCancel),
               ),
-            ),
-          );
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogCtx, true),
+                child: Text(l10n.dialogImport),
+              ),
+            ],
+          ),
+        );
+
+        if (confirmed == true) {
+          ref.read(downloadQueueProvider.notifier).addMultipleToQueue(tracks, settings.defaultService);
+          if (mounted) {
+            ScaffoldMessenger.of(this.context).showSnackBar(
+              SnackBar(
+                content: Text(l10n.snackbarAddedTracksToQueue(tracks.length)),
+                action: SnackBarAction(
+                  label: l10n.snackbarViewQueue,
+                  onPressed: () {},
+                ),
+              ),
+            );
+          }
         }
       }
     }
@@ -529,7 +548,11 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
           
           if (showRecentAccess)
             SliverToBoxAdapter(
-              child: _buildRecentAccess(recentAccessItems, colorScheme),
+              child: _buildRecentAccess(
+                recentAccessItems,
+                historyItems,
+                colorScheme,
+              ),
             ),
           
           SliverToBoxAdapter(
@@ -609,13 +632,14 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: item.coverUrl != null
-                              ? CachedNetworkImage(
+? CachedNetworkImage(
                                   imageUrl: item.coverUrl!,
                                   width: 100,
                                   height: 100,
                                   fit: BoxFit.cover,
                                   memCacheWidth: 200,
                                   memCacheHeight: 200,
+                                  cacheManager: CoverCacheManager.instance,
                                 )
                               : Container(
                                   width: 100,
@@ -646,21 +670,62 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
     );
   }
 
-  /// Build recent access history section (shown when search focused)
-  Widget _buildRecentAccess(List<RecentAccessItem> items, ColorScheme colorScheme) {
-    final historyItems = ref.read(downloadHistoryProvider).items;
+  Widget _buildRecentAccess(
+    List<RecentAccessItem> items,
+    List<DownloadHistoryItem> historyItems,
+    ColorScheme colorScheme,
+  ) {
+    // Group download history by album
+    final albumGroups = <String, List<DownloadHistoryItem>>{};
+    for (final h in historyItems) {
+      final artistForKey = (h.albumArtist != null && h.albumArtist!.isNotEmpty) 
+          ? h.albumArtist! 
+          : h.artistName;
+      final albumKey = '${h.albumName}|$artistForKey';
+      albumGroups.putIfAbsent(albumKey, () => []).add(h);
+    }
     
-    final downloadItems = historyItems.take(10).where((h) => h.spotifyId != null && h.spotifyId!.isNotEmpty).map((h) => RecentAccessItem(
-      id: h.spotifyId!,
-      name: h.trackName,
-      subtitle: h.artistName,
-      imageUrl: h.coverUrl,
-      type: RecentAccessType.track,
-      accessedAt: h.downloadedAt,
-      providerId: 'download',
-    )).toList();
+    final downloadItems = <RecentAccessItem>[];
+    for (final entry in albumGroups.entries) {
+      final tracks = entry.value;
+      final mostRecent = tracks.reduce((a, b) => 
+          a.downloadedAt.isAfter(b.downloadedAt) ? a : b);
+      final artistForKey = (mostRecent.albumArtist != null && mostRecent.albumArtist!.isNotEmpty) 
+          ? mostRecent.albumArtist! 
+          : mostRecent.artistName;
+      
+      if (tracks.length == 1) {
+        downloadItems.add(RecentAccessItem(
+          id: mostRecent.spotifyId ?? mostRecent.id,
+          name: mostRecent.trackName,
+          subtitle: mostRecent.artistName,
+          imageUrl: mostRecent.coverUrl,
+          type: RecentAccessType.track,
+          accessedAt: mostRecent.downloadedAt,
+          providerId: 'download',
+        ));
+      } else {
+        downloadItems.add(RecentAccessItem(
+          id: '${mostRecent.albumName}|$artistForKey',
+          name: mostRecent.albumName,
+          subtitle: artistForKey,
+          imageUrl: mostRecent.coverUrl,
+          type: RecentAccessType.album,
+          accessedAt: mostRecent.downloadedAt,
+          providerId: 'download',
+        ));
+      }
+    }
     
-    final allItems = [...items, ...downloadItems];
+    downloadItems.sort((a, b) => b.accessedAt.compareTo(a.accessedAt));
+
+    final hiddenIds = ref.watch(recentAccessProvider.select((s) => s.hiddenDownloadIds));
+    final visibleDownloads = downloadItems
+        .where((item) => !hiddenIds.contains(item.id))
+        .take(10)
+        .toList();
+    
+    final allItems = [...items, ...visibleDownloads];
     allItems.sort((a, b) => b.accessedAt.compareTo(a.accessedAt));
     
     final seen = <String>{};
@@ -670,6 +735,9 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
       seen.add(key);
       return true;
     }).take(10).toList();
+    
+    // Check if there are hidden downloads
+    final hasHiddenDownloads = hiddenIds.isNotEmpty;
     
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -685,19 +753,50 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
                   color: colorScheme.onSurfaceVariant,
                 ),
               ),
-              TextButton(
-                onPressed: () {
-                  ref.read(recentAccessProvider.notifier).clearHistory();
-                },
-                child: Text(
-                  context.l10n.dialogClearAll,
-                  style: TextStyle(color: colorScheme.primary, fontSize: 12),
+              if (uniqueItems.isNotEmpty)
+                TextButton(
+                  onPressed: () {
+                    for (final item in downloadItems) {
+                      ref.read(recentAccessProvider.notifier).hideDownloadFromRecents(item.id);
+                    }
+                    ref.read(recentAccessProvider.notifier).clearHistory();
+                  },
+                  child: Text(
+                    context.l10n.dialogClearAll,
+                    style: TextStyle(color: colorScheme.primary, fontSize: 12),
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 8),
-          ...uniqueItems.map((item) => _buildRecentAccessItem(item, colorScheme)),
+          if (uniqueItems.isEmpty && hasHiddenDownloads)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Column(
+                  children: [
+                    Icon(Icons.visibility_off, size: 48, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No recent items',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        ref.read(recentAccessProvider.notifier).clearHiddenDownloads();
+                      },
+                      icon: const Icon(Icons.visibility, size: 18),
+                      label: const Text('Show All Downloads'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ...uniqueItems.map((item) => _buildRecentAccessItem(item, colorScheme)),
         ],
       ),
     );
@@ -733,12 +832,13 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
               ClipRRect(
                 borderRadius: BorderRadius.circular(item.type == RecentAccessType.artist ? 28 : 4),
                 child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                    ? CachedNetworkImage(
+? CachedNetworkImage(
                         imageUrl: item.imageUrl!,
                         width: 56,
                         height: 56,
                         fit: BoxFit.cover,
                         memCacheWidth: 112,
+                        cacheManager: CoverCacheManager.instance,
                         errorWidget: (context, url, error) => Container(
                           width: 56,
                           height: 56,
@@ -781,7 +881,11 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
               IconButton(
                 icon: Icon(Icons.close, size: 20, color: colorScheme.onSurfaceVariant),
                 onPressed: () {
-                  ref.read(recentAccessProvider.notifier).removeItem(item);
+                  if (item.providerId == 'download') {
+                    ref.read(recentAccessProvider.notifier).hideDownloadFromRecents(item.id);
+                  } else {
+                    ref.read(recentAccessProvider.notifier).removeItem(item);
+                  }
                 },
               ),
             ],
@@ -815,7 +919,15 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
           ));
         }
       case RecentAccessType.album:
-        if (item.providerId != null && item.providerId!.isNotEmpty && item.providerId != 'deezer' && item.providerId != 'spotify') {
+        if (item.providerId == 'download') {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => DownloadedAlbumScreen(
+              albumName: item.name,
+              artistName: item.subtitle ?? '',
+              coverUrl: item.imageUrl,
+            ),
+          ));
+        } else if (item.providerId != null && item.providerId!.isNotEmpty && item.providerId != 'deezer' && item.providerId != 'spotify') {
           Navigator.push(context, MaterialPageRoute(
             builder: (context) => ExtensionAlbumScreen(
               extensionId: item.providerId!,
@@ -850,6 +962,7 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
   }
 
   void _navigateToMetadataScreen(DownloadHistoryItem item) {
+    _precacheCover(item.coverUrl);
     Navigator.push(context, PageRouteBuilder(
       transitionDuration: const Duration(milliseconds: 300),
       reverseTransitionDuration: const Duration(milliseconds: 250),
@@ -858,7 +971,17 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
     ));
   }
 
-  /// Build error widget with special handling for rate limit (429)
+  void _precacheCover(String? url) {
+    if (url == null || url.isEmpty) return;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      return;
+    }
+    precacheImage(
+      CachedNetworkImageProvider(url, cacheManager: CoverCacheManager.instance),
+      context,
+    );
+  }
+
   Widget _buildErrorWidget(String error, ColorScheme colorScheme) {
     final isRateLimit = error.contains('429') || 
                         error.toLowerCase().contains('rate limit') ||
@@ -932,10 +1055,28 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
       return [const SliverToBoxAdapter(child: SizedBox.shrink())];
     }
     
-    final realTracks = tracks.where((t) => !t.isCollection).toList();
-    final albumItems = tracks.where((t) => t.isAlbumItem).toList();
-    final playlistItems = tracks.where((t) => t.isPlaylistItem).toList();
-    final artistItems = tracks.where((t) => t.isArtistItem).toList();
+    final realTracks = <Track>[];
+    final realTrackIndexes = <int>[];
+    final albumItems = <Track>[];
+    final playlistItems = <Track>[];
+    final artistItems = <Track>[];
+    
+    for (int i = 0; i < tracks.length; i++) {
+      final track = tracks[i];
+      if (!track.isCollection) {
+        realTracks.add(track);
+        realTrackIndexes.add(i);
+      }
+      if (track.isAlbumItem) {
+        albumItems.add(track);
+      }
+      if (track.isPlaylistItem) {
+        playlistItems.add(track);
+      }
+      if (track.isArtistItem) {
+        artistItems.add(track);
+      }
+    }
     
     return [
       if (error != null)
@@ -1078,9 +1219,9 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
                     _TrackItemWithStatus(
                       key: ValueKey(realTracks[i].id),
                       track: realTracks[i],
-                      index: tracks.indexOf(realTracks[i]), // Use original index for download
+                      index: realTrackIndexes[i],
                       showDivider: i < realTracks.length - 1,
-                      onDownload: () => _downloadTrack(tracks.indexOf(realTracks[i])),
+                      onDownload: () => _downloadTrack(realTrackIndexes[i]),
                     ),
                 ],
               ),
@@ -1140,11 +1281,12 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
               ),
               child: ClipOval(
                 child: hasValidImage
-                    ? CachedNetworkImage(
+? CachedNetworkImage(
                         imageUrl: artist.imageUrl!,
                         fit: BoxFit.cover,
                         memCacheWidth: 200,
                         memCacheHeight: 200,
+                        cacheManager: CoverCacheManager.instance,
                         errorWidget: (context, url, error) => Icon(
                           Icons.person,
                           color: colorScheme.onSurfaceVariant,
@@ -1266,7 +1408,6 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
     ));
   }
 
-  /// Get search hint based on selected provider
   String _getSearchHint() {
     final settings = ref.read(settingsProvider);
     final searchProvider = settings.searchProvider;
@@ -1311,7 +1452,16 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
           borderRadius: BorderRadius.circular(28),
           borderSide: BorderSide(color: colorScheme.primary, width: 2),
         ),
-        prefixIcon: const Icon(Icons.search),
+        prefixIcon: _SearchProviderDropdown(
+          onProviderChanged: () {
+            _lastSearchQuery = null;
+            setState(() {});
+            final text = _urlController.text.trim();
+            if (text.isNotEmpty && text.length >= _minLiveSearchChars) {
+              _performSearch(text);
+            }
+          },
+        ),
         suffixIcon: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1341,9 +1491,7 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
     );
   }
 
-  /// Handle Enter key press - search or fetch URL
   void _onSearchSubmitted() {
-    // Cancel any pending live search since user explicitly pressed enter
     _liveSearchDebounce?.cancel();
     _pendingLiveSearchQuery = null;
     
@@ -1364,7 +1512,179 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
 
 }
 
-/// Separate Consumer widget for each track item - only rebuilds when this specific track's status changes
+/// Dropdown widget for quick search provider switching
+class _SearchProviderDropdown extends ConsumerWidget {
+  final VoidCallback? onProviderChanged;
+
+  const _SearchProviderDropdown({this.onProviderChanged});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final extState = ref.watch(extensionProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    final currentProvider = settings.searchProvider;
+    final searchProviders = extState.extensions
+        .where((ext) => ext.enabled && ext.hasCustomSearch)
+        .toList();
+    
+    Extension? currentExt;
+    if (currentProvider != null && currentProvider.isNotEmpty) {
+      currentExt = searchProviders.where((e) => e.id == currentProvider).firstOrNull;
+    }
+    
+    // Determine display icon
+    IconData displayIcon = Icons.search;
+    String? iconPath;
+    if (currentExt != null) {
+      iconPath = currentExt.iconPath;
+      if (currentExt.searchBehavior?.icon != null) {
+        displayIcon = _getIconFromName(currentExt.searchBehavior!.icon!);
+      }
+    }
+    
+    if (searchProviders.isEmpty) {
+      return const Icon(Icons.search);
+    }
+    
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: PopupMenuButton<String>(
+        icon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (iconPath != null && iconPath.isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Image.file(
+                  File(iconPath),
+                  width: 20,
+                  height: 20,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, e, st) => Icon(displayIcon, size: 20),
+                ),
+              )
+            else
+              Icon(displayIcon, size: 20),
+            const SizedBox(width: 2),
+            Icon(
+              Icons.arrow_drop_down,
+              size: 16,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ),
+        tooltip: 'Change search provider',
+        offset: const Offset(0, 40),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        onSelected: (String providerId) {
+        final provider = providerId.isEmpty ? null : providerId;
+        ref.read(settingsProvider.notifier).setSearchProvider(provider);
+        onProviderChanged?.call();
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: '',
+          child: Row(
+            children: [
+              Icon(
+                Icons.music_note,
+                size: 20,
+                color: currentProvider == null || currentProvider.isEmpty
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  settings.metadataSource == 'spotify' ? 'Spotify' : 'Deezer',
+                  style: TextStyle(
+                    fontWeight: currentProvider == null || currentProvider.isEmpty
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                  ),
+                ),
+              ),
+              if (currentProvider == null || currentProvider.isEmpty)
+                Icon(Icons.check, size: 18, color: colorScheme.primary),
+            ],
+          ),
+        ),
+        if (searchProviders.isNotEmpty) const PopupMenuDivider(),
+        // Extension providers
+        ...searchProviders.map((ext) => PopupMenuItem<String>(
+          value: ext.id,
+          child: Row(
+            children: [
+              if (ext.iconPath != null && ext.iconPath!.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Image.file(
+                    File(ext.iconPath!),
+                    width: 20,
+                    height: 20,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, e, st) => Icon(
+                      _getIconFromName(ext.searchBehavior?.icon),
+                      size: 20,
+                      color: currentProvider == ext.id
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                )
+              else
+                Icon(
+                  _getIconFromName(ext.searchBehavior?.icon),
+                  size: 20,
+                  color: currentProvider == ext.id
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
+                ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  ext.displayName,
+                  style: TextStyle(
+                    fontWeight: currentProvider == ext.id
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                  ),
+                ),
+              ),
+              if (currentProvider == ext.id)
+                Icon(Icons.check, size: 18, color: colorScheme.primary),
+            ],
+          ),
+        )),
+      ],
+      ),
+    );
+  }
+  
+  IconData _getIconFromName(String? iconName) {
+    switch (iconName) {
+      case 'video':
+      case 'movie':
+        return Icons.video_library;
+      case 'music':
+        return Icons.music_note;
+      case 'podcast':
+        return Icons.podcasts;
+      case 'book':
+      case 'audiobook':
+        return Icons.menu_book;
+      case 'cloud':
+        return Icons.cloud;
+      case 'download':
+        return Icons.download;
+      default:
+        return Icons.search;
+    }
+  }
+}
+
 class _TrackItemWithStatus extends ConsumerWidget {
   final Track track;
   final int index;
@@ -1383,9 +1703,9 @@ class _TrackItemWithStatus extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     
-    final queueItem = ref.watch(downloadQueueProvider.select((state) {
-      return state.items.where((item) => item.track.id == track.id).firstOrNull;
-    }));
+    final queueItem = ref.watch(
+      downloadQueueLookupProvider.select((lookup) => lookup.byTrackId[track.id]),
+    );
     
     final isInHistory = ref.watch(downloadHistoryProvider.select((state) {
       return state.isDownloaded(track.id);
@@ -1432,13 +1752,14 @@ class _TrackItemWithStatus extends ConsumerWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: track.coverUrl != null
-                      ? CachedNetworkImage(
+? CachedNetworkImage(
                           imageUrl: track.coverUrl!,
                           width: thumbWidth,
                           height: thumbHeight,
                           fit: BoxFit.cover,
                           memCacheWidth: (thumbWidth * 2).toInt(),
                           memCacheHeight: (thumbHeight * 2).toInt(),
+                          cacheManager: CoverCacheManager.instance,
                         )
                       : Container(
                           width: thumbWidth,
@@ -1611,13 +1932,14 @@ class _CollectionItemWidget extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(isArtist ? 28 : 10),
                   child: item.coverUrl != null && item.coverUrl!.isNotEmpty
-                      ? CachedNetworkImage(
+? CachedNetworkImage(
                           imageUrl: item.coverUrl!,
                           width: 56,
                           height: 56,
                           fit: BoxFit.cover,
                           memCacheWidth: 112,
                           memCacheHeight: 112,
+                          cacheManager: CoverCacheManager.instance,
                         )
                       : Container(
                           width: 56,
@@ -1642,7 +1964,9 @@ class _CollectionItemWidget extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        item.artistName.isNotEmpty ? item.artistName : (isPlaylist ? 'Playlist' : 'Album'),
+                        item.artistName.isNotEmpty 
+                            ? item.artistName 
+                            : (isPlaylist ? 'Playlist' : (isArtist ? 'Artist' : 'Album')),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1672,7 +1996,6 @@ class _CollectionItemWidget extends StatelessWidget {
   }
 }
 
-/// Screen for viewing extension album with track fetching
 class ExtensionAlbumScreen extends ConsumerStatefulWidget {
   final String extensionId;
   final String albumId;
@@ -1943,7 +2266,6 @@ class _ExtensionPlaylistScreenState extends ConsumerState<ExtensionPlaylistScree
   }
 }
 
-/// Screen for viewing extension artist with album fetching
 class ExtensionArtistScreen extends ConsumerStatefulWidget {
   final String extensionId;
   final String artistId;

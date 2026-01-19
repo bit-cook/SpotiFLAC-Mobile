@@ -13,8 +13,6 @@ import (
 	"github.com/dop251/goja"
 )
 
-// ParseSpotifyURL parses and validates a Spotify URL
-// Returns JSON with type (track/album/playlist) and ID
 func ParseSpotifyURL(url string) (string, error) {
 	parsed, err := parseSpotifyURI(url)
 	if err != nil {
@@ -34,19 +32,14 @@ func ParseSpotifyURL(url string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// SetSpotifyAPICredentials sets custom Spotify API credentials from Flutter
 func SetSpotifyAPICredentials(clientID, clientSecret string) {
 	SetSpotifyCredentials(clientID, clientSecret)
 }
 
-// CheckSpotifyCredentials checks if Spotify credentials are configured
-// Returns true if credentials are available (custom or env vars)
 func CheckSpotifyCredentials() bool {
 	return HasSpotifyCredentials()
 }
 
-// GetSpotifyMetadata fetches metadata from Spotify URL
-// Returns JSON with track/album/playlist data
 func GetSpotifyMetadata(spotifyURL string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -68,8 +61,6 @@ func GetSpotifyMetadata(spotifyURL string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// SearchSpotify searches for tracks on Spotify
-// Returns JSON array of track results
 func SearchSpotify(query string, limit int) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -91,8 +82,6 @@ func SearchSpotify(query string, limit int) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// SearchSpotifyAll searches for tracks and artists on Spotify
-// Returns JSON with tracks and artists arrays
 func SearchSpotifyAll(query string, trackLimit, artistLimit int) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -114,8 +103,6 @@ func SearchSpotifyAll(query string, trackLimit, artistLimit int) (string, error)
 	return string(jsonBytes), nil
 }
 
-// CheckAvailability checks track availability on streaming services
-// Returns JSON with availability info for Tidal, Qobuz, Amazon
 func CheckAvailability(spotifyID, isrc string) (string, error) {
 	client := NewSongLinkClient()
 	availability, err := client.CheckTrackAvailability(spotifyID, isrc)
@@ -131,7 +118,6 @@ func CheckAvailability(spotifyID, isrc string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// DownloadRequest represents a download request from Flutter
 type DownloadRequest struct {
 	ISRC                 string `json:"isrc"`
 	Service              string `json:"service"`
@@ -143,48 +129,51 @@ type DownloadRequest struct {
 	CoverURL             string `json:"cover_url"`
 	OutputDir            string `json:"output_dir"`
 	FilenameFormat       string `json:"filename_format"`
-	Quality              string `json:"quality"` // LOSSLESS, HI_RES, HI_RES_LOSSLESS
+	Quality              string `json:"quality"`
 	EmbedLyrics          bool   `json:"embed_lyrics"`
 	EmbedMaxQualityCover bool   `json:"embed_max_quality_cover"`
 	TrackNumber          int    `json:"track_number"`
 	DiscNumber           int    `json:"disc_number"`
 	TotalTracks          int    `json:"total_tracks"`
 	ReleaseDate          string `json:"release_date"`
-	ItemID               string `json:"item_id"`     // Unique ID for progress tracking
-	DurationMS           int    `json:"duration_ms"` // Expected duration in milliseconds (for verification)
-	Source               string `json:"source"`      // Extension ID that provided this track (prioritize this extension)
-	// Enriched IDs from Odesli/song.link - used to skip search and directly fetch
-	TidalID  string `json:"tidal_id,omitempty"`
-	QobuzID  string `json:"qobuz_id,omitempty"`
-	DeezerID string `json:"deezer_id,omitempty"`
+	ItemID               string `json:"item_id"`
+	DurationMS           int    `json:"duration_ms"`
+	Source               string `json:"source"`
+	Genre                string `json:"genre,omitempty"`
+	Label                string `json:"label,omitempty"`
+	Copyright            string `json:"copyright,omitempty"`
+	TidalID              string `json:"tidal_id,omitempty"`
+	QobuzID              string `json:"qobuz_id,omitempty"`
+	DeezerID             string `json:"deezer_id,omitempty"`
+	LyricsMode           string `json:"lyrics_mode,omitempty"`
 }
 
 // DownloadResponse represents the result of a download
 type DownloadResponse struct {
-	Success       bool   `json:"success"`
-	Message       string `json:"message"`
-	FilePath      string `json:"file_path,omitempty"`
-	Error         string `json:"error,omitempty"`
-	ErrorType     string `json:"error_type,omitempty"` // "not_found", "rate_limit", "network", "unknown"
-	AlreadyExists bool   `json:"already_exists,omitempty"`
-	// Actual quality info from the source
-	ActualBitDepth   int    `json:"actual_bit_depth,omitempty"`
-	ActualSampleRate int    `json:"actual_sample_rate,omitempty"`
-	Service          string `json:"service,omitempty"` // Actual service used (for fallback)
-	Title            string `json:"title,omitempty"`
-	Artist           string `json:"artist,omitempty"`
-	Album            string `json:"album,omitempty"`
-	AlbumArtist      string `json:"album_artist,omitempty"`
-	ReleaseDate      string `json:"release_date,omitempty"`
-	TrackNumber      int    `json:"track_number,omitempty"`
-	DiscNumber       int    `json:"disc_number,omitempty"`
-	ISRC             string `json:"isrc,omitempty"`
-	CoverURL         string `json:"cover_url,omitempty"`
-	// If true, skip metadata enrichment from Deezer/Spotify (extension already provides metadata)
-	SkipMetadataEnrichment bool `json:"skip_metadata_enrichment,omitempty"`
+	Success                bool   `json:"success"`
+	Message                string `json:"message"`
+	FilePath               string `json:"file_path,omitempty"`
+	Error                  string `json:"error,omitempty"`
+	ErrorType              string `json:"error_type,omitempty"` // "not_found", "rate_limit", "network", "unknown"
+	AlreadyExists          bool   `json:"already_exists,omitempty"`
+	ActualBitDepth         int    `json:"actual_bit_depth,omitempty"`
+	ActualSampleRate       int    `json:"actual_sample_rate,omitempty"`
+	Service                string `json:"service,omitempty"` // Actual service used (for fallback)
+	Title                  string `json:"title,omitempty"`
+	Artist                 string `json:"artist,omitempty"`
+	Album                  string `json:"album,omitempty"`
+	AlbumArtist            string `json:"album_artist,omitempty"`
+	ReleaseDate            string `json:"release_date,omitempty"`
+	TrackNumber            int    `json:"track_number,omitempty"`
+	DiscNumber             int    `json:"disc_number,omitempty"`
+	ISRC                   string `json:"isrc,omitempty"`
+	CoverURL               string `json:"cover_url,omitempty"`
+	Genre                  string `json:"genre,omitempty"`
+	Label                  string `json:"label,omitempty"`
+	Copyright              string `json:"copyright,omitempty"`
+	SkipMetadataEnrichment bool   `json:"skip_metadata_enrichment,omitempty"`
 }
 
-// DownloadResult is a generic result type for all downloaders
 type DownloadResult struct {
 	FilePath    string
 	BitDepth    int
@@ -198,9 +187,6 @@ type DownloadResult struct {
 	ISRC        string
 }
 
-// DownloadTrack downloads a track from the specified service
-// requestJSON is a JSON string of DownloadRequest
-// Returns JSON string of DownloadResponse
 func DownloadTrack(requestJSON string) (string, error) {
 	var req DownloadRequest
 	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
@@ -214,7 +200,6 @@ func DownloadTrack(requestJSON string) (string, error) {
 	req.AlbumArtist = strings.TrimSpace(req.AlbumArtist)
 	req.OutputDir = strings.TrimSpace(req.OutputDir)
 
-	// Add output directory to allowed download dirs for extensions
 	if req.OutputDir != "" {
 		AddAllowedDownloadDir(req.OutputDir)
 	}
@@ -338,22 +323,18 @@ func DownloadTrack(requestJSON string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// DownloadWithFallback tries to download from services in order
-// Starts with the preferred service from request, then tries others
 func DownloadWithFallback(requestJSON string) (string, error) {
 	var req DownloadRequest
 	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
 		return errorResponse("Invalid request: " + err.Error())
 	}
 
-	// Trim whitespace from string fields to prevent filename/path issues
 	req.TrackName = strings.TrimSpace(req.TrackName)
 	req.ArtistName = strings.TrimSpace(req.ArtistName)
 	req.AlbumName = strings.TrimSpace(req.AlbumName)
 	req.AlbumArtist = strings.TrimSpace(req.AlbumArtist)
 	req.OutputDir = strings.TrimSpace(req.OutputDir)
 
-	// Add output directory to allowed download dirs for extensions
 	if req.OutputDir != "" {
 		AddAllowedDownloadDir(req.OutputDir)
 	}
@@ -510,47 +491,36 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 	return errorResponse("All services failed. Last error: " + lastErr.Error())
 }
 
-// GetDownloadProgress returns current download progress
 func GetDownloadProgress() string {
 	progress := getProgress()
 	jsonBytes, _ := json.Marshal(progress)
 	return string(jsonBytes)
 }
 
-// GetAllDownloadProgress returns progress for all active downloads (concurrent mode)
 func GetAllDownloadProgress() string {
 	return GetMultiProgress()
 }
 
-// InitItemProgress initializes progress tracking for a download item
 func InitItemProgress(itemID string) {
 	StartItemProgress(itemID)
 }
 
-// FinishItemProgress marks a download item as complete and removes tracking
 func FinishItemProgress(itemID string) {
 	CompleteItemProgress(itemID)
 }
 
-// ClearItemProgress removes progress tracking for a specific item
 func ClearItemProgress(itemID string) {
 	RemoveItemProgress(itemID)
 }
 
-// CancelDownload cancels an in-progress download for the given item.
 func CancelDownload(itemID string) {
 	cancelDownload(itemID)
 }
 
-// CleanupConnections closes idle HTTP connections
-// Call this periodically during large batch downloads to prevent TCP exhaustion
 func CleanupConnections() {
 	CloseIdleConnections()
 }
 
-// ReadFileMetadata reads metadata directly from a FLAC file
-// Returns JSON with all embedded metadata (title, artist, album, track number, etc.)
-// This is useful for displaying accurate metadata in the UI without relying on cached data
 func ReadFileMetadata(filePath string) (string, error) {
 	metadata, err := ReadMetadata(filePath)
 	if err != nil {
@@ -590,12 +560,10 @@ func ReadFileMetadata(filePath string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// SetDownloadDirectory sets the default download directory
 func SetDownloadDirectory(path string) error {
 	return setDownloadDir(path)
 }
 
-// CheckDuplicate checks if a file with the given ISRC exists
 func CheckDuplicate(outputDir, isrc string) (string, error) {
 	existingFile, exists := CheckISRCExists(outputDir, isrc)
 
@@ -612,26 +580,18 @@ func CheckDuplicate(outputDir, isrc string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// CheckDuplicatesBatch checks multiple files for duplicates in parallel
-// Uses ISRC index for fast lookup (builds index once, checks all tracks)
-// tracksJSON format: [{"isrc": "...", "track_name": "...", "artist_name": "..."}, ...]
-// Returns JSON array of results
 func CheckDuplicatesBatch(outputDir, tracksJSON string) (string, error) {
 	return CheckFilesExistParallel(outputDir, tracksJSON)
 }
 
-// PreBuildDuplicateIndex pre-builds the ISRC index for a directory
-// Call this when entering album/playlist screen for faster duplicate checking
 func PreBuildDuplicateIndex(outputDir string) error {
 	return PreBuildISRCIndex(outputDir)
 }
 
-// InvalidateDuplicateIndex clears the ISRC index cache for a directory
 func InvalidateDuplicateIndex(outputDir string) {
 	InvalidateISRCCache(outputDir)
 }
 
-// BuildFilename builds a filename from template and metadata
 func BuildFilename(template string, metadataJSON string) (string, error) {
 	var metadata map[string]interface{}
 	if err := json.Unmarshal([]byte(metadataJSON), &metadata); err != nil {
@@ -642,14 +602,10 @@ func BuildFilename(template string, metadataJSON string) (string, error) {
 	return filename, nil
 }
 
-// SanitizeFilename removes invalid characters from filename
 func SanitizeFilename(filename string) string {
 	return sanitizeFilename(filename)
 }
 
-// FetchLyrics fetches lyrics for a track from LRCLIB
-// Returns JSON with lyrics data
-// durationMs: track duration in milliseconds for matching, use 0 to skip duration matching
 func FetchLyrics(spotifyID, trackName, artistName string, durationMs int64) (string, error) {
 	client := NewLyricsClient()
 	durationSec := float64(durationMs) / 1000.0
@@ -673,9 +629,6 @@ func FetchLyrics(spotifyID, trackName, artistName string, durationMs int64) (str
 	return string(jsonBytes), nil
 }
 
-// GetLyricsLRC fetches lyrics and converts to LRC format string with metadata headers
-// First tries to extract from file, then falls back to fetching from internet
-// durationMs: track duration in milliseconds for matching, use 0 to skip duration matching
 func GetLyricsLRC(spotifyID, trackName, artistName string, filePath string, durationMs int64) (string, error) {
 	if filePath != "" {
 		lyrics, err := ExtractLyrics(filePath)
@@ -695,7 +648,6 @@ func GetLyricsLRC(spotifyID, trackName, artistName string, filePath string, dura
 	return lrcContent, nil
 }
 
-// EmbedLyricsToFile embeds lyrics into an existing FLAC file
 func EmbedLyricsToFile(filePath, lyrics string) (string, error) {
 	err := EmbedLyrics(filePath, lyrics)
 	if err != nil {
@@ -711,9 +663,6 @@ func EmbedLyricsToFile(filePath, lyrics string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// PreWarmTrackCacheJSON pre-warms the track ID cache for album/playlist tracks
-// tracksJSON is a JSON array of objects with: isrc, track_name, artist_name, spotify_id, service
-// This runs in background and returns immediately
 func PreWarmTrackCacheJSON(tracksJSON string) (string, error) {
 	var tracks []struct {
 		ISRC       string `json:"isrc"`
@@ -749,20 +698,14 @@ func PreWarmTrackCacheJSON(tracksJSON string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// GetTrackCacheSize returns the current track ID cache size
 func GetTrackCacheSize() int {
 	return GetCacheSize()
 }
 
-// ClearTrackIDCache clears the track ID cache
 func ClearTrackIDCache() {
 	ClearTrackCache()
 }
 
-// ==================== DEEZER API ====================
-
-// SearchDeezerAll searches for tracks and artists on Deezer (no API key required)
-// Returns JSON with tracks and artists arrays
 func SearchDeezerAll(query string, trackLimit, artistLimit int) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -827,6 +770,37 @@ func ParseDeezerURLExport(url string) (string, error) {
 	result := map[string]string{
 		"type": resourceType,
 		"id":   resourceID,
+	}
+
+	jsonBytes, err := json.Marshal(result)
+	if err != nil {
+		return "", err
+	}
+
+	return string(jsonBytes), nil
+}
+
+// GetDeezerExtendedMetadata fetches genre and label from Deezer album
+// trackID: Deezer track ID (will look up album ID from track)
+// Returns JSON with genre, label fields
+func GetDeezerExtendedMetadata(trackID string) (string, error) {
+	if trackID == "" {
+		return "", fmt.Errorf("empty track ID")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	client := GetDeezerClient()
+	metadata, err := client.GetExtendedMetadataByTrackID(ctx, trackID)
+	if err != nil {
+		GoLog("[Deezer] Failed to get extended metadata: %v\n", err)
+		return "", err
+	}
+
+	result := map[string]string{
+		"genre": metadata.Genre,
+		"label": metadata.Label,
 	}
 
 	jsonBytes, err := json.Marshal(result)
@@ -949,10 +923,6 @@ func GetSpotifyMetadataWithDeezerFallback(spotifyURL string) (string, error) {
 	return "", fmt.Errorf("spotify rate limited. Playlists are user-specific and require Spotify API")
 }
 
-// ==================== SONGLINK DEEZER SUPPORT ====================
-
-// CheckAvailabilityFromDeezerID checks track availability using Deezer track ID as source
-// Returns JSON with availability info for Spotify, Tidal, Amazon, etc.
 func CheckAvailabilityFromDeezerID(deezerTrackID string) (string, error) {
 	client := NewSongLinkClient()
 	availability, err := client.CheckAvailabilityFromDeezer(deezerTrackID)
@@ -1136,14 +1106,12 @@ func UpgradeExtensionFromPath(filePath string) (string, error) {
 		return "", err
 	}
 
-	// Initialize with saved settings
 	settingsStore := GetExtensionSettingsStore()
 	settings := settingsStore.GetAll(ext.ID)
 	if len(settings) > 0 {
 		manager.InitializeExtension(ext.ID, settings)
 	}
 
-	// Return extension info as JSON
 	result := map[string]interface{}{
 		"id":           ext.ID,
 		"display_name": ext.Manifest.DisplayName,
@@ -1290,7 +1258,22 @@ func CleanupExtensions() {
 	manager.UnloadAllExtensions()
 }
 
-// ==================== EXTENSION AUTH API ====================
+// InvokeExtensionActionJSON invokes a custom action on an extension (e.g., button click handler)
+// actionName is the JS function name to call (e.g., "startLogin", "authenticate", etc.)
+func InvokeExtensionActionJSON(extensionID, actionName string) (string, error) {
+	manager := GetExtensionManager()
+	result, err := manager.InvokeAction(extensionID, actionName)
+	if err != nil {
+		return "", err
+	}
+
+	jsonBytes, err := json.Marshal(result)
+	if err != nil {
+		return "", err
+	}
+
+	return string(jsonBytes), nil
+}
 
 // GetExtensionPendingAuthJSON returns pending auth request for an extension
 func GetExtensionPendingAuthJSON(extensionID string) (string, error) {
@@ -1371,9 +1354,6 @@ func GetAllPendingAuthRequestsJSON() (string, error) {
 	return string(jsonBytes), nil
 }
 
-// ==================== EXTENSION FFMPEG API ====================
-
-// GetPendingFFmpegCommandJSON returns a pending FFmpeg command for Flutter to execute
 func GetPendingFFmpegCommandJSON(commandID string) (string, error) {
 	cmd := GetPendingFFmpegCommand(commandID)
 	if cmd == nil {
@@ -1433,7 +1413,6 @@ func EnrichTrackWithExtensionJSON(extensionID, trackJSON string) (string, error)
 	manager := GetExtensionManager()
 	ext, err := manager.GetExtension(extensionID)
 	if err != nil {
-		// Extension not found, return original track
 		return trackJSON, nil
 	}
 
@@ -1537,10 +1516,6 @@ func GetSearchProvidersJSON() (string, error) {
 	return string(jsonBytes), nil
 }
 
-// ==================== EXTENSION URL HANDLER ====================
-
-// HandleURLWithExtensionJSON tries to handle a URL with any matching extension
-// Returns JSON with type, tracks, album info, etc.
 func HandleURLWithExtensionJSON(url string) (string, error) {
 	manager := GetExtensionManager()
 	resultWithID, err := manager.HandleURLWithExtension(url)
@@ -1802,7 +1777,6 @@ func GetPlaylistWithExtensionJSON(extensionID, playlistID string) (string, error
 		return "", fmt.Errorf("failed to marshal result: %w", err)
 	}
 
-	// Parse into album metadata (same structure)
 	var album ExtAlbumMetadata
 	if err := json.Unmarshal(jsonBytes, &album); err != nil {
 		return "", fmt.Errorf("failed to parse playlist: %w", err)
@@ -1903,7 +1877,6 @@ func GetArtistWithExtensionJSON(extensionID, artistID string) (string, error) {
 		response["header_image"] = artist.HeaderImage
 	}
 
-	// Add listeners if present
 	if artist.Listeners > 0 {
 		response["listeners"] = artist.Listeners
 	}
@@ -1961,9 +1934,6 @@ func GetURLHandlersJSON() (string, error) {
 	return string(jsonBytes), nil
 }
 
-// ==================== EXTENSION POST-PROCESSING ====================
-
-// RunPostProcessingJSON runs post-processing hooks on a file
 func RunPostProcessingJSON(filePath, metadataJSON string) (string, error) {
 	var metadata map[string]interface{}
 	if metadataJSON != "" {
@@ -2019,8 +1989,6 @@ func GetPostProcessingProvidersJSON() (string, error) {
 	return string(jsonBytes), nil
 }
 
-// ==================== EXTENSION STORE ====================
-
 // InitExtensionStoreJSON initializes the extension store with cache directory
 func InitExtensionStoreJSON(cacheDir string) error {
 	InitExtensionStore(cacheDir)
@@ -2034,7 +2002,6 @@ func GetStoreExtensionsJSON(forceRefresh bool) (string, error) {
 		return "", fmt.Errorf("extension store not initialized")
 	}
 
-	// Force refresh if requested
 	if forceRefresh {
 		store.FetchRegistry(true)
 	}

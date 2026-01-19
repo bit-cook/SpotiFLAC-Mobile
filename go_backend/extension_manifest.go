@@ -23,6 +23,7 @@ const (
 	SettingTypeNumber SettingType = "number"
 	SettingTypeBool   SettingType = "boolean"
 	SettingTypeSelect SettingType = "select"
+	SettingTypeButton SettingType = "button" // Action button that calls a JS function
 )
 
 // ExtensionPermissions defines what resources an extension can access
@@ -42,6 +43,7 @@ type ExtensionSetting struct {
 	Secret      bool        `json:"secret,omitempty"`
 	Default     interface{} `json:"default,omitempty"`
 	Options     []string    `json:"options,omitempty"` // For select type
+	Action      string      `json:"action,omitempty"`  // For button type: JS function name to call (e.g., "startLogin")
 }
 
 // QualityOption represents a quality option for download providers
@@ -149,9 +151,7 @@ func ParseManifest(data []byte) (*ExtensionManifest, error) {
 	return &manifest, nil
 }
 
-// Validate checks if the manifest has all required fields and valid values
 func (m *ExtensionManifest) Validate() error {
-	// Check required fields
 	if strings.TrimSpace(m.Name) == "" {
 		return &ManifestValidationError{Field: "name", Message: "name is required"}
 	}
@@ -172,7 +172,6 @@ func (m *ExtensionManifest) Validate() error {
 		return &ManifestValidationError{Field: "type", Message: "at least one type is required"}
 	}
 
-	// Validate extension types
 	for _, t := range m.Types {
 		if t != ExtensionTypeMetadataProvider && t != ExtensionTypeDownloadProvider {
 			return &ManifestValidationError{
@@ -198,25 +197,18 @@ func (m *ExtensionManifest) Validate() error {
 			}
 		}
 
-		// Validate setting type
-		validTypes := map[SettingType]bool{
-			SettingTypeString: true,
-			SettingTypeNumber: true,
-			SettingTypeBool:   true,
-			SettingTypeSelect: true,
-		}
-		if !validTypes[setting.Type] {
-			return &ManifestValidationError{
-				Field:   fmt.Sprintf("settings[%d].type", i),
-				Message: fmt.Sprintf("invalid setting type: %s", setting.Type),
-			}
-		}
-
 		// Select type requires options
 		if setting.Type == SettingTypeSelect && len(setting.Options) == 0 {
 			return &ManifestValidationError{
 				Field:   fmt.Sprintf("settings[%d].options", i),
 				Message: "select type requires options",
+			}
+		}
+
+		if setting.Type == SettingTypeButton && setting.Action == "" {
+			return &ManifestValidationError{
+				Field:   fmt.Sprintf("settings[%d].action", i),
+				Message: "button type requires action (JS function name)",
 			}
 		}
 	}
@@ -289,7 +281,6 @@ func (m *ExtensionManifest) MatchesURL(urlStr string) bool {
 		return false
 	}
 
-	// Parse URL to get host
 	urlStr = strings.ToLower(strings.TrimSpace(urlStr))
 	for _, pattern := range m.URLHandler.Patterns {
 		pattern = strings.ToLower(strings.TrimSpace(pattern))

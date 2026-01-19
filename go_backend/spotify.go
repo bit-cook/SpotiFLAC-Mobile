@@ -24,7 +24,6 @@ const (
 	artistAlbumsURL = "https://api.spotify.com/v1/artists/%s/albums"
 	searchBaseURL   = "https://api.spotify.com/v1/search"
 
-	// Cache TTL settings
 	artistCacheTTL = 10 * time.Minute
 	searchCacheTTL = 5 * time.Minute
 	albumCacheTTL  = 10 * time.Minute
@@ -32,7 +31,6 @@ const (
 
 var errInvalidSpotifyURL = errors.New("invalid or unsupported Spotify URL")
 
-// cacheEntry holds cached data with expiration
 type cacheEntry struct {
 	data      interface{}
 	expiresAt time.Time
@@ -42,26 +40,23 @@ func (e *cacheEntry) isExpired() bool {
 	return time.Now().After(e.expiresAt)
 }
 
-// SpotifyMetadataClient handles Spotify API interactions
 type SpotifyMetadataClient struct {
 	httpClient     *http.Client
 	clientID       string
 	clientSecret   string
 	cachedToken    string
 	tokenExpiresAt time.Time
-	tokenMu        sync.Mutex // Protects token cache for concurrent access
+	tokenMu        sync.Mutex
 	rng            *rand.Rand
 	rngMu          sync.Mutex
 	userAgent      string
 
-	// Caches to reduce API calls
-	artistCache map[string]*cacheEntry // key: artistID
-	searchCache map[string]*cacheEntry // key: query+type
-	albumCache  map[string]*cacheEntry // key: albumID
+	artistCache map[string]*cacheEntry
+	searchCache map[string]*cacheEntry
+	albumCache  map[string]*cacheEntry
 	cacheMu     sync.RWMutex
 }
 
-// Custom credentials storage (set from Flutter)
 var (
 	customClientID     string
 	customClientSecret string
@@ -79,7 +74,6 @@ func SetSpotifyCredentials(clientID, clientSecret string) {
 	customClientSecret = clientSecret
 }
 
-// HasSpotifyCredentials checks if Spotify credentials are configured
 func HasSpotifyCredentials() bool {
 	credentialsMu.RLock()
 	defer credentialsMu.RUnlock()
@@ -114,8 +108,6 @@ func getCredentials() (string, string, error) {
 	return "", "", ErrNoSpotifyCredentials
 }
 
-// NewSpotifyMetadataClient creates a new Spotify client
-// Returns error if credentials are not configured
 func NewSpotifyMetadataClient() (*SpotifyMetadataClient, error) {
 	clientID, clientSecret, err := getCredentials()
 	if err != nil {
@@ -137,7 +129,6 @@ func NewSpotifyMetadataClient() (*SpotifyMetadataClient, error) {
 	return c, nil
 }
 
-// TrackMetadata represents track information
 type TrackMetadata struct {
 	SpotifyID   string `json:"spotify_id,omitempty"`
 	Artists     string `json:"artists"`
@@ -155,7 +146,6 @@ type TrackMetadata struct {
 	AlbumType   string `json:"album_type,omitempty"` // album, single, ep, compilation
 }
 
-// AlbumTrackMetadata holds per-track info for album/playlist
 type AlbumTrackMetadata struct {
 	SpotifyID   string `json:"spotify_id,omitempty"`
 	Artists     string `json:"artists"`
@@ -172,25 +162,25 @@ type AlbumTrackMetadata struct {
 	ISRC        string `json:"isrc"`
 	AlbumID     string `json:"album_id,omitempty"`
 	AlbumURL    string `json:"album_url,omitempty"`
-	AlbumType   string `json:"album_type,omitempty"` // album, single, ep, compilation
+	AlbumType   string `json:"album_type,omitempty"`
 }
 
-// AlbumInfoMetadata holds album information
 type AlbumInfoMetadata struct {
 	TotalTracks int    `json:"total_tracks"`
 	Name        string `json:"name"`
 	ReleaseDate string `json:"release_date"`
 	Artists     string `json:"artists"`
 	Images      string `json:"images"`
+	Genre       string `json:"genre,omitempty"`
+	Label       string `json:"label,omitempty"`
+	Copyright   string `json:"copyright,omitempty"`
 }
 
-// AlbumResponsePayload is the response for album requests
 type AlbumResponsePayload struct {
 	AlbumInfo AlbumInfoMetadata    `json:"album_info"`
 	TrackList []AlbumTrackMetadata `json:"track_list"`
 }
 
-// PlaylistInfoMetadata holds playlist information
 type PlaylistInfoMetadata struct {
 	Tracks struct {
 		Total int `json:"total"`
@@ -202,13 +192,11 @@ type PlaylistInfoMetadata struct {
 	} `json:"owner"`
 }
 
-// PlaylistResponsePayload is the response for playlist requests
 type PlaylistResponsePayload struct {
 	PlaylistInfo PlaylistInfoMetadata `json:"playlist_info"`
 	TrackList    []AlbumTrackMetadata `json:"track_list"`
 }
 
-// ArtistInfoMetadata holds artist information
 type ArtistInfoMetadata struct {
 	ID         string `json:"id"`
 	Name       string `json:"name"`
@@ -217,7 +205,6 @@ type ArtistInfoMetadata struct {
 	Popularity int    `json:"popularity"`
 }
 
-// ArtistAlbumMetadata holds album info for artist discography
 type ArtistAlbumMetadata struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -228,24 +215,20 @@ type ArtistAlbumMetadata struct {
 	Artists     string `json:"artists"`
 }
 
-// ArtistResponsePayload is the response for artist requests
 type ArtistResponsePayload struct {
 	ArtistInfo ArtistInfoMetadata    `json:"artist_info"`
 	Albums     []ArtistAlbumMetadata `json:"albums"`
 }
 
-// TrackResponse is the response for single track requests
 type TrackResponse struct {
 	Track TrackMetadata `json:"track"`
 }
 
-// SearchResult represents search results
 type SearchResult struct {
 	Tracks []TrackMetadata `json:"tracks"`
 	Total  int             `json:"total"`
 }
 
-// SearchArtistResult represents an artist in search results
 type SearchArtistResult struct {
 	ID         string `json:"id"`
 	Name       string `json:"name"`
@@ -254,7 +237,6 @@ type SearchArtistResult struct {
 	Popularity int    `json:"popularity"`
 }
 
-// SearchAllResult represents combined search results for tracks and artists
 type SearchAllResult struct {
 	Tracks  []TrackMetadata      `json:"tracks"`
 	Artists []SearchArtistResult `json:"artists"`
@@ -271,7 +253,6 @@ type accessTokenResponse struct {
 	TokenType   string      `json:"token_type"`
 }
 
-// Internal API response types
 type image struct {
 	URL string `json:"url"`
 }
@@ -297,7 +278,7 @@ type albumSimplified struct {
 	Images      []image     `json:"images"`
 	ExternalURL externalURL `json:"external_urls"`
 	Artists     []artist    `json:"artists"`
-	AlbumType   string      `json:"album_type"` // album, single, compilation
+	AlbumType   string      `json:"album_type"`
 }
 
 type trackFull struct {
@@ -312,7 +293,6 @@ type trackFull struct {
 	Artists     []artist        `json:"artists"`
 }
 
-// GetFilteredData fetches and formats Spotify data
 func (c *SpotifyMetadataClient) GetFilteredData(ctx context.Context, spotifyURL string, batch bool, delay time.Duration) (interface{}, error) {
 	parsed, err := parseSpotifyURI(spotifyURL)
 	if err != nil {
@@ -338,7 +318,6 @@ func (c *SpotifyMetadataClient) GetFilteredData(ctx context.Context, spotifyURL 
 	}
 }
 
-// SearchTracks searches for tracks on Spotify
 func (c *SpotifyMetadataClient) SearchTracks(ctx context.Context, query string, limit int) (*SearchResult, error) {
 	token, err := c.getAccessToken(ctx)
 	if err != nil {
@@ -385,7 +364,6 @@ func (c *SpotifyMetadataClient) SearchTracks(ctx context.Context, query string, 
 	return result, nil
 }
 
-// SearchAll searches for tracks and artists on Spotify
 func (c *SpotifyMetadataClient) SearchAll(ctx context.Context, query string, trackLimit, artistLimit int) (*SearchAllResult, error) {
 	cacheKey := fmt.Sprintf("all:%s:%d:%d", query, trackLimit, artistLimit)
 
@@ -507,7 +485,6 @@ func (c *SpotifyMetadataClient) fetchAlbum(ctx context.Context, albumID, token s
 	}
 	c.cacheMu.RUnlock()
 
-	// Track item structure for pagination
 	type trackItem struct {
 		ID          string      `json:"id"`
 		Name        string      `json:"name"`
@@ -543,11 +520,9 @@ func (c *SpotifyMetadataClient) fetchAlbum(ctx context.Context, albumID, token s
 		Images:      albumImage,
 	}
 
-	// Collect all tracks (including paginated)
 	allTrackItems := data.Tracks.Items
 	nextURL := data.Tracks.Next
 
-	// Fetch remaining tracks using pagination (no limit)
 	for nextURL != "" {
 		var pageData struct {
 			Items []trackItem `json:"items"`
@@ -569,7 +544,6 @@ func (c *SpotifyMetadataClient) fetchAlbum(ctx context.Context, albumID, token s
 		trackIDs[i] = item.ID
 	}
 
-	// Fetch ISRCs in parallel for ALL tracks (like Deezer implementation)
 	isrcMap := c.fetchISRCsParallel(ctx, trackIDs, token)
 
 	tracks := make([]AlbumTrackMetadata, 0, len(allTrackItems))
@@ -609,10 +583,8 @@ func (c *SpotifyMetadataClient) fetchAlbum(ctx context.Context, albumID, token s
 	return result, nil
 }
 
-// fetchISRCsParallel fetches ISRCs for multiple tracks in parallel
-// Similar to Deezer implementation for consistency
 func (c *SpotifyMetadataClient) fetchISRCsParallel(ctx context.Context, trackIDs []string, token string) map[string]string {
-	const maxParallelISRC = 10 // Max concurrent ISRC fetches
+	const maxParallelISRC = 10
 
 	result := make(map[string]string)
 	var resultMu sync.Mutex
@@ -621,7 +593,6 @@ func (c *SpotifyMetadataClient) fetchISRCsParallel(ctx context.Context, trackIDs
 		return result
 	}
 
-	// Use semaphore to limit concurrent requests
 	sem := make(chan struct{}, maxParallelISRC)
 	var wg sync.WaitGroup
 
@@ -630,7 +601,6 @@ func (c *SpotifyMetadataClient) fetchISRCsParallel(ctx context.Context, trackIDs
 		go func(id string) {
 			defer wg.Done()
 
-			// Acquire semaphore
 			select {
 			case sem <- struct{}{}:
 				defer func() { <-sem }()
@@ -651,7 +621,6 @@ func (c *SpotifyMetadataClient) fetchISRCsParallel(ctx context.Context, trackIDs
 }
 
 func (c *SpotifyMetadataClient) fetchPlaylist(ctx context.Context, playlistID, token string) (*PlaylistResponsePayload, error) {
-	// First request to get playlist info and first batch of tracks
 	var data struct {
 		Name   string  `json:"name"`
 		Images []image `json:"images"`
@@ -677,10 +646,8 @@ func (c *SpotifyMetadataClient) fetchPlaylist(ctx context.Context, playlistID, t
 	info.Owner.Name = data.Name
 	info.Owner.Images = firstImageURL(data.Images)
 
-	// Pre-allocate with expected capacity
 	tracks := make([]AlbumTrackMetadata, 0, data.Tracks.Total)
 
-	// Add first batch of tracks
 	for _, item := range data.Tracks.Items {
 		if item.Track == nil {
 			continue
@@ -704,7 +671,6 @@ func (c *SpotifyMetadataClient) fetchPlaylist(ctx context.Context, playlistID, t
 		})
 	}
 
-	// Fetch remaining tracks using pagination (NO LIMIT - fetch all tracks)
 	nextURL := data.Tracks.Next
 
 	for nextURL != "" {
@@ -716,7 +682,6 @@ func (c *SpotifyMetadataClient) fetchPlaylist(ctx context.Context, playlistID, t
 		}
 
 		if err := c.getJSON(ctx, nextURL, token, &pageData); err != nil {
-			// Log error but return what we have so far
 			fmt.Printf("[Spotify] Warning: failed to fetch page, returning %d tracks: %v\n", len(tracks), err)
 			break
 		}
@@ -763,7 +728,6 @@ func (c *SpotifyMetadataClient) fetchArtist(ctx context.Context, artistID, token
 	}
 	c.cacheMu.RUnlock()
 
-	// Fetch artist info
 	var artistData struct {
 		ID        string  `json:"id"`
 		Name      string  `json:"name"`
@@ -786,7 +750,6 @@ func (c *SpotifyMetadataClient) fetchArtist(ctx context.Context, artistID, token
 		Popularity: artistData.Popularity,
 	}
 
-	// Fetch artist albums (all types: album, single, compilation)
 	albums := make([]ArtistAlbumMetadata, 0)
 	offset := 0
 	limit := 50
@@ -826,13 +789,11 @@ func (c *SpotifyMetadataClient) fetchArtist(ctx context.Context, artistID, token
 			})
 		}
 
-		// Check if there are more albums
 		if albumsData.Next == "" || len(albumsData.Items) < limit {
 			break
 		}
 		offset += limit
 
-		// Safety limit to prevent infinite loops
 		if offset > 500 {
 			break
 		}
@@ -913,7 +874,6 @@ func (c *SpotifyMetadataClient) getJSON(ctx context.Context, endpoint, token str
 		return err
 	}
 
-	// Set headers (same as PC version baseHeaders)
 	req.Header.Set("User-Agent", c.userAgent)
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
@@ -949,8 +909,7 @@ func (c *SpotifyMetadataClient) randomUserAgent() string {
 	c.rngMu.Lock()
 	defer c.rngMu.Unlock()
 
-	// Use Mac User-Agent format (same as PC version)
-	macMajor := c.rng.Intn(4) + 11         // 11-14
+	macMajor := c.rng.Intn(4) + 11
 	macMinor := c.rng.Intn(5) + 4          // 4-8
 	webkitMajor := c.rng.Intn(7) + 530     // 530-536
 	webkitMinor := c.rng.Intn(7) + 30      // 30-36
@@ -975,7 +934,6 @@ func parseSpotifyURI(input string) (spotifyURI, error) {
 		return spotifyURI{}, errInvalidSpotifyURL
 	}
 
-	// Handle spotify: URI format
 	if strings.HasPrefix(trimmed, "spotify:") {
 		parts := strings.Split(trimmed, ":")
 		if len(parts) == 3 {
@@ -986,13 +944,11 @@ func parseSpotifyURI(input string) (spotifyURI, error) {
 		}
 	}
 
-	// Handle URL format
 	parsed, err := url.Parse(trimmed)
 	if err != nil {
 		return spotifyURI{}, err
 	}
 
-	// Handle embed.spotify.com URLs
 	if parsed.Host == "embed.spotify.com" {
 		if parsed.RawQuery == "" {
 			return spotifyURI{}, errInvalidSpotifyURL
@@ -1005,7 +961,6 @@ func parseSpotifyURI(input string) (spotifyURI, error) {
 		return parseSpotifyURI(embedded)
 	}
 
-	// Handle plain ID (no scheme/host) - defaults to playlist
 	if parsed.Scheme == "" && parsed.Host == "" {
 		id := strings.Trim(strings.TrimSpace(parsed.Path), "/")
 		if id == "" {
@@ -1031,7 +986,6 @@ func parseSpotifyURI(input string) (spotifyURI, error) {
 		return spotifyURI{}, errInvalidSpotifyURL
 	}
 
-	// Skip intl- prefix if present
 	if strings.HasPrefix(parts[0], "intl-") {
 		parts = parts[1:]
 	}
@@ -1039,7 +993,6 @@ func parseSpotifyURI(input string) (spotifyURI, error) {
 		return spotifyURI{}, errInvalidSpotifyURL
 	}
 
-	// Handle standard URLs: /album/{id}, /track/{id}, /playlist/{id}, /artist/{id}
 	if len(parts) == 2 {
 		switch parts[0] {
 		case "album", "track", "playlist", "artist":
@@ -1047,7 +1000,6 @@ func parseSpotifyURI(input string) (spotifyURI, error) {
 		}
 	}
 
-	// Handle nested playlist URLs: /user/{user}/playlist/{id}
 	if len(parts) == 4 && parts[2] == "playlist" {
 		return spotifyURI{Type: "playlist", ID: parts[3]}, nil
 	}

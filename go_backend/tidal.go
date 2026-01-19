@@ -19,7 +19,6 @@ import (
 	"time"
 )
 
-// TidalDownloader handles Tidal downloads
 type TidalDownloader struct {
 	client         *http.Client
 	clientID       string
@@ -35,7 +34,6 @@ var (
 	tidalDownloaderOnce   sync.Once
 )
 
-// TidalTrack represents a Tidal track
 type TidalTrack struct {
 	ID           int64  `json:"id"`
 	Title        string `json:"title"`
@@ -60,7 +58,6 @@ type TidalTrack struct {
 	} `json:"mediaMetadata"`
 }
 
-// TidalAPIResponseV2 is the new API response format (version 2.0)
 type TidalAPIResponseV2 struct {
 	Version string `json:"version"`
 	Data    struct {
@@ -76,7 +73,6 @@ type TidalAPIResponseV2 struct {
 	} `json:"data"`
 }
 
-// TidalBTSManifest is the BTS (application/vnd.tidal.bts) manifest format
 type TidalBTSManifest struct {
 	MimeType       string   `json:"mimeType"`
 	Codecs         string   `json:"codecs"`
@@ -84,7 +80,6 @@ type TidalBTSManifest struct {
 	URLs           []string `json:"urls"`
 }
 
-// MPD represents DASH manifest structure
 type MPD struct {
 	XMLName xml.Name `xml:"MPD"`
 	Period  struct {
@@ -105,7 +100,6 @@ type MPD struct {
 	} `xml:"Period"`
 }
 
-// NewTidalDownloader creates a new Tidal downloader (returns singleton for token reuse)
 func NewTidalDownloader() *TidalDownloader {
 	tidalDownloaderOnce.Do(func() {
 		clientID, _ := base64.StdEncoding.DecodeString("NkJEU1JkcEs5aHFFQlRnVQ==")
@@ -150,7 +144,6 @@ func (t *TidalDownloader) GetAvailableAPIs() []string {
 	return apis
 }
 
-// GetAccessToken gets Tidal access token (with caching)
 func (t *TidalDownloader) GetAccessToken() (string, error) {
 	t.tokenMu.Lock()
 	defer t.tokenMu.Unlock()
@@ -199,7 +192,6 @@ func (t *TidalDownloader) GetAccessToken() (string, error) {
 	return result.AccessToken, nil
 }
 
-// GetTidalURLFromSpotify gets Tidal URL from Spotify track ID using SongLink
 func (t *TidalDownloader) GetTidalURLFromSpotify(spotifyTrackID string) (string, error) {
 	spotifyBase, _ := base64.StdEncoding.DecodeString("aHR0cHM6Ly9vcGVuLnNwb3RpZnkuY29tL3RyYWNrLw==")
 	spotifyURL := fmt.Sprintf("%s%s", string(spotifyBase), spotifyTrackID)
@@ -239,7 +231,6 @@ func (t *TidalDownloader) GetTidalURLFromSpotify(spotifyTrackID string) (string,
 	return tidalLink.URL, nil
 }
 
-// GetTrackIDFromURL extracts track ID from Tidal URL
 func (t *TidalDownloader) GetTrackIDFromURL(tidalURL string) (int64, error) {
 	parts := strings.Split(tidalURL, "/track/")
 	if len(parts) < 2 {
@@ -293,7 +284,6 @@ func (t *TidalDownloader) GetTrackInfoByID(trackID int64) (*TidalTrack, error) {
 	return &trackInfo, nil
 }
 
-// SearchTrackByISRC searches for a track by ISRC
 func (t *TidalDownloader) SearchTrackByISRC(isrc string) (*TidalTrack, error) {
 	token, err := t.GetAccessToken()
 	if err != nil {
@@ -341,30 +331,7 @@ func (t *TidalDownloader) SearchTrackByISRC(isrc string) (*TidalTrack, error) {
 	return nil, fmt.Errorf("no exact ISRC match found for: %s", isrc)
 }
 
-// normalizeTitle normalizes a track title for comparison
-// Kept for potential future use
-// func normalizeTitle(title string) string {
-// 	normalized := strings.ToLower(strings.TrimSpace(title))
-//
-// 	// Remove common suffixes in parentheses or brackets
-// 	suffixPatterns := []string{
-// 		" (remaster)", " (remastered)", " (deluxe)", " (deluxe edition)",
-// 		" (bonus track)", " (single)", " (album version)", " (radio edit)",
-// 		" [remaster]", " [remastered]", " [deluxe]", " [bonus track]",
-// 	}
-// 	for _, suffix := range suffixPatterns {
-// 		normalized = strings.TrimSuffix(normalized, suffix)
-// 	}
-//
-// 	// Remove multiple spaces
-// 	for strings.Contains(normalized, "  ") {
-// 		normalized = strings.ReplaceAll(normalized, "  ", " ")
-// 	}
-//
-// 	return normalized
-// }
 
-// SearchTrackByMetadataWithISRC searches for a track with ISRC matching priority
 // Now includes romaji conversion for Japanese text (4 search strategies like PC)
 func (t *TidalDownloader) SearchTrackByMetadataWithISRC(trackName, artistName, spotifyISRC string, expectedDuration int) (*TidalTrack, error) {
 	token, err := t.GetAccessToken()
@@ -466,7 +433,6 @@ func (t *TidalDownloader) SearchTrackByMetadataWithISRC(trackName, artistName, s
 		if len(result.Items) > 0 {
 			GoLog("[Tidal] Found %d results for '%s'\n", len(result.Items), cleanQuery)
 
-			// OPTIMIZATION: If ISRC provided, check for match immediately and return early
 			if spotifyISRC != "" {
 				for i := range result.Items {
 					if result.Items[i].ISRC == spotifyISRC {
@@ -592,7 +558,6 @@ func (t *TidalDownloader) SearchTrackByMetadataWithISRC(trackName, artistName, s
 	return bestMatch, nil
 }
 
-// containsQuery checks if a query already exists in the list
 func containsQuery(queries []string, query string) bool {
 	for _, q := range queries {
 		if q == query {
@@ -602,7 +567,6 @@ func containsQuery(queries []string, query string) bool {
 	return false
 }
 
-// SearchTrackByMetadata searches for a track using artist name and track name
 func (t *TidalDownloader) SearchTrackByMetadata(trackName, artistName string) (*TidalTrack, error) {
 	return t.SearchTrackByMetadataWithISRC(trackName, artistName, "", 0)
 }
@@ -614,7 +578,6 @@ type TidalDownloadInfo struct {
 	SampleRate int
 }
 
-// tidalAPIResult holds the result from a parallel API request
 type tidalAPIResult struct {
 	apiURL   string
 	info     TidalDownloadInfo
@@ -622,9 +585,7 @@ type tidalAPIResult struct {
 	duration time.Duration
 }
 
-// getDownloadURLParallel requests download URL from all APIs in parallel
 // Returns the first successful result (supports both v1 and v2 API formats)
-// "Siapa cepat dia dapat" - first success wins
 func getDownloadURLParallel(apis []string, trackID int64, quality string) (string, TidalDownloadInfo, error) {
 	if len(apis) == 0 {
 		return "", TidalDownloadInfo{}, fmt.Errorf("no APIs available")
@@ -639,9 +600,7 @@ func getDownloadURLParallel(apis []string, trackID int64, quality string) (strin
 		go func(api string) {
 			reqStart := time.Now()
 
-			client := &http.Client{
-				Timeout: 15 * time.Second,
-			}
+			client := NewHTTPClientWithTimeout(15 * time.Second)
 
 			reqURL := fmt.Sprintf("%s/track/?id=%d&quality=%s", api, trackID, quality)
 
@@ -671,8 +630,7 @@ func getDownloadURLParallel(apis []string, trackID int64, quality string) (strin
 
 			var v2Response TidalAPIResponseV2
 			if err := json.Unmarshal(body, &v2Response); err == nil && v2Response.Data.Manifest != "" {
-				// IMPORTANT: Reject PREVIEW responses - we need FULL tracks
-				if v2Response.Data.AssetPresentation == "PREVIEW" {
+						if v2Response.Data.AssetPresentation == "PREVIEW" {
 					resultChan <- tidalAPIResult{apiURL: api, err: fmt.Errorf("returned PREVIEW instead of FULL"), duration: time.Since(reqStart)}
 					return
 				}
@@ -715,7 +673,6 @@ func getDownloadURLParallel(apis []string, trackID int64, quality string) (strin
 			GoLog("[Tidal] [Parallel] ✓ Got response from %s (%d-bit/%dHz) in %v\n",
 				result.apiURL, result.info.BitDepth, result.info.SampleRate, result.duration)
 
-			// Don't return immediately - drain remaining results to avoid goroutine leaks
 			go func(remaining int) {
 				for j := 0; j < remaining; j++ {
 					<-resultChan
@@ -736,8 +693,6 @@ func getDownloadURLParallel(apis []string, trackID int64, quality string) (strin
 	return "", TidalDownloadInfo{}, fmt.Errorf("all %d Tidal APIs failed. Errors: %v", len(apis), errors)
 }
 
-// GetDownloadURL gets download URL for a track - tries ALL APIs in parallel
-// "Siapa cepat dia dapat" - first successful response wins
 func (t *TidalDownloader) GetDownloadURL(trackID int64, quality string) (TidalDownloadInfo, error) {
 	apis := t.GetAvailableAPIs()
 	if len(apis) == 0 {
@@ -752,7 +707,6 @@ func (t *TidalDownloader) GetDownloadURL(trackID int64, quality string) (TidalDo
 	return info, nil
 }
 
-// parseManifest parses Tidal manifest (supports both BTS and DASH formats)
 func parseManifest(manifestB64 string) (directURL string, initURL string, mediaURLs []string, err error) {
 	manifestBytes, err := base64.StdEncoding.DecodeString(manifestB64)
 	if err != nil {
@@ -859,7 +813,6 @@ func (t *TidalDownloader) DownloadFile(downloadURL, outputPath, itemID string) e
 		return t.downloadFromManifest(ctx, strings.TrimPrefix(downloadURL, "MANIFEST:"), outputPath, itemID)
 	}
 
-	// Initialize item progress for direct downloads
 	if itemID != "" {
 		StartItemProgress(itemID)
 		defer CompleteItemProgress(itemID)
@@ -946,15 +899,11 @@ func (t *TidalDownloader) downloadFromManifest(ctx context.Context, manifestB64,
 	GoLog("[Tidal] Manifest parsed - directURL: %v, initURL: %v, mediaURLs count: %d\n",
 		directURL != "", initURL != "", len(mediaURLs))
 
-	client := &http.Client{
-		Timeout: 120 * time.Second,
-	}
+	client := NewHTTPClientWithTimeout(120 * time.Second)
 
 	if directURL != "" {
 		GoLog("[Tidal] BTS format - downloading from direct URL: %s...\n", directURL[:min(80, len(directURL))])
-		// Note: Progress tracking is initialized by the caller (DownloadFile)
-
-		if isDownloadCancelled(itemID) {
+			if isDownloadCancelled(itemID) {
 			return ErrDownloadCancelled
 		}
 
@@ -1135,7 +1084,6 @@ func (t *TidalDownloader) downloadFromManifest(ctx context.Context, manifestB64,
 	return nil
 }
 
-// TidalDownloadResult contains download result with quality info
 type TidalDownloadResult struct {
 	FilePath    string
 	BitDepth    int
@@ -1149,12 +1097,10 @@ type TidalDownloadResult struct {
 	ISRC        string
 }
 
-// artistsMatch checks if the artist names are similar enough
 func artistsMatch(spotifyArtist, tidalArtist string) bool {
 	normSpotify := strings.ToLower(strings.TrimSpace(spotifyArtist))
 	normTidal := strings.ToLower(strings.TrimSpace(tidalArtist))
 
-	// Exact match
 	if normSpotify == normTidal {
 		return true
 	}
@@ -1164,22 +1110,17 @@ func artistsMatch(spotifyArtist, tidalArtist string) bool {
 		return true
 	}
 
-	// Split artists by common separators (comma, feat, ft., &, and)
-	// e.g., "RADWIMPS, Toko Miura" or "RADWIMPS feat. Toko Miura"
 	spotifyArtists := splitArtists(normSpotify)
 	tidalArtists := splitArtists(normTidal)
 
-	// Check if ANY expected artist matches ANY found artist
 	for _, exp := range spotifyArtists {
 		for _, fnd := range tidalArtists {
 			if exp == fnd {
 				return true
 			}
-			// Also check contains for partial matches
 			if strings.Contains(exp, fnd) || strings.Contains(fnd, exp) {
 				return true
 			}
-			// Check same words different order
 			if sameWordsUnordered(exp, fnd) {
 				GoLog("[Tidal] Artist names have same words in different order: '%s' vs '%s'\n", exp, fnd)
 				return true
@@ -1187,9 +1128,6 @@ func artistsMatch(spotifyArtist, tidalArtist string) bool {
 		}
 	}
 
-	// If scripts are TRULY different (Latin vs CJK/Arabic/Cyrillic), assume match (transliteration)
-	// Don't treat Latin Extended (Polish, French, etc.) as different script
-	// This handles cases like "鈴木雅之" vs "Masayuki Suzuki"
 	spotifyLatin := isLatinScript(spotifyArtist)
 	tidalLatin := isLatinScript(tidalArtist)
 	if spotifyLatin != tidalLatin {
@@ -1200,9 +1138,7 @@ func artistsMatch(spotifyArtist, tidalArtist string) bool {
 	return false
 }
 
-// splitArtists splits artist string by common separators
 func splitArtists(artists string) []string {
-	// Replace common separators with a standard one
 	normalized := artists
 	normalized = strings.ReplaceAll(normalized, " feat. ", "|")
 	normalized = strings.ReplaceAll(normalized, " feat ", "|")
@@ -1224,8 +1160,6 @@ func splitArtists(artists string) []string {
 	return result
 }
 
-// sameWordsUnordered checks if two strings have the same words regardless of order
-// Useful for Japanese names: "Sawano Hiroyuki" vs "Hiroyuki Sawano"
 func sameWordsUnordered(a, b string) bool {
 	wordsA := strings.Fields(a)
 	wordsB := strings.Fields(b)
@@ -1235,13 +1169,11 @@ func sameWordsUnordered(a, b string) bool {
 		return false
 	}
 
-	// Sort and compare
 	sortedA := make([]string, len(wordsA))
 	sortedB := make([]string, len(wordsB))
 	copy(sortedA, wordsA)
 	copy(sortedB, wordsB)
 
-	// Simple bubble sort (usually just 2-3 words)
 	for i := 0; i < len(sortedA)-1; i++ {
 		for j := i + 1; j < len(sortedA); j++ {
 			if sortedA[i] > sortedA[j] {
@@ -1261,7 +1193,6 @@ func sameWordsUnordered(a, b string) bool {
 	return true
 }
 
-// titlesMatch checks if track titles are similar enough
 func titlesMatch(expectedTitle, foundTitle string) bool {
 	normExpected := strings.ToLower(strings.TrimSpace(expectedTitle))
 	normFound := strings.ToLower(strings.TrimSpace(foundTitle))
@@ -1271,7 +1202,6 @@ func titlesMatch(expectedTitle, foundTitle string) bool {
 		return true
 	}
 
-	// Check if one contains the other
 	if strings.Contains(normExpected, normFound) || strings.Contains(normFound, normExpected) {
 		return true
 	}
@@ -1284,7 +1214,6 @@ func titlesMatch(expectedTitle, foundTitle string) bool {
 		return true
 	}
 
-	// Check if cleaned versions contain each other
 	if cleanExpected != "" && cleanFound != "" {
 		if strings.Contains(cleanExpected, cleanFound) || strings.Contains(cleanFound, cleanExpected) {
 			return true
@@ -1299,7 +1228,6 @@ func titlesMatch(expectedTitle, foundTitle string) bool {
 		return true
 	}
 
-	// If scripts are TRULY different (Latin vs CJK/Arabic/Cyrillic), assume match (transliteration)
 	// Don't treat Latin Extended (Polish, French, etc.) as different script
 	expectedLatin := isLatinScript(expectedTitle)
 	foundLatin := isLatinScript(foundTitle)
@@ -1311,9 +1239,7 @@ func titlesMatch(expectedTitle, foundTitle string) bool {
 	return false
 }
 
-// extractCoreTitle extracts the main title before any parentheses or brackets
 func extractCoreTitle(title string) string {
-	// Find first occurrence of ( or [
 	parenIdx := strings.Index(title, "(")
 	bracketIdx := strings.Index(title, "[")
 	dashIdx := strings.Index(title, " - ")
@@ -1332,18 +1258,15 @@ func extractCoreTitle(title string) string {
 	return strings.TrimSpace(title[:cutIdx])
 }
 
-// cleanTitle removes common suffixes from track titles for comparison
 func cleanTitle(title string) string {
 	cleaned := title
 
-	// Version indicators to remove from parentheses/brackets
 	versionPatterns := []string{
 		"remaster", "remastered", "deluxe", "bonus", "single",
 		"album version", "radio edit", "original mix", "extended",
 		"club mix", "remix", "live", "acoustic", "demo",
 	}
 
-	// Remove parenthetical content if it contains version indicators
 	for {
 		startParen := strings.LastIndex(cleaned, "(")
 		endParen := strings.LastIndex(cleaned, ")")
@@ -1364,7 +1287,6 @@ func cleanTitle(title string) string {
 		break
 	}
 
-	// Same for brackets
 	for {
 		startBracket := strings.LastIndex(cleaned, "[")
 		endBracket := strings.LastIndex(cleaned, "]")
@@ -1385,7 +1307,6 @@ func cleanTitle(title string) string {
 		break
 	}
 
-	// Remove trailing " - version" patterns
 	dashPatterns := []string{
 		" - remaster", " - remastered", " - single version", " - radio edit",
 		" - live", " - acoustic", " - demo", " - remix",
@@ -1396,7 +1317,6 @@ func cleanTitle(title string) string {
 		}
 	}
 
-	// Remove multiple spaces
 	for strings.Contains(cleaned, "  ") {
 		cleaned = strings.ReplaceAll(cleaned, "  ", " ")
 	}
@@ -1404,48 +1324,29 @@ func cleanTitle(title string) string {
 	return strings.TrimSpace(cleaned)
 }
 
-// isLatinScript checks if a string is primarily Latin script
-// Returns true for ASCII and Latin Extended characters (European languages)
-// Returns false for CJK, Arabic, Cyrillic, etc.
 func isLatinScript(s string) bool {
 	for _, r := range s {
-		// Skip common punctuation and numbers
 		if r < 128 {
 			continue
 		}
-		// Latin Extended-A: U+0100 to U+017F (Polish, Czech, etc.)
-		// Latin Extended-B: U+0180 to U+024F
-		// Latin Extended Additional: U+1E00 to U+1EFF
-		if (r >= 0x0100 && r <= 0x024F) || // Latin Extended A & B
-			(r >= 0x1E00 && r <= 0x1EFF) || // Latin Extended Additional
-			(r >= 0x00C0 && r <= 0x00FF) { // Latin-1 Supplement (accented chars)
+		if (r >= 0x0100 && r <= 0x024F) ||
+			(r >= 0x1E00 && r <= 0x1EFF) ||
+			(r >= 0x00C0 && r <= 0x00FF) {
 			continue
 		}
-		// CJK ranges - definitely different script
-		if (r >= 0x4E00 && r <= 0x9FFF) || // CJK Unified Ideographs
-			(r >= 0x3040 && r <= 0x309F) || // Hiragana
-			(r >= 0x30A0 && r <= 0x30FF) || // Katakana
-			(r >= 0xAC00 && r <= 0xD7AF) || // Hangul (Korean)
-			(r >= 0x0600 && r <= 0x06FF) || // Arabic
-			(r >= 0x0400 && r <= 0x04FF) { // Cyrillic
+		if (r >= 0x4E00 && r <= 0x9FFF) ||
+			(r >= 0x3040 && r <= 0x309F) ||
+			(r >= 0x30A0 && r <= 0x30FF) ||
+			(r >= 0xAC00 && r <= 0xD7AF) ||
+			(r >= 0x0600 && r <= 0x06FF) ||
+			(r >= 0x0400 && r <= 0x04FF) {
 			return false
 		}
 	}
 	return true
 }
 
-// isASCIIString checks if a string contains only ASCII characters
-// Kept for potential future use
-// func isASCIIString(s string) bool {
-// 	for _, r := range s {
-// 		if r > 127 {
-// 			return false
-// 		}
-// 	}
-// 	return true
-// }
 
-// downloadFromTidal downloads a track using the request parameters
 func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 	downloader := NewTidalDownloader()
 
@@ -1453,16 +1354,13 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 		return TidalDownloadResult{FilePath: "EXISTS:" + existingFile}, nil
 	}
 
-	// Convert expected duration from ms to seconds
 	expectedDurationSec := req.DurationMS / 1000
 
 	var track *TidalTrack
 	var err error
 
-	// STRATEGY 0: Use pre-fetched Tidal ID from Odesli enrichment (highest priority)
 	if req.TidalID != "" {
 		GoLog("[Tidal] Using Tidal ID from Odesli enrichment: %s\n", req.TidalID)
-		// Parse track ID (could be a number or extracted from URL)
 		var trackID int64
 		if _, parseErr := fmt.Sscanf(req.TidalID, "%d", &trackID); parseErr == nil && trackID > 0 {
 			track, err = downloader.GetTrackInfoByID(trackID)
@@ -1475,7 +1373,6 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 		}
 	}
 
-	// OPTIMIZATION: Check cache first for track ID
 	if track == nil && req.ISRC != "" {
 		if cached := GetTrackIDCache().Get(req.ISRC); cached != nil && cached.TidalTrackID > 0 {
 			GoLog("[Tidal] Cache hit! Using cached track ID: %d\n", cached.TidalTrackID)
@@ -1487,8 +1384,6 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 		}
 	}
 
-	// OPTIMIZED: Try ISRC search with metadata (search by name, filter by ISRC)
-	// Strategy 1: Search by metadata, match by ISRC (most accurate)
 	if track == nil && req.ISRC != "" {
 		GoLog("[Tidal] Trying ISRC search: %s\n", req.ISRC)
 		track, err = downloader.SearchTrackByMetadataWithISRC(req.TrackName, req.ArtistName, req.ISRC, expectedDurationSec)
@@ -1510,7 +1405,6 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 		}
 	}
 
-	// Strategy 2: Try SongLink if we have Spotify ID
 	if track == nil && req.SpotifyID != "" {
 		GoLog("[Tidal] ISRC search failed, trying SongLink...\n")
 		var tidalURL string
@@ -1545,13 +1439,11 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 						track = nil
 					}
 
-					// Verify duration if we have expected duration
 					if track != nil && expectedDurationSec > 0 {
 						durationDiff := track.Duration - expectedDurationSec
 						if durationDiff < 0 {
 							durationDiff = -durationDiff
 						}
-						// Allow 3 seconds tolerance (same as PC version)
 						if durationDiff > 3 {
 							GoLog("[Tidal] Duration mismatch from SongLink: expected %ds, got %ds. Rejecting.\n",
 								expectedDurationSec, track.Duration)
@@ -1563,11 +1455,9 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 		}
 	}
 
-	// Strategy 3: Search by metadata only (no ISRC requirement) - last resort
 	if track == nil {
 		GoLog("[Tidal] Trying metadata search as last resort...\n")
 		track, err = downloader.SearchTrackByMetadataWithISRC(req.TrackName, req.ArtistName, "", expectedDurationSec)
-		// Verify artist AND title for metadata search
 		if track != nil {
 			tidalArtist := track.Artist.Name
 			if len(track.Artists) > 0 {
@@ -1578,7 +1468,6 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 				tidalArtist = strings.Join(artistNames, ", ")
 			}
 
-			// Verify title first
 			if !titlesMatch(req.TrackName, track.Title) {
 				GoLog("[Tidal] Title mismatch from metadata search: expected '%s', got '%s'. Rejecting.\n",
 					req.TrackName, track.Title)
@@ -1599,7 +1488,6 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 		return TidalDownloadResult{}, fmt.Errorf("tidal search failed: %s", errMsg)
 	}
 
-	// Final verification logging
 	tidalArtist := track.Artist.Name
 	if len(track.Artists) > 0 {
 		var artistNames []string
@@ -1633,7 +1521,6 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 		return TidalDownloadResult{FilePath: "EXISTS:" + m4aPath}, nil
 	}
 
-	// Clean up any leftover .tmp files from previous failed downloads
 	tmpPath := outputPath + ".m4a.tmp"
 	if _, err := os.Stat(tmpPath); err == nil {
 		GoLog("[Tidal] Cleaning up leftover temp file: %s\n", tmpPath)
@@ -1651,10 +1538,8 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 		return TidalDownloadResult{}, fmt.Errorf("failed to get download URL: %w", err)
 	}
 
-	// Log actual quality received
 	GoLog("[Tidal] Actual quality: %d-bit/%dHz\n", downloadInfo.BitDepth, downloadInfo.SampleRate)
 
-	// START PARALLEL: Fetch cover and lyrics while downloading audio
 	var parallelResult *ParallelDownloadResult
 	parallelDone := make(chan struct{})
 	go func() {
@@ -1670,7 +1555,6 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 		)
 	}()
 
-	// Download audio file with item ID for progress tracking
 	GoLog("[Tidal] Starting download to: %s\n", outputPath)
 	GoLog("[Tidal] Download URL type: %s\n", func() string {
 		if strings.HasPrefix(downloadInfo.URL, "MANIFEST:") {
@@ -1688,7 +1572,6 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 	}
 	fmt.Println("[Tidal] Download completed successfully")
 
-	// Wait for parallel operations to complete
 	<-parallelDone
 
 	if req.ItemID != "" {
@@ -1701,21 +1584,28 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 		actualOutputPath = m4aPath
 		GoLog("[Tidal] File saved as M4A (DASH stream): %s\n", actualOutputPath)
 	} else if _, err := os.Stat(outputPath); err != nil {
-		// Neither FLAC nor M4A exists
 		return TidalDownloadResult{}, fmt.Errorf("download completed but file not found at %s or %s", outputPath, m4aPath)
 	}
 
-	// Embed metadata using parallel-fetched cover data
+	releaseDate := req.ReleaseDate
+	if releaseDate == "" && track.Album.ReleaseDate != "" {
+		releaseDate = track.Album.ReleaseDate
+		GoLog("[Tidal] Using release date from Tidal API: %s\n", releaseDate)
+	}
+
 	metadata := Metadata{
 		Title:       req.TrackName,
 		Artist:      req.ArtistName,
 		Album:       req.AlbumName,
 		AlbumArtist: req.AlbumArtist,
-		Date:        req.ReleaseDate,
-		TrackNumber: track.TrackNumber, // Use actual track number from Tidal
+		Date:        releaseDate,
+		TrackNumber: track.TrackNumber,
 		TotalTracks: req.TotalTracks,
-		DiscNumber:  track.VolumeNumber, // Use actual disc number from Tidal
-		ISRC:        track.ISRC,         // Use actual ISRC from Tidal
+		DiscNumber:  track.VolumeNumber,
+		ISRC:        track.ISRC,
+		Genre:       req.Genre,
+		Label:       req.Label,
+		Copyright:   req.Copyright,
 	}
 
 	var coverData []byte
@@ -1724,46 +1614,41 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 		GoLog("[Tidal] Using parallel-fetched cover (%d bytes)\n", len(coverData))
 	}
 
-	// Embed metadata based on file type
 	if strings.HasSuffix(actualOutputPath, ".flac") {
 		if err := EmbedMetadataWithCoverData(actualOutputPath, metadata, coverData); err != nil {
 			fmt.Printf("Warning: failed to embed metadata: %v\n", err)
 		}
 
-		// Embed lyrics from parallel fetch
 		if req.EmbedLyrics && parallelResult != nil && parallelResult.LyricsLRC != "" {
-			GoLog("[Tidal] Embedding parallel-fetched lyrics (%d lines)...\n", len(parallelResult.LyricsData.Lines))
-			if embedErr := EmbedLyrics(actualOutputPath, parallelResult.LyricsLRC); embedErr != nil {
-				GoLog("[Tidal] Warning: failed to embed lyrics: %v\n", embedErr)
-			} else {
-				fmt.Println("[Tidal] Lyrics embedded successfully")
+			lyricsMode := req.LyricsMode
+			if lyricsMode == "" {
+				lyricsMode = "embed"
+			}
+
+			if lyricsMode == "external" || lyricsMode == "both" {
+				GoLog("[Tidal] Saving external LRC file...\n")
+				if lrcPath, lrcErr := SaveLRCFile(actualOutputPath, parallelResult.LyricsLRC); lrcErr != nil {
+					GoLog("[Tidal] Warning: failed to save LRC file: %v\n", lrcErr)
+				} else {
+					GoLog("[Tidal] LRC file saved: %s\n", lrcPath)
+				}
+			}
+
+			if lyricsMode == "embed" || lyricsMode == "both" {
+				GoLog("[Tidal] Embedding parallel-fetched lyrics (%d lines)...\n", len(parallelResult.LyricsData.Lines))
+				if embedErr := EmbedLyrics(actualOutputPath, parallelResult.LyricsLRC); embedErr != nil {
+					GoLog("[Tidal] Warning: failed to embed lyrics: %v\n", embedErr)
+				} else {
+					fmt.Println("[Tidal] Lyrics embedded successfully")
+				}
 			}
 		} else if req.EmbedLyrics {
 			fmt.Println("[Tidal] No lyrics available from parallel fetch")
 		}
 	} else if strings.HasSuffix(actualOutputPath, ".m4a") {
-		// Embed metadata to M4A file
-		// GoLog("[Tidal] Embedding metadata to M4A file...\n")
-
-		// Add lyrics to metadata if available
-		// if req.EmbedLyrics && parallelResult != nil && parallelResult.LyricsLRC != "" {
-		// 	metadata.Lyrics = parallelResult.LyricsLRC
-		// }
-
-		// SKIP metadata embedding for M4A to prevent issues with FFmpeg conversion
-		// M4A files from DASH are often fragmented and editing metadata might corrupt the container
-		// structure that FFmpeg expects. Metadata will be re-embedded after conversion to FLAC in Flutter.
-
 		fmt.Println("[Tidal] Skipping metadata embedding for M4A file (will be handled after FFmpeg conversion)")
-
-		// if err := EmbedM4AMetadata(actualOutputPath, metadata, coverData); err != nil {
-		// 	GoLog("[Tidal] Warning: failed to embed M4A metadata: %v\n", err)
-		// } else {
-		// 	fmt.Println("[Tidal] M4A metadata embedded successfully")
-		// }
 	}
 
-	// Add to ISRC index for fast duplicate checking
 	AddToISRCIndex(req.OutputDir, req.ISRC, actualOutputPath)
 
 	return TidalDownloadResult{

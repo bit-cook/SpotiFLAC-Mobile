@@ -22,7 +22,7 @@ class DownloadSettingsPage extends ConsumerWidget {
     final isBuiltInService = _builtInServices.contains(settings.defaultService);
 
     return PopScope(
-      canPop: true, // Always allow back gesture
+      canPop: true,
       child: Scaffold(
         body: CustomScrollView(
           slivers: [
@@ -99,6 +99,17 @@ class DownloadSettingsPage extends ConsumerWidget {
                         .read(settingsProvider.notifier)
                         .setAskQualityBeforeDownload(value),
                   ),
+                  SettingsSwitchItem(
+                    icon: Icons.audiotrack,
+                    title: context.l10n.enableMp3Option,
+                    subtitle: settings.enableMp3Option
+                        ? context.l10n.enableMp3OptionSubtitleOn
+                        : context.l10n.enableMp3OptionSubtitleOff,
+                    value: settings.enableMp3Option,
+                    onChanged: (value) => ref
+                        .read(settingsProvider.notifier)
+                        .setEnableMp3Option(value),
+                  ),
                   if (!settings.askQualityBeforeDownload && isBuiltInService) ...[
                     _QualityOption(
                       title: context.l10n.qualityFlacLossless,
@@ -123,8 +134,18 @@ class DownloadSettingsPage extends ConsumerWidget {
                       onTap: () => ref
                           .read(settingsProvider.notifier)
                           .setAudioQuality('HI_RES_LOSSLESS'),
-                      showDivider: false,
+                      showDivider: settings.enableMp3Option,
                     ),
+                    if (settings.enableMp3Option)
+                      _QualityOption(
+                        title: context.l10n.qualityMp3,
+                        subtitle: context.l10n.qualityMp3Subtitle,
+                        isSelected: settings.audioQuality == 'MP3',
+                        onTap: () => ref
+                            .read(settingsProvider.notifier)
+                            .setAudioQuality('MP3'),
+                        showDivider: false,
+                      ),
                   ],
                   if (!isBuiltInService) ...[
                     Padding(
@@ -148,14 +169,35 @@ class DownloadSettingsPage extends ConsumerWidget {
                         ],
                       ),
                     ),
-                  ],
                 ],
-              ),
+              ],
             ),
+          ),
 
-            SliverToBoxAdapter(
-              child: SettingsSectionHeader(title: context.l10n.sectionFileSettings),
+          SliverToBoxAdapter(
+            child: SettingsSectionHeader(title: context.l10n.sectionLyrics),
+          ),
+          SliverToBoxAdapter(
+            child: SettingsGroup(
+              children: [
+                SettingsItem(
+                  icon: Icons.lyrics_outlined,
+                  title: context.l10n.lyricsMode,
+                  subtitle: _getLyricsModeLabel(context, settings.lyricsMode),
+                  onTap: () => _showLyricsModePicker(
+                    context,
+                    ref,
+                    settings.lyricsMode,
+                  ),
+                  showDivider: false,
+                ),
+              ],
             ),
+          ),
+
+          SliverToBoxAdapter(
+            child: SettingsSectionHeader(title: context.l10n.sectionFileSettings),
+          ),
             SliverToBoxAdapter(
               child: SettingsGroup(
                 children: [
@@ -583,6 +625,89 @@ class DownloadSettingsPage extends ConsumerWidget {
       default:
         return 'None';
     }
+  }
+
+  String _getLyricsModeLabel(BuildContext context, String mode) {
+    switch (mode) {
+      case 'external':
+        return context.l10n.lyricsModeExternal;
+      case 'both':
+        return context.l10n.lyricsModeBoth;
+      default:
+        return context.l10n.lyricsModeEmbed;
+    }
+  }
+
+  void _showLyricsModePicker(
+    BuildContext context,
+    WidgetRef ref,
+    String current,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colorScheme.surfaceContainerHigh,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+              child: Text(
+                context.l10n.lyricsMode,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+              child: Text(
+                context.l10n.lyricsModeDescription,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.audiotrack),
+              title: Text(context.l10n.lyricsModeEmbed),
+              subtitle: Text(context.l10n.lyricsModeEmbedSubtitle),
+              trailing: current == 'embed' ? const Icon(Icons.check) : null,
+              onTap: () {
+                ref.read(settingsProvider.notifier).setLyricsMode('embed');
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.insert_drive_file_outlined),
+              title: Text(context.l10n.lyricsModeExternal),
+              subtitle: Text(context.l10n.lyricsModeExternalSubtitle),
+              trailing: current == 'external' ? const Icon(Icons.check) : null,
+              onTap: () {
+                ref.read(settingsProvider.notifier).setLyricsMode('external');
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.library_music_outlined),
+              title: Text(context.l10n.lyricsModeBoth),
+              subtitle: Text(context.l10n.lyricsModeBothSubtitle),
+              trailing: current == 'both' ? const Icon(Icons.check) : null,
+              onTap: () {
+                ref.read(settingsProvider.notifier).setLyricsMode('both');
+                Navigator.pop(context);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showFolderOrganizationPicker(

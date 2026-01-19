@@ -158,7 +158,6 @@ func checkISRCExistsInternal(outputDir, isrc string) (string, bool) {
 		return "", false
 	}
 
-	// Use index for fast lookup
 	idx := GetISRCIndex(outputDir)
 	filePath, exists := idx.lookup(isrc)
 	if !exists {
@@ -175,7 +174,6 @@ func checkISRCExistsInternal(outputDir, isrc string) (string, bool) {
 }
 
 // CheckISRCExists is the exported version for gomobile (returns string, error)
-// Returns the filepath if exists, empty string if not
 func CheckISRCExists(outputDir, isrc string) (string, error) {
 	filepath, _ := checkISRCExistsInternal(outputDir, isrc)
 	return filepath, nil
@@ -199,9 +197,6 @@ type FileExistenceResult struct {
 	ArtistName string `json:"artist_name,omitempty"`
 }
 
-// CheckFilesExistParallel checks if multiple files exist in parallel
-// It builds an ISRC index from the output directory once, then checks all tracks against it
-// Same implementation as PC version for consistency
 func CheckFilesExistParallel(outputDir string, tracksJSON string) (string, error) {
 	var tracks []struct {
 		ISRC       string `json:"isrc"`
@@ -266,7 +261,6 @@ func PreBuildISRCIndex(outputDir string) error {
 }
 
 // AddToISRCIndex adds a new file to the ISRC index after successful download
-// This avoids rebuilding the entire index
 func AddToISRCIndex(outputDir, isrc, filePath string) {
 	if outputDir == "" || isrc == "" || filePath == "" {
 		return

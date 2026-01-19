@@ -6,11 +6,6 @@ import (
 	"time"
 )
 
-// ========================================
-// ISRC to Track ID Cache
-// ========================================
-
-// TrackIDCacheEntry holds cached track ID with metadata
 type TrackIDCacheEntry struct {
 	TidalTrackID  int64
 	QobuzTrackID  int64
@@ -18,7 +13,6 @@ type TrackIDCacheEntry struct {
 	ExpiresAt     time.Time
 }
 
-// TrackIDCache caches ISRC to track ID mappings
 type TrackIDCache struct {
 	cache map[string]*TrackIDCacheEntry
 	mu    sync.RWMutex
@@ -30,7 +24,6 @@ var (
 	trackIDCacheOnce   sync.Once
 )
 
-// GetTrackIDCache returns the global track ID cache
 func GetTrackIDCache() *TrackIDCache {
 	trackIDCacheOnce.Do(func() {
 		globalTrackIDCache = &TrackIDCache{
@@ -41,7 +34,6 @@ func GetTrackIDCache() *TrackIDCache {
 	return globalTrackIDCache
 }
 
-// Get retrieves a cached entry by ISRC
 func (c *TrackIDCache) Get(isrc string) *TrackIDCacheEntry {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -53,7 +45,6 @@ func (c *TrackIDCache) Get(isrc string) *TrackIDCacheEntry {
 	return entry
 }
 
-// SetTidal caches Tidal track ID for an ISRC
 func (c *TrackIDCache) SetTidal(isrc string, trackID int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -67,7 +58,6 @@ func (c *TrackIDCache) SetTidal(isrc string, trackID int64) {
 	entry.ExpiresAt = time.Now().Add(c.ttl)
 }
 
-// SetQobuz caches Qobuz track ID for an ISRC
 func (c *TrackIDCache) SetQobuz(isrc string, trackID int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -81,7 +71,6 @@ func (c *TrackIDCache) SetQobuz(isrc string, trackID int64) {
 	entry.ExpiresAt = time.Now().Add(c.ttl)
 }
 
-// SetAmazon caches Amazon track ID for an ISRC
 func (c *TrackIDCache) SetAmazon(isrc string, trackID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -95,23 +84,17 @@ func (c *TrackIDCache) SetAmazon(isrc string, trackID string) {
 	entry.ExpiresAt = time.Now().Add(c.ttl)
 }
 
-// Clear removes all cached entries
 func (c *TrackIDCache) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.cache = make(map[string]*TrackIDCacheEntry)
 }
 
-// Size returns the number of cached entries
 func (c *TrackIDCache) Size() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return len(c.cache)
 }
-
-// ========================================
-// Parallel Download Helper
-// ========================================
 
 // ParallelDownloadResult holds results from parallel operations
 type ParallelDownloadResult struct {
@@ -122,9 +105,6 @@ type ParallelDownloadResult struct {
 	LyricsErr  error
 }
 
-// FetchCoverAndLyricsParallel downloads cover and fetches lyrics in parallel
-// This runs while the main audio download is happening
-// durationMs: track duration in milliseconds for lyrics matching
 func FetchCoverAndLyricsParallel(
 	coverURL string,
 	maxQualityCover bool,
@@ -153,7 +133,6 @@ func FetchCoverAndLyricsParallel(
 		}()
 	}
 
-	// Fetch lyrics in parallel
 	if embedLyrics {
 		wg.Add(1)
 		go func() {
@@ -180,11 +159,6 @@ func FetchCoverAndLyricsParallel(
 	return result
 }
 
-// ========================================
-// Pre-warm Cache for Album/Playlist
-// ========================================
-
-// PreWarmCacheRequest represents a track to pre-warm cache for
 type PreWarmCacheRequest struct {
 	ISRC       string
 	TrackName  string
@@ -193,8 +167,6 @@ type PreWarmCacheRequest struct {
 	Service    string // "tidal", "qobuz", "amazon"
 }
 
-// PreWarmTrackCache pre-fetches track IDs for multiple tracks (for album/playlist)
-// This runs in background while user is viewing the track list
 func PreWarmTrackCache(requests []PreWarmCacheRequest) {
 	if len(requests) == 0 {
 		return
@@ -214,8 +186,8 @@ func PreWarmTrackCache(requests []PreWarmCacheRequest) {
 		wg.Add(1)
 		go func(r PreWarmCacheRequest) {
 			defer wg.Done()
-			semaphore <- struct{}{}        // Acquire
-			defer func() { <-semaphore }() // Release
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
 
 			switch r.Service {
 			case "tidal":
@@ -259,12 +231,6 @@ func preWarmAmazonCache(isrc, spotifyID string) {
 	}
 }
 
-// ========================================
-// Exported Functions for Flutter
-// ========================================
-
-// PreWarmCache is called from Flutter to pre-warm cache for album/playlist tracks
-// tracksJSON is a JSON array of {isrc, track_name, artist_name, service}
 func PreWarmCache(tracksJSON string) error {
 	var requests []PreWarmCacheRequest
 
@@ -272,13 +238,11 @@ func PreWarmCache(tracksJSON string) error {
 	return nil
 }
 
-// ClearTrackCache clears the track ID cache
 func ClearTrackCache() {
 	GetTrackIDCache().Clear()
 	fmt.Println("[Cache] Track ID cache cleared")
 }
 
-// GetCacheSize returns the current cache size
 func GetCacheSize() int {
 	return GetTrackIDCache().Size()
 }

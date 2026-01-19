@@ -120,7 +120,6 @@ class _MainShellState extends ConsumerState<MainShell> {
     }
   }
 
-  /// Handle back press with double-tap to exit
   void _handleBackPress() {
     final trackState = ref.read(trackProvider);
     
@@ -174,9 +173,6 @@ class _MainShellState extends ConsumerState<MainShell> {
     
     final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
     
-    // Determine if we can pop (for predictive back animation)
-    // canPop is true when we're at root with no content - enables predictive back gesture
-    // IMPORTANT: Never allow pop when keyboard is visible to prevent accidental navigation
     final canPop = _currentIndex == 0 && 
                    !trackState.hasSearchText && 
                    !trackState.hasContent && 
@@ -250,8 +246,6 @@ class _MainShellState extends ConsumerState<MainShell> {
       canPop: canPop,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) {
-          // System handled the pop - this means predictive back completed
-          // We need to handle double-tap to exit here
           return;
         }
         

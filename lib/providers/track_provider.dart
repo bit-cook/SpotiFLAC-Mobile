@@ -89,7 +89,6 @@ class TrackState {
   }
 }
 
-/// Represents an album in artist discography
 class ArtistAlbum {
   final String id;
   final String name;
@@ -112,7 +111,6 @@ class ArtistAlbum {
   });
 }
 
-/// Represents an artist in search results
 class SearchArtist {
   final String id;
   final String name;
@@ -130,7 +128,6 @@ class SearchArtist {
 }
 
 class TrackNotifier extends Notifier<TrackState> {
-  /// Request ID to track and cancel outdated requests
   int _currentRequestId = 0;
 
   @override
@@ -213,14 +210,8 @@ class TrackNotifier extends Notifier<TrackState> {
       Map<String, dynamic> metadata;
       
       try {
-        // ignore: avoid_print
-        print('[FetchURL] Fetching $type with Deezer fallback enabled...');
         metadata = await PlatformBridge.getSpotifyMetadataWithFallback(url);
-        // ignore: avoid_print
-        print('[FetchURL] Metadata fetch success');
       } catch (e) {
-        // ignore: avoid_print
-        print('[FetchURL] Metadata fetch failed: $e');
         rethrow;
       }
       
@@ -263,7 +254,7 @@ class TrackNotifier extends Notifier<TrackState> {
         final albumsList = metadata['albums'] as List<dynamic>;
         final albums = albumsList.map((a) => _parseArtistAlbum(a as Map<String, dynamic>)).toList();
         state = TrackState(
-          tracks: [], // No tracks for artist view
+          tracks: [],
           isLoading: false,
           artistId: artistInfo['id'] as String?,
           artistName: artistInfo['name'] as String?,
@@ -397,7 +388,6 @@ class TrackNotifier extends Notifier<TrackState> {
     }
   }
 
-  /// Perform custom search using a specific extension
   Future<void> customSearch(String extensionId, String query, {Map<String, dynamic>? options}) async {
     final requestId = ++_currentRequestId;
 
@@ -429,7 +419,7 @@ class TrackNotifier extends Notifier<TrackState> {
       
       state = TrackState(
         tracks: tracks,
-        searchArtists: [], // Custom search doesn't return artists
+        searchArtists: [],
         isLoading: false,
         hasSearchText: state.hasSearchText,
         searchExtensionId: extensionId, // Store which extension was used
@@ -486,10 +476,12 @@ class TrackNotifier extends Notifier<TrackState> {
 
   /// Set search text state for back button handling
   void setSearchText(bool hasText) {
+    if (state.hasSearchText == hasText) {
+      return;
+    }
     state = state.copyWith(hasSearchText: hasText);
   }
   
-  /// Set recent access mode state
   void setShowingRecentAccess(bool showing) {
     state = state.copyWith(isShowingRecentAccess: showing);
   }
@@ -579,8 +571,6 @@ class TrackNotifier extends Notifier<TrackState> {
     );
   }
 
-  /// Pre-warm track ID cache for faster downloads
-  /// Runs in background, doesn't block UI
   void _preWarmCacheForTracks(List<Track> tracks) {
     final tracksWithIsrc = tracks.where((t) => t.isrc != null && t.isrc!.isNotEmpty).toList();
     if (tracksWithIsrc.isEmpty) return;

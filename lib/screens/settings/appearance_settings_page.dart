@@ -17,7 +17,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
     final topPadding = MediaQuery.of(context).padding.top;
 
     return PopScope(
-      canPop: true, // Always allow back gesture
+      canPop: true,
       child: Scaffold(
         body: CustomScrollView(
           slivers: [
@@ -161,7 +161,7 @@ class _ThemePreviewCard extends StatelessWidget {
         width: double.infinity,
         decoration: BoxDecoration(
           color: colorScheme
-              .surfaceContainerHighest, // Background similar to reference
+              .surfaceContainerHighest,
           borderRadius: BorderRadius.circular(28),
         ),
         clipBehavior: Clip.antiAlias,
@@ -203,7 +203,7 @@ class _ThemePreviewCard extends StatelessWidget {
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 12, // Reduced from 20 for performance
+                      blurRadius: 12,
                       offset: const Offset(0, 8),
                     ),
                   ],
@@ -694,20 +694,23 @@ class _LanguageSelector extends StatelessWidget {
     required this.onChanged,
   });
 
-  static const _allLanguages = [
+static const _allLanguages = [
     ('system', 'System Default', Icons.phone_android),
     ('en', 'English', Icons.language),
     ('id', 'Bahasa Indonesia', Icons.language),
     ('de', 'Deutsch', Icons.language),
     ('es', 'Español', Icons.language),
+    ('es_ES', 'Español (España)', Icons.language),
     ('fr', 'Français', Icons.language),
     ('hi', 'हिन्दी', Icons.language),
     ('ja', '日本語', Icons.language),
     ('ko', '한국어', Icons.language),
     ('nl', 'Nederlands', Icons.language),
     ('pt', 'Português', Icons.language),
+    ('pt_PT', 'Português (Brasil)', Icons.language),
     ('ru', 'Русский', Icons.language),
     ('zh', '简体中文', Icons.language),
+    ('zh_CN', '简体中文 (中国)', Icons.language),
     ('zh_TW', '繁體中文', Icons.language),
   ];
 

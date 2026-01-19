@@ -3,23 +3,21 @@ import 'package:spotiflac_android/models/track.dart';
 
 part 'download_item.g.dart';
 
-/// Download status enum
 enum DownloadStatus {
   queued,
   downloading,
-  finalizing, // Embedding metadata, cover, lyrics
+  finalizing,
   completed,
   failed,
   skipped,
 }
 
-/// Error type enum for better error handling
 enum DownloadErrorType {
   unknown,
-  notFound,    // Track not found on any service
-  rateLimit,   // Rate limited by service
-  network,     // Network/connection error
-  permission,  // File/folder permission error
+  notFound,
+  rateLimit,
+  network,
+  permission,
 }
 
 @JsonSerializable()
@@ -29,7 +27,7 @@ class DownloadItem {
   final String service;
   final DownloadStatus status;
   final double progress;
-  final double speedMBps; // Download speed in MB/s
+  final double speedMBps;
   final String? filePath;
   final String? error;
   final DownloadErrorType? errorType;
@@ -78,7 +76,6 @@ class DownloadItem {
     );
   }
 
-  /// Get user-friendly error message based on error type
   String get errorMessage {
     if (error == null) return '';
     

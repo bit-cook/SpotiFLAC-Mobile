@@ -52,7 +52,6 @@ class StoreCategory {
   }
 }
 
-/// Represents an extension in the store
 class StoreExtension {
   final String id;
   final String name;
@@ -118,7 +117,6 @@ class StoreExtension {
   }
 }
 
-/// State for extension store
 class StoreState {
   final List<StoreExtension> extensions;
   final String? selectedCategory;
@@ -200,7 +198,6 @@ class StoreNotifier extends Notifier<StoreState> {
     return const StoreState();
   }
 
-  /// Initialize the store
   Future<void> initialize(String cacheDir) async {
     if (state.isInitialized) return;
 
@@ -234,7 +231,6 @@ class StoreNotifier extends Notifier<StoreState> {
     }
   }
 
-  /// Set category filter
   void setCategory(String? category) {
     if (category == null) {
       state = state.copyWith(clearCategory: true);
@@ -248,7 +244,6 @@ class StoreNotifier extends Notifier<StoreState> {
     state = state.copyWith(searchQuery: query);
   }
 
-  /// Clear search
   void clearSearch() {
     state = state.copyWith(searchQuery: '', clearCategory: true);
   }
@@ -279,7 +274,6 @@ class StoreNotifier extends Notifier<StoreState> {
     }
   }
 
-  /// Update an installed extension
   Future<bool> updateExtension(String extensionId, String tempDir) async {
     state = state.copyWith(isDownloading: true, downloadingId: extensionId, clearError: true);
 
@@ -305,7 +299,6 @@ class StoreNotifier extends Notifier<StoreState> {
     }
   }
 
-  /// Clear error
   void clearError() {
     state = state.copyWith(clearError: true);
   }

@@ -10,7 +10,6 @@ final _log = AppLogger('FFmpeg');
 class FFmpegService {
   static const _channel = MethodChannel('com.zarz.spotiflac/ffmpeg');
 
-  /// Execute FFmpeg command and return result
   static Future<FFmpegResult> _execute(String command) async {
     try {
       final result = await _channel.invokeMethod('execute', {'command': command});
@@ -26,8 +25,6 @@ class FFmpegService {
     }
   }
 
-  /// Convert M4A (DASH segments) to FLAC
-  /// Returns the output file path on success, null on failure
   static Future<String?> convertM4aToFlac(String inputPath) async {
     final outputPath = inputPath.replaceAll('.m4a', '.flac');
 
@@ -47,19 +44,12 @@ class FFmpegService {
     return null;
   }
 
-  /// Convert FLAC to MP3
   static Future<String?> convertFlacToMp3(
     String inputPath, {
     String bitrate = '320k',
+    bool deleteOriginal = true,
   }) async {
-    final dir = File(inputPath).parent.path;
-    final baseName =
-        inputPath.split(Platform.pathSeparator).last.replaceAll('.flac', '');
-    final outputDir = '$dir${Platform.pathSeparator}MP3';
-
-    await Directory(outputDir).create(recursive: true);
-
-    final outputPath = '$outputDir${Platform.pathSeparator}$baseName.mp3';
+    final outputPath = inputPath.replaceAll('.flac', '.mp3');
 
     final command =
         '-i "$inputPath" -codec:a libmp3lame -b:a $bitrate -map 0:a -map_metadata 0 -id3v2_version 3 "$outputPath" -y';
@@ -67,6 +57,11 @@ class FFmpegService {
     final result = await _execute(command);
 
     if (result.success) {
+      if (deleteOriginal) {
+        try {
+          await File(inputPath).delete();
+        } catch (_) {}
+      }
       return outputPath;
     }
 
@@ -74,7 +69,6 @@ class FFmpegService {
     return null;
   }
 
-  /// Convert FLAC to M4A (AAC or ALAC)
   static Future<String?> convertFlacToM4a(
     String inputPath, {
     String codec = 'aac',
@@ -108,7 +102,6 @@ class FFmpegService {
     return null;
   }
 
-  /// Check if FFmpeg is available
   static Future<bool> isAvailable() async {
     try {
       final version = await _channel.invokeMethod('getVersion');
@@ -118,7 +111,6 @@ class FFmpegService {
     }
   }
 
-  /// Get FFmpeg version info
   static Future<String?> getVersion() async {
     try {
       final version = await _channel.invokeMethod('getVersion');
@@ -128,8 +120,6 @@ class FFmpegService {
     }
   }
 
-  /// Embed metadata and cover art to FLAC file
-  /// Returns the file path on success, null on failure
   static Future<String?> embedMetadata({
     required String flacPath,
     String? coverPath,
@@ -201,14 +191,145 @@ class FFmpegService {
       if (await tempFile.exists()) {
         await tempFile.delete();
       }
-    } catch (_) {}
+    } catch (e) {
+      _log.w('Failed to cleanup temp file: $e');
+    }
 
     _log.e('Metadata/Cover embed failed: ${result.output}');
     return null;
   }
+
+  static Future<String?> embedMetadataToMp3({
+    required String mp3Path,
+    String? coverPath,
+    Map<String, String>? metadata,
+  }) async {
+    final tempDir = await getTemporaryDirectory();
+    final uniqueId = DateTime.now().millisecondsSinceEpoch;
+    final tempOutput = '${tempDir.path}/temp_embed_$uniqueId.mp3';
+    
+    final StringBuffer cmdBuffer = StringBuffer();
+    cmdBuffer.write('-i "$mp3Path" ');
+    
+    if (coverPath != null) {
+      cmdBuffer.write('-i "$coverPath" ');
+    }
+    
+    cmdBuffer.write('-map 0:a ');
+    
+    if (coverPath != null) {
+      cmdBuffer.write('-map 1:0 ');
+      cmdBuffer.write('-c:v:0 copy ');
+      cmdBuffer.write('-id3v2_version 3 ');
+      cmdBuffer.write('-metadata:s:v title="Album cover" ');
+      cmdBuffer.write('-metadata:s:v comment="Cover (front)" ');
+    }
+    
+    cmdBuffer.write('-c:a copy ');
+    
+    if (metadata != null) {
+      final id3Metadata = _convertToId3Tags(metadata);
+      id3Metadata.forEach((key, value) {
+        final sanitizedValue = value.replaceAll('"', '\\"');
+        cmdBuffer.write('-metadata $key="$sanitizedValue" ');
+      });
+    }
+    
+    cmdBuffer.write('-id3v2_version 3 "$tempOutput" -y');
+    
+    final command = cmdBuffer.toString();
+    _log.d('Executing FFmpeg MP3 embed command: $command');
+
+    final result = await _execute(command);
+
+    if (result.success) {
+      try {
+        final tempFile = File(tempOutput);
+        final originalFile = File(mp3Path);
+        
+        if (await tempFile.exists()) {
+             if (await originalFile.exists()) {
+               await originalFile.delete();
+             }
+             await tempFile.copy(mp3Path);
+             await tempFile.delete();
+             
+             _log.d('MP3 metadata embedded successfully');
+             return mp3Path;
+        } else {
+             _log.e('Temp MP3 output file not found: $tempOutput');
+             return null;
+        }
+
+      } catch (e) {
+        _log.e('Failed to replace MP3 file after metadata embed: $e');
+        return null;
+      }
+    }
+
+    try {
+      final tempFile = File(tempOutput);
+      if (await tempFile.exists()) {
+        await tempFile.delete();
+      }
+    } catch (e) {
+      _log.w('Failed to cleanup temp MP3 file: $e');
+    }
+
+    _log.e('MP3 Metadata/Cover embed failed: ${result.output}');
+    return null;
+  }
+
+  static Map<String, String> _convertToId3Tags(Map<String, String> vorbisMetadata) {
+    final id3Map = <String, String>{};
+    
+    for (final entry in vorbisMetadata.entries) {
+      final key = entry.key.toUpperCase();
+      final value = entry.value;
+      
+      // Map Vorbis comments to ID3v2 frame names
+      switch (key) {
+        case 'TITLE':
+          id3Map['title'] = value;
+          break;
+        case 'ARTIST':
+          id3Map['artist'] = value;
+          break;
+        case 'ALBUM':
+          id3Map['album'] = value;
+          break;
+        case 'ALBUMARTIST':
+          id3Map['album_artist'] = value;
+          break;
+        case 'TRACKNUMBER':
+        case 'TRACK':
+          id3Map['track'] = value;
+          break;
+        case 'DISCNUMBER':
+        case 'DISC':
+          id3Map['disc'] = value;
+          break;
+        case 'DATE':
+        case 'YEAR':
+          id3Map['date'] = value;
+          break;
+        case 'ISRC':
+          id3Map['TSRC'] = value;
+          break;
+        case 'LYRICS':
+        case 'UNSYNCEDLYRICS':
+          id3Map['lyrics'] = value;
+          break;
+        default:
+          // Pass through other tags as-is
+          id3Map[key.toLowerCase()] = value;
+      }
+    }
+    
+    return id3Map;
+  }
 }
 
-/// Result of FFmpeg command execution
 class FFmpegResult {
   final bool success;
   final int returnCode;

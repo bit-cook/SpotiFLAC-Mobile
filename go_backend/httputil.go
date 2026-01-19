@@ -15,60 +15,22 @@ import (
 	"time"
 )
 
-// HTTP utility functions for consistent request handling across all downloaders
-
 // getRandomUserAgent generates a random Windows Chrome User-Agent string
-// Uses same format as PC version (referensi/backend/spotify_metadata.go) for better API compatibility
+// Uses modern Chrome format with build and patch numbers
+// Windows 11 still reports as "Windows NT 10.0" for compatibility
 func getRandomUserAgent() string {
-	winMajor := rand.Intn(2) + 10
-
-	chromeVersion := rand.Intn(25) + 100
-	chromeBuild := rand.Intn(1500) + 3000
-	chromePatch := rand.Intn(65) + 60
+	// Chrome version 120-145 (modern range)
+	chromeVersion := rand.Intn(26) + 120
+	chromeBuild := rand.Intn(1500) + 6000
+	chromePatch := rand.Intn(200) + 100
 
 	return fmt.Sprintf(
-		"Mozilla/5.0 (Windows NT %d.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%d.0.%d.%d Safari/537.36",
-		winMajor,
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%d.0.%d.%d Safari/537.36",
 		chromeVersion,
 		chromeBuild,
 		chromePatch,
 	)
 }
-
-// getRandomMacUserAgent generates a random Mac Chrome User-Agent string
-// Alternative format matching referensi/backend/spotify_metadata.go exactly
-// func getRandomMacUserAgent() string {
-// 	macMajor := rand.Intn(4) + 11 // macOS 11-14
-// 	macMinor := rand.Intn(5) + 4  // Minor 4-8
-// 	webkitMajor := rand.Intn(7) + 530
-// 	webkitMinor := rand.Intn(7) + 30
-// 	chromeMajor := rand.Intn(25) + 80
-// 	chromeBuild := rand.Intn(1500) + 3000
-// 	chromePatch := rand.Intn(65) + 60
-// 	safariMajor := rand.Intn(7) + 530
-// 	safariMinor := rand.Intn(6) + 30
-//
-// 	return fmt.Sprintf(
-// 		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_%d_%d) AppleWebKit/%d.%d (KHTML, like Gecko) Chrome/%d.0.%d.%d Safari/%d.%d",
-// 		macMajor,
-// 		macMinor,
-// 		webkitMajor,
-// 		webkitMinor,
-// 		chromeMajor,
-// 		chromeBuild,
-// 		chromePatch,
-// 		safariMajor,
-// 		safariMinor,
-// 	)
-// }
-
-// getRandomDesktopUserAgent randomly picks between Windows and Mac User-Agent
-// func getRandomDesktopUserAgent() string {
-// 	if rand.Intn(2) == 0 {
-// 		return getRandomUserAgent() // Windows
-// 	}
-// 	return getRandomMacUserAgent() // Mac
-// }
 
 const (
 	DefaultTimeout    = 60 * time.Second
@@ -107,7 +69,6 @@ var downloadClient = &http.Client{
 	Timeout:   DownloadTimeout,
 }
 
-// NewHTTPClientWithTimeout creates an HTTP client with specified timeout
 func NewHTTPClientWithTimeout(timeout time.Duration) *http.Client {
 	return &http.Client{
 		Transport: sharedTransport,
@@ -128,7 +89,6 @@ func CloseIdleConnections() {
 	sharedTransport.CloseIdleConnections()
 }
 
-// DoRequestWithUserAgent executes an HTTP request with a random User-Agent header
 // Also checks for ISP blocking on errors
 func DoRequestWithUserAgent(client *http.Client, req *http.Request) (*http.Response, error) {
 	req.Header.Set("User-Agent", getRandomUserAgent())
@@ -147,7 +107,6 @@ type RetryConfig struct {
 	BackoffFactor float64
 }
 
-// DefaultRetryConfig returns default retry configuration
 func DefaultRetryConfig() RetryConfig {
 	return RetryConfig{
 		MaxRetries:    DefaultMaxRetries,
@@ -253,13 +212,11 @@ func DoRequestWithRetry(client *http.Client, req *http.Request, config RetryConf
 	return nil, fmt.Errorf("request failed after %d retries: %w", config.MaxRetries+1, lastErr)
 }
 
-// calculateNextDelay calculates the next delay with exponential backoff
 func calculateNextDelay(currentDelay time.Duration, config RetryConfig) time.Duration {
 	nextDelay := time.Duration(float64(currentDelay) * config.BackoffFactor)
 	return min(nextDelay, config.MaxDelay)
 }
 
-// getRetryAfterDuration parses Retry-After header and returns duration
 // Returns 60 seconds as default if header is missing or invalid
 func getRetryAfterDuration(resp *http.Response) time.Duration {
 	retryAfter := resp.Header.Get("Retry-After")
@@ -302,7 +259,6 @@ func ReadResponseBody(resp *http.Response) ([]byte, error) {
 	return body, nil
 }
 
-// ValidateResponse checks if response is valid (non-nil, status 2xx)
 func ValidateResponse(resp *http.Response) error {
 	if resp == nil {
 		return fmt.Errorf("response is nil")
@@ -331,7 +287,6 @@ func BuildErrorMessage(apiURL string, statusCode int, responsePreview string) st
 	return msg
 }
 
-// ISPBlockingError represents an error caused by ISP blocking
 type ISPBlockingError struct {
 	Domain      string
 	Reason      string
@@ -447,7 +402,6 @@ func IsISPBlocking(err error, requestURL string) *ISPBlockingError {
 	return nil
 }
 
-// CheckAndLogISPBlocking checks for ISP blocking and logs if detected
 // Returns true if ISP blocking was detected
 func CheckAndLogISPBlocking(err error, requestURL string, tag string) bool {
 	ispErr := IsISPBlocking(err, requestURL)
@@ -485,7 +439,6 @@ func extractDomain(rawURL string) string {
 	return "unknown"
 }
 
-// WrapErrorWithISPCheck wraps an error with ISP blocking detection
 // If ISP blocking is detected, returns a more descriptive error
 func WrapErrorWithISPCheck(err error, requestURL string, tag string) error {
 	if err == nil {

@@ -440,6 +440,11 @@
   "qualityHiResFlacSubtitle": "24-bit / hingga 96kHz",
   "qualityHiResFlacMax": "Hi-Res FLAC Max",
   "qualityHiResFlacMaxSubtitle": "24-bit / hingga 192kHz",
+  "qualityMp3": "MP3",
+  "qualityMp3Subtitle": "320kbps (konversi dari FLAC)",
+  "enableMp3Option": "Aktifkan Opsi MP3",
+  "enableMp3OptionSubtitleOn": "Opsi kualitas MP3 tersedia",
+  "enableMp3OptionSubtitleOff": "Unduh FLAC lalu konversi ke MP3 320kbps",
   "qualityNote": "Kualitas sebenarnya tergantung ketersediaan lagu dari layanan",
 
   "downloadAskBeforeDownload": "Tanya Sebelum Unduh",
@@ -660,6 +665,7 @@
   "downloadedAlbumTapToSelect": "Ketuk lagu untuk memilih",
   "downloadedAlbumDeleteCount": "Hapus {count} {count, plural, =1{lagu} other{lagu}}",
   "downloadedAlbumSelectToDelete": "Pilih lagu untuk dihapus",
+  "downloadedAlbumDiscHeader": "Disc {discNumber}",
 
   "folderOrganizationDescription": "Atur file yang diunduh ke dalam folder",
   "folderOrganizationNone": "Tidak ada",

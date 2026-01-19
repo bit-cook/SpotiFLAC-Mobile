@@ -290,6 +290,8 @@
   "@aboutOriginalCreator": {"description": "Role description for original creator"},
   "aboutLogoArtist": "The talented artist who created our beautiful app logo!",
   "@aboutLogoArtist": {"description": "Role description for logo artist"},
+  "aboutTranslators": "Translators",
+  "@aboutTranslators": {"description": "Section for translators"},
   "aboutSpecialThanks": "Special Thanks",
   "@aboutSpecialThanks": {"description": "Section for special thanks"},
   "aboutLinks": "Links",
@@ -617,6 +619,13 @@
   "dialogImportPlaylistTitle": "Import Playlist",
   "@dialogImportPlaylistTitle": {"description": "Dialog title - import CSV playlist"},
   "dialogImportPlaylistMessage": "Found {count} tracks in CSV. Add them to download queue?",
+  "csvImportTracks": "{count} tracks from CSV",
+  "@csvImportTracks": {
+    "description": "Label shown in quality picker for CSV import",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "@dialogImportPlaylistMessage": {
     "description": "Dialog message - import playlist confirmation",
     "placeholders": {
@@ -1049,6 +1058,26 @@
   "@sectionAudioQuality": {"description": "Settings section header"},
   "sectionFileSettings": "File Settings",
   "@sectionFileSettings": {"description": "Settings section header"},
+  "sectionLyrics": "Lyrics",
+  "@sectionLyrics": {"description": "Settings section header"},
+
+  "lyricsMode": "Lyrics Mode",
+  "@lyricsMode": {"description": "Setting - how to save lyrics"},
+  "lyricsModeDescription": "Choose how lyrics are saved with your downloads",
+  "@lyricsModeDescription": {"description": "Lyrics mode picker description"},
+  "lyricsModeEmbed": "Embed in file",
+  "@lyricsModeEmbed": {"description": "Lyrics mode option - embed in audio file"},
+  "lyricsModeEmbedSubtitle": "Lyrics stored inside FLAC metadata",
+  "@lyricsModeEmbedSubtitle": {"description": "Subtitle for embed option"},
+  "lyricsModeExternal": "External .lrc file",
+  "@lyricsModeExternal": {"description": "Lyrics mode option - separate LRC file"},
+  "lyricsModeExternalSubtitle": "Separate .lrc file for players like Samsung Music",
+  "@lyricsModeExternalSubtitle": {"description": "Subtitle for external option"},
+  "lyricsModeBoth": "Both",
+  "@lyricsModeBoth": {"description": "Lyrics mode option - embed and external"},
+  "lyricsModeBothSubtitle": "Embed and save .lrc file",
+  "@lyricsModeBothSubtitle": {"description": "Subtitle for both option"},
+
   "sectionColor": "Color",
   "@sectionColor": {"description": "Settings section header"},
   "sectionTheme": "Theme",
@@ -1131,6 +1160,12 @@
   "@trackAudioQuality": {"description": "Metadata label - audio quality"},
   "trackReleaseDate": "Release date",
   "@trackReleaseDate": {"description": "Metadata label - release date"},
+  "trackGenre": "Genre",
+  "@trackGenre": {"description": "Metadata label - music genre"},
+  "trackLabel": "Label",
+  "@trackLabel": {"description": "Metadata label - record label"},
+  "trackCopyright": "Copyright",
+  "@trackCopyright": {"description": "Metadata label - copyright information"},
   "trackDownloaded": "Downloaded",
   "@trackDownloaded": {"description": "Metadata label - download date"},
   "trackCopyLyrics": "Copy lyrics",
@@ -1320,6 +1355,16 @@
   "@qualityHiResFlacMax": {"description": "Quality option - maximum resolution FLAC"},
   "qualityHiResFlacMaxSubtitle": "24-bit / up to 192kHz",
   "@qualityHiResFlacMaxSubtitle": {"description": "Technical spec for hi-res max"},
+  "qualityMp3": "MP3",
+  "@qualityMp3": {"description": "Quality option - MP3 lossy format"},
+  "qualityMp3Subtitle": "320kbps (converted from FLAC)",
+  "@qualityMp3Subtitle": {"description": "Technical spec for MP3"},
+  "enableMp3Option": "Enable MP3 Option",
+  "@enableMp3Option": {"description": "Setting - enable MP3 quality option"},
+  "enableMp3OptionSubtitleOn": "MP3 quality option is available",
+  "@enableMp3OptionSubtitleOn": {"description": "Subtitle when MP3 is enabled"},
+  "enableMp3OptionSubtitleOff": "Downloads FLAC then converts to 320kbps MP3",
+  "@enableMp3OptionSubtitleOff": {"description": "Subtitle when MP3 is disabled"},
   "qualityNote": "Actual quality depends on track availability from the service",
   "@qualityNote": {"description": "Note about quality availability"},
 
@@ -1459,6 +1504,13 @@
   },
   "downloadedAlbumSelectToDelete": "Select tracks to delete",
   "@downloadedAlbumSelectToDelete": {"description": "Placeholder when nothing selected"},
+  "downloadedAlbumDiscHeader": "Disc {discNumber}",
+  "@downloadedAlbumDiscHeader": {
+    "description": "Header for disc separator in multi-disc albums",
+    "placeholders": {
+      "discNumber": {"type": "int", "example": "1"}
+    }
+  },
 
   "utilityFunctions": "Utility Functions",
   "@utilityFunctions": {"description": "Extension capability - utility functions"},

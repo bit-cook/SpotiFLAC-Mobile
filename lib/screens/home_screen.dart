@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/providers/track_provider.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
@@ -45,16 +46,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  void _downloadTrack(int index) {
-    final trackState = ref.read(trackProvider);
-    if (index >= 0 && index < trackState.tracks.length) {
-      final track = trackState.tracks[index];
-      final settings = ref.read(settingsProvider);
-      ref.read(downloadQueueProvider.notifier).addToQueue(track, settings.defaultService);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added "${track.name}" to queue')),
-      );
-    }
+  void _downloadTrack(Track track) {
+    final settings = ref.read(settingsProvider);
+    ref.read(downloadQueueProvider.notifier).addToQueue(
+      track,
+      settings.defaultService,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Added "${track.name}" to queue')),
+    );
   }
 
   void _downloadAll() {
@@ -88,8 +88,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final trackState = ref.watch(trackProvider);
-    final queueState = ref.watch(downloadQueueProvider);
+    final queuedCount =
+        ref.watch(downloadQueueProvider.select((s) => s.queuedCount));
     final colorScheme = Theme.of(context).colorScheme;
+    final tracks = trackState.tracks;
 
     return Scaffold(
       appBar: AppBar(
@@ -145,13 +147,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           if (trackState.albumName != null || trackState.playlistName != null)
             _buildHeader(trackState, colorScheme),
 
-          if (trackState.tracks.length > 1)
+          if (tracks.length > 1)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: FilledButton.icon(
                 onPressed: _downloadAll,
                 icon: const Icon(Icons.download),
-                label: Text('Download All (${trackState.tracks.length})'),
+                label: Text('Download All (${tracks.length})'),
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
                 ),
@@ -159,11 +161,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
 
           Expanded(
-            child: trackState.tracks.isEmpty
+            child: tracks.isEmpty
                 ? _buildEmptyState(colorScheme)
                 : ListView.builder(
-                    itemCount: trackState.tracks.length,
-                    itemBuilder: (context, index) => _buildTrackTile(index, colorScheme),
+                    itemCount: tracks.length,
+                    itemBuilder: (context, index) =>
+                        _buildTrackTile(tracks[index], colorScheme),
                   ),
           ),
         ],
@@ -179,13 +182,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           NavigationDestination(
             icon: Badge(
-              isLabelVisible: queueState.queuedCount > 0,
-              label: Text('${queueState.queuedCount}'),
+              isLabelVisible: queuedCount > 0,
+              label: Text('$queuedCount'),
               child: const Icon(Icons.queue_music_outlined),
             ),
             selectedIcon: Badge(
-              isLabelVisible: queueState.queuedCount > 0,
-              label: Text('${queueState.queuedCount}'),
+              isLabelVisible: queuedCount > 0,
+              label: Text('$queuedCount'),
               child: const Icon(Icons.queue_music),
             ),
             label: 'Queue',
@@ -210,11 +213,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             if (state.coverUrl != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: CachedNetworkImage(
+child: CachedNetworkImage(
                   imageUrl: state.coverUrl!,
                   width: 80,
                   height: 80,
                   fit: BoxFit.cover,
+                  cacheManager: CoverCacheManager.instance,
                   placeholder: (_, _) => Container(
                     width: 80,
                     height: 80,
@@ -259,8 +263,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildTrackTile(int index, ColorScheme colorScheme) {
-    final track = ref.watch(trackProvider).tracks[index];
+  Widget _buildTrackTile(Track track, ColorScheme colorScheme) {
     final isCollection = track.isCollection;
     
     String subtitleText;
@@ -281,11 +284,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       leading: track.coverUrl != null
           ? ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: CachedNetworkImage(
+child: CachedNetworkImage(
                 imageUrl: track.coverUrl!,
                 width: 48,
                 height: 48,
                 fit: BoxFit.cover,
+                cacheManager: CoverCacheManager.instance,
               ),
             )
           : Container(
@@ -315,7 +319,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 color: colorScheme.onSurfaceVariant,
               ),
             ),
-      onTap: () => isCollection ? _openCollection(track) : _downloadTrack(index),
+      onTap: () => isCollection ? _openCollection(track) : _downloadTrack(track),
     );
   }
   

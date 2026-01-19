@@ -13,67 +13,70 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get appDescription =>
-      'Download Spotify tracks in lossless quality from Tidal, Qobuz, and Amazon Music.';
+      'Скачайте треки Spotify в Lossless качестве из Tidal, Qobuz и Amazon Music.';
 
   @override
-  String get navHome => 'Home';
+  String get navHome => 'Главная';
 
   @override
-  String get navHistory => 'History';
+  String get navHistory => 'История';
 
   @override
-  String get navSettings => 'Settings';
+  String get navSettings => 'Настройки';
 
   @override
-  String get navStore => 'Store';
+  String get navStore => 'Магазин';
 
   @override
-  String get homeTitle => 'Home';
+  String get homeTitle => 'Главная';
 
   @override
-  String get homeSearchHint => 'Paste Spotify URL or search...';
+  String get homeSearchHint => 'Вставьте URL Spotify или выполните поиск...';
 
   @override
   String homeSearchHintExtension(String extensionName) {
-    return 'Search with $extensionName...';
+    return 'Искать с помощью $extensionName...';
   }
 
   @override
-  String get homeSubtitle => 'Paste a Spotify link or search by name';
+  String get homeSubtitle => 'Вставьте ссылку Spotify или ищите по названию';
 
   @override
-  String get homeSupports => 'Supports: Track, Album, Playlist, Artist URLs';
+  String get homeSupports =>
+      'Поддерживается: Трек, Альбом, Плейлист, URL исполнителя';
 
   @override
-  String get homeRecent => 'Recent';
+  String get homeRecent => 'Недавние';
 
   @override
-  String get historyTitle => 'History';
+  String get historyTitle => 'История';
 
   @override
   String historyDownloading(int count) {
-    return 'Downloading ($count)';
+    return 'Скачивание ($count)';
   }
 
   @override
-  String get historyDownloaded => 'Downloaded';
+  String get historyDownloaded => 'Скачано';
 
   @override
-  String get historyFilterAll => 'All';
+  String get historyFilterAll => 'Все';
 
   @override
-  String get historyFilterAlbums => 'Albums';
+  String get historyFilterAlbums => 'Альбомы';
 
   @override
-  String get historyFilterSingles => 'Singles';
+  String get historyFilterSingles => 'Синглы';
 
   @override
   String historyTracksCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count tracks',
-      one: '1 track',
+      other: '$count треков',
+      many: '$count треков',
+      few: '$count трека',
+      one: '$count трек',
     );
     return '$_temp0';
   }
@@ -83,247 +86,254 @@ class AppLocalizationsRu extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count albums',
-      one: '1 album',
+      other: '$count альбомов',
+      many: '$count альбомов',
+      few: '$count альбома',
+      one: '$count альбом',
     );
     return '$_temp0';
   }
 
   @override
-  String get historyNoDownloads => 'No download history';
+  String get historyNoDownloads => 'Нет истории скачиваний';
 
   @override
-  String get historyNoDownloadsSubtitle => 'Downloaded tracks will appear here';
+  String get historyNoDownloadsSubtitle => 'Скачанные треки появятся здесь';
 
   @override
-  String get historyNoAlbums => 'No album downloads';
+  String get historyNoAlbums => 'Нет скачанных альбомов';
 
   @override
   String get historyNoAlbumsSubtitle =>
-      'Download multiple tracks from an album to see them here';
+      'Скачайте несколько треков из альбома, чтобы увидеть их здесь';
 
   @override
-  String get historyNoSingles => 'No single downloads';
+  String get historyNoSingles => 'Нет скачанных синглов';
 
   @override
   String get historyNoSinglesSubtitle =>
-      'Single track downloads will appear here';
+      'Здесь будут отображаться загрузки синглов';
 
   @override
-  String get settingsTitle => 'Settings';
+  String get settingsTitle => 'Настройки';
 
   @override
-  String get settingsDownload => 'Download';
+  String get settingsDownload => 'Скачивание';
 
   @override
-  String get settingsAppearance => 'Appearance';
+  String get settingsAppearance => 'Внешний вид';
 
   @override
-  String get settingsOptions => 'Options';
+  String get settingsOptions => 'Опции';
 
   @override
-  String get settingsExtensions => 'Extensions';
+  String get settingsExtensions => 'Расширения';
 
   @override
-  String get settingsAbout => 'About';
+  String get settingsAbout => 'О программе';
 
   @override
-  String get downloadTitle => 'Download';
+  String get downloadTitle => 'Скачивание';
 
   @override
-  String get downloadLocation => 'Download Location';
+  String get downloadLocation => 'Папка для скачивания';
 
   @override
-  String get downloadLocationSubtitle => 'Choose where to save files';
+  String get downloadLocationSubtitle => 'Выберите, куда сохранить файлы';
 
   @override
-  String get downloadLocationDefault => 'Default location';
+  String get downloadLocationDefault => 'Расположение по умолчанию';
 
   @override
-  String get downloadDefaultService => 'Default Service';
+  String get downloadDefaultService => 'Сервис по умолчанию';
 
   @override
-  String get downloadDefaultServiceSubtitle => 'Service used for downloads';
+  String get downloadDefaultServiceSubtitle =>
+      'Сервис, используемый для скачивания';
 
   @override
-  String get downloadDefaultQuality => 'Default Quality';
+  String get downloadDefaultQuality => 'Качество по умолчанию';
 
   @override
-  String get downloadAskQuality => 'Ask Quality Before Download';
+  String get downloadAskQuality => 'Спрашивать качество перед скачиванием';
 
   @override
   String get downloadAskQualitySubtitle =>
-      'Show quality picker for each download';
+      'Показывать выбор качества для каждого скачивания';
 
   @override
-  String get downloadFilenameFormat => 'Filename Format';
+  String get downloadFilenameFormat => 'Формат имени файла';
 
   @override
-  String get downloadFolderOrganization => 'Folder Organization';
+  String get downloadFolderOrganization => 'Организация папок';
 
   @override
-  String get downloadSeparateSingles => 'Separate Singles';
+  String get downloadSeparateSingles => 'Разделять синглы';
 
   @override
   String get downloadSeparateSinglesSubtitle =>
-      'Put single tracks in a separate folder';
+      'Помещать синглы в отдельную папку';
 
   @override
-  String get qualityBest => 'Best Available';
+  String get qualityBest => 'Лучшее из доступных';
 
   @override
   String get qualityFlac => 'FLAC';
 
   @override
-  String get quality320 => '320 kbps';
+  String get quality320 => '320 кбит/с';
 
   @override
-  String get quality128 => '128 kbps';
+  String get quality128 => '128 кбит/с';
 
   @override
-  String get appearanceTitle => 'Appearance';
+  String get appearanceTitle => 'Внешний вид';
 
   @override
-  String get appearanceTheme => 'Theme';
+  String get appearanceTheme => 'Тема';
 
   @override
-  String get appearanceThemeSystem => 'System';
+  String get appearanceThemeSystem => 'Системная';
 
   @override
-  String get appearanceThemeLight => 'Light';
+  String get appearanceThemeLight => 'Светлая';
 
   @override
-  String get appearanceThemeDark => 'Dark';
+  String get appearanceThemeDark => 'Тёмная';
 
   @override
-  String get appearanceDynamicColor => 'Dynamic Color';
+  String get appearanceDynamicColor => 'Динамический цвет';
 
   @override
-  String get appearanceDynamicColorSubtitle => 'Use colors from your wallpaper';
+  String get appearanceDynamicColorSubtitle =>
+      'Использовать цвета из ваших обоев';
 
   @override
-  String get appearanceAccentColor => 'Accent Color';
+  String get appearanceAccentColor => 'Акцентный цвет';
 
   @override
-  String get appearanceHistoryView => 'History View';
+  String get appearanceHistoryView => 'Отображение истории';
 
   @override
-  String get appearanceHistoryViewList => 'List';
+  String get appearanceHistoryViewList => 'Список';
 
   @override
-  String get appearanceHistoryViewGrid => 'Grid';
+  String get appearanceHistoryViewGrid => 'Сетка';
 
   @override
-  String get optionsTitle => 'Options';
+  String get optionsTitle => 'Опции';
 
   @override
-  String get optionsSearchSource => 'Search Source';
+  String get optionsSearchSource => 'Поиск источника';
 
   @override
-  String get optionsPrimaryProvider => 'Primary Provider';
+  String get optionsPrimaryProvider => 'Основной провайдер';
 
   @override
   String get optionsPrimaryProviderSubtitle =>
-      'Service used when searching by track name.';
+      'Сервис, используемый при поиске по названию трека.';
 
   @override
   String optionsUsingExtension(String extensionName) {
-    return 'Using extension: $extensionName';
+    return 'Используется расширение: $extensionName';
   }
 
   @override
   String get optionsSwitchBack =>
-      'Tap Deezer or Spotify to switch back from extension';
+      'Нажмите Deezer или Spotify для возврата с расширения';
 
   @override
-  String get optionsAutoFallback => 'Auto Fallback';
+  String get optionsAutoFallback => 'Автоматический переход';
 
   @override
   String get optionsAutoFallbackSubtitle =>
-      'Try other services if download fails';
+      'Попробовать другие сервисы при сбое загрузки';
 
   @override
-  String get optionsUseExtensionProviders => 'Use Extension Providers';
+  String get optionsUseExtensionProviders =>
+      'Использовать провайдера расширений';
 
   @override
-  String get optionsUseExtensionProvidersOn => 'Extensions will be tried first';
+  String get optionsUseExtensionProvidersOn =>
+      'Сначала будут опробованы расширения';
 
   @override
-  String get optionsUseExtensionProvidersOff => 'Using built-in providers only';
+  String get optionsUseExtensionProvidersOff =>
+      'Использование только встроенных провайдеров';
 
   @override
-  String get optionsEmbedLyrics => 'Embed Lyrics';
+  String get optionsEmbedLyrics => 'Вставить текст песни';
 
   @override
   String get optionsEmbedLyricsSubtitle =>
-      'Embed synced lyrics into FLAC files';
+      'Вставить синхронизированные тексты в FLAC файлы';
 
   @override
-  String get optionsMaxQualityCover => 'Max Quality Cover';
+  String get optionsMaxQualityCover => 'Максимальное качество обложки';
 
   @override
   String get optionsMaxQualityCoverSubtitle =>
-      'Download highest resolution cover art';
+      'Скачивать обложку в макс. разрешении';
 
   @override
-  String get optionsConcurrentDownloads => 'Concurrent Downloads';
+  String get optionsConcurrentDownloads => 'Одновременные загрузки';
 
   @override
-  String get optionsConcurrentSequential => 'Sequential (1 at a time)';
+  String get optionsConcurrentSequential => 'Последовательно (1 за раз)';
 
   @override
   String optionsConcurrentParallel(int count) {
-    return '$count parallel downloads';
+    return '$count параллельных загрузок';
   }
 
   @override
   String get optionsConcurrentWarning =>
-      'Parallel downloads may trigger rate limiting';
+      'Параллельные загрузки могут вызвать ограничение скорости';
 
   @override
-  String get optionsExtensionStore => 'Extension Store';
+  String get optionsExtensionStore => 'Магазин расширений';
 
   @override
-  String get optionsExtensionStoreSubtitle => 'Show Store tab in navigation';
+  String get optionsExtensionStoreSubtitle =>
+      'Показывать вкладку Магазин в гл. меню';
 
   @override
-  String get optionsCheckUpdates => 'Check for Updates';
+  String get optionsCheckUpdates => 'Проверить обновления';
 
   @override
-  String get optionsCheckUpdatesSubtitle =>
-      'Notify when new version is available';
+  String get optionsCheckUpdatesSubtitle => 'Уведомлять о наличии новой версии';
 
   @override
-  String get optionsUpdateChannel => 'Update Channel';
+  String get optionsUpdateChannel => 'Канал обновлений';
 
   @override
-  String get optionsUpdateChannelStable => 'Stable releases only';
+  String get optionsUpdateChannelStable => 'Только стабильные релизы';
 
   @override
-  String get optionsUpdateChannelPreview => 'Get preview releases';
+  String get optionsUpdateChannelPreview => 'Предварительные версии';
 
   @override
   String get optionsUpdateChannelWarning =>
-      'Preview may contain bugs or incomplete features';
+      'Предварительная версия может содержать ошибки или неполные функции';
 
   @override
-  String get optionsClearHistory => 'Clear Download History';
+  String get optionsClearHistory => 'Очистить историю загрузок';
 
   @override
   String get optionsClearHistorySubtitle =>
-      'Remove all downloaded tracks from history';
+      'Удалить все скачанные треки из истории';
 
   @override
-  String get optionsDetailedLogging => 'Detailed Logging';
+  String get optionsDetailedLogging => 'Подробный лог';
 
   @override
-  String get optionsDetailedLoggingOn => 'Detailed logs are being recorded';
+  String get optionsDetailedLoggingOn => 'Ведутся подробные логи';
 
   @override
-  String get optionsDetailedLoggingOff => 'Enable for bug reports';
+  String get optionsDetailedLoggingOff => 'Включить для отчётов об ошибках';
 
   @override
-  String get optionsSpotifyCredentials => 'Spotify Credentials';
+  String get optionsSpotifyCredentials => 'Учётные данные Spotify';
 
   @override
   String optionsSpotifyCredentialsConfigured(String clientId) {
@@ -331,804 +341,829 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get optionsSpotifyCredentialsRequired => 'Required - tap to configure';
+  String get optionsSpotifyCredentialsRequired =>
+      'Необходимо - нажмите для настройки';
 
   @override
   String get optionsSpotifyWarning =>
-      'Spotify requires your own API credentials. Get them free from developer.spotify.com';
+      'Spotify требует ваши собственные учетные данные API. Получите их бесплатно на сайте developer.spotify.com';
 
   @override
-  String get extensionsTitle => 'Extensions';
+  String get extensionsTitle => 'Расширения';
 
   @override
-  String get extensionsInstalled => 'Installed Extensions';
+  String get extensionsInstalled => 'Установленные расширения';
 
   @override
-  String get extensionsNone => 'No extensions installed';
+  String get extensionsNone => 'Нет установленных расширений';
 
   @override
-  String get extensionsNoneSubtitle => 'Install extensions from the Store tab';
+  String get extensionsNoneSubtitle =>
+      'Установка расширений из вкладки Магазин';
 
   @override
-  String get extensionsEnabled => 'Enabled';
+  String get extensionsEnabled => 'Включено';
 
   @override
-  String get extensionsDisabled => 'Disabled';
+  String get extensionsDisabled => 'Выключено';
 
   @override
   String extensionsVersion(String version) {
-    return 'Version $version';
+    return 'Версия $version';
   }
 
   @override
   String extensionsAuthor(String author) {
-    return 'by $author';
+    return 'от $author';
   }
 
   @override
-  String get extensionsUninstall => 'Uninstall';
+  String get extensionsUninstall => 'Удалить';
 
   @override
-  String get extensionsSetAsSearch => 'Set as Search Provider';
+  String get extensionsSetAsSearch => 'Установить в качестве поисковой системы';
 
   @override
-  String get storeTitle => 'Extension Store';
+  String get storeTitle => 'Магазин расширений';
 
   @override
-  String get storeSearch => 'Search extensions...';
+  String get storeSearch => 'Поиск расширений...';
 
   @override
-  String get storeInstall => 'Install';
+  String get storeInstall => 'Установить';
 
   @override
-  String get storeInstalled => 'Installed';
+  String get storeInstalled => 'Установлено';
 
   @override
-  String get storeUpdate => 'Update';
+  String get storeUpdate => 'Обновить';
 
   @override
-  String get aboutTitle => 'About';
+  String get aboutTitle => 'О программе';
 
   @override
-  String get aboutContributors => 'Contributors';
+  String get aboutContributors => 'Участники';
 
   @override
-  String get aboutMobileDeveloper => 'Mobile version developer';
+  String get aboutMobileDeveloper => 'Разработчик мобильной версии';
 
   @override
-  String get aboutOriginalCreator => 'Creator of the original SpotiFLAC';
+  String get aboutOriginalCreator => 'Создатель оригинального SpotiFLAC';
 
   @override
   String get aboutLogoArtist =>
-      'The talented artist who created our beautiful app logo!';
+      'Талантливый художник, который создал наш красивый логотип приложения!';
 
   @override
-  String get aboutSpecialThanks => 'Special Thanks';
+  String get aboutTranslators => 'Translators';
 
   @override
-  String get aboutLinks => 'Links';
+  String get aboutSpecialThanks => 'Особая благодарность';
 
   @override
-  String get aboutMobileSource => 'Mobile source code';
+  String get aboutLinks => 'Ссылки';
 
   @override
-  String get aboutPCSource => 'PC source code';
+  String get aboutMobileSource => 'Исходный код мобильной версии';
 
   @override
-  String get aboutReportIssue => 'Report an issue';
+  String get aboutPCSource => 'Исходный код ПК версии';
 
   @override
-  String get aboutReportIssueSubtitle => 'Report any problems you encounter';
+  String get aboutReportIssue => 'Сообщить о проблеме';
 
   @override
-  String get aboutFeatureRequest => 'Feature request';
+  String get aboutReportIssueSubtitle => 'Сообщите о возникших проблемах';
 
   @override
-  String get aboutFeatureRequestSubtitle => 'Suggest new features for the app';
+  String get aboutFeatureRequest => 'Предложить новую функцию';
 
   @override
-  String get aboutSupport => 'Support';
+  String get aboutFeatureRequestSubtitle =>
+      'Предложить новые функции для приложения';
 
   @override
-  String get aboutBuyMeCoffee => 'Buy me a coffee';
+  String get aboutSupport => 'Поддержка';
 
   @override
-  String get aboutBuyMeCoffeeSubtitle => 'Support development on Ko-fi';
+  String get aboutBuyMeCoffee => 'Купить мне кофе';
 
   @override
-  String get aboutApp => 'App';
+  String get aboutBuyMeCoffeeSubtitle => 'Поддержать разработку на Ko-fi';
 
   @override
-  String get aboutVersion => 'Version';
+  String get aboutApp => 'Приложение';
+
+  @override
+  String get aboutVersion => 'Версия';
 
   @override
   String get aboutBinimumDesc =>
-      'The creator of QQDL & HiFi API. Without this API, Tidal downloads wouldn\'t exist!';
+      'Создатель QQDL & HiFi API. Без этого API загрузки Tidal не существовали бы!';
 
   @override
   String get aboutSachinsenalDesc =>
-      'The original HiFi project creator. The foundation of Tidal integration!';
+      'Оригинальный создатель проекта HiFi. Основатель Tidal интеграции!';
 
   @override
   String get aboutDoubleDouble => 'DoubleDouble';
 
   @override
   String get aboutDoubleDoubleDesc =>
-      'Amazing API for Amazon Music downloads. Thank you for making it free!';
+      'Удивительный API для загрузок Amazon Music. Спасибо за то, что сделали это бесплатно!';
 
   @override
   String get aboutDabMusic => 'DAB Music';
 
   @override
   String get aboutDabMusicDesc =>
-      'The best Qobuz streaming API. Hi-Res downloads wouldn\'t be possible without this!';
+      'Лучший API для стриминга Qobuz. Без него загрузка файлов в высоком разрешении была бы невозможна!';
 
   @override
   String get aboutAppDescription =>
-      'Download Spotify tracks in lossless quality from Tidal, Qobuz, and Amazon Music.';
+      'Скачайте треки Spotify в Lossless качестве из Tidal, Qobuz и Amazon Music.';
 
   @override
-  String get albumTitle => 'Album';
+  String get albumTitle => 'Альбом';
 
   @override
   String albumTracks(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count tracks',
-      one: '1 track',
+      other: '$count треков',
+      many: '$count треков',
+      few: '$count трека',
+      one: '$count трек',
     );
     return '$_temp0';
   }
 
   @override
-  String get albumDownloadAll => 'Download All';
+  String get albumDownloadAll => 'Скачать всё';
 
   @override
-  String get albumDownloadRemaining => 'Download Remaining';
+  String get albumDownloadRemaining => 'Скачать оставшиеся';
 
   @override
-  String get playlistTitle => 'Playlist';
+  String get playlistTitle => 'Плейлист';
 
   @override
-  String get artistTitle => 'Artist';
+  String get artistTitle => 'Исполнитель';
 
   @override
-  String get artistAlbums => 'Albums';
+  String get artistAlbums => 'Альбомы';
 
   @override
-  String get artistSingles => 'Singles & EPs';
+  String get artistSingles => 'Синглы и EP';
 
   @override
-  String get artistCompilations => 'Compilations';
+  String get artistCompilations => 'Сборники';
 
   @override
   String artistReleases(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count releases',
-      one: '1 release',
+      other: '$count релизов',
+      many: '$count релизов',
+      few: '$count релиза',
+      one: '$count релиз',
     );
     return '$_temp0';
   }
 
   @override
-  String get artistPopular => 'Popular';
+  String get artistPopular => 'Популярное';
 
   @override
   String artistMonthlyListeners(String count) {
-    return '$count monthly listeners';
+    return '$count слушателей в месяц';
   }
 
   @override
-  String get trackMetadataTitle => 'Track Info';
+  String get trackMetadataTitle => 'Информация о треке';
 
   @override
-  String get trackMetadataArtist => 'Artist';
+  String get trackMetadataArtist => 'Исполнитель';
 
   @override
-  String get trackMetadataAlbum => 'Album';
+  String get trackMetadataAlbum => 'Альбом';
 
   @override
-  String get trackMetadataDuration => 'Duration';
+  String get trackMetadataDuration => 'Продолжительность';
 
   @override
-  String get trackMetadataQuality => 'Quality';
+  String get trackMetadataQuality => 'Качество';
 
   @override
-  String get trackMetadataPath => 'File Path';
+  String get trackMetadataPath => 'Путь к файлу';
 
   @override
-  String get trackMetadataDownloadedAt => 'Downloaded';
+  String get trackMetadataDownloadedAt => 'Скачано';
 
   @override
-  String get trackMetadataService => 'Service';
+  String get trackMetadataService => 'Сервис';
 
   @override
-  String get trackMetadataPlay => 'Play';
+  String get trackMetadataPlay => 'Воспроизвести';
 
   @override
-  String get trackMetadataShare => 'Share';
+  String get trackMetadataShare => 'Поделиться';
 
   @override
-  String get trackMetadataDelete => 'Delete';
+  String get trackMetadataDelete => 'Удалить';
 
   @override
-  String get trackMetadataRedownload => 'Re-download';
+  String get trackMetadataRedownload => 'Скачать снова';
 
   @override
-  String get trackMetadataOpenFolder => 'Open Folder';
+  String get trackMetadataOpenFolder => 'Открыть папку';
 
   @override
-  String get setupTitle => 'Welcome to SpotiFLAC';
+  String get setupTitle => 'Добро пожаловать в SpotiFLAC';
 
   @override
-  String get setupSubtitle => 'Let\'s get you started';
+  String get setupSubtitle => 'Давайте начнем';
 
   @override
-  String get setupStoragePermission => 'Storage Permission';
+  String get setupStoragePermission => 'Доступ к хранилищу';
 
   @override
   String get setupStoragePermissionSubtitle =>
-      'Required to save downloaded files';
+      'Необходимо для сохранения загруженных файлов';
 
   @override
-  String get setupStoragePermissionGranted => 'Permission granted';
+  String get setupStoragePermissionGranted => 'Разрешение предоставлено';
 
   @override
-  String get setupStoragePermissionDenied => 'Permission denied';
+  String get setupStoragePermissionDenied => 'Разрешение не предоставлено';
 
   @override
-  String get setupGrantPermission => 'Grant Permission';
+  String get setupGrantPermission => 'Предоставить разрешение';
 
   @override
-  String get setupDownloadLocation => 'Download Location';
+  String get setupDownloadLocation => 'Папка для скачивания';
 
   @override
-  String get setupChooseFolder => 'Choose Folder';
+  String get setupChooseFolder => 'Выбрать папку';
 
   @override
-  String get setupContinue => 'Continue';
+  String get setupContinue => 'Продолжить';
 
   @override
-  String get setupSkip => 'Skip for now';
+  String get setupSkip => 'Пропустить';
 
   @override
-  String get setupStorageAccessRequired => 'Storage Access Required';
+  String get setupStorageAccessRequired => 'Требуется доступ к хранилищу';
 
   @override
   String get setupStorageAccessMessage =>
-      'SpotiFLAC needs \"All files access\" permission to save music files to your chosen folder.';
+      'SpotiFLAC требуется разрешение \"Доступ ко всем файлам\" для сохранения музыкальных файлов в выбранную папку.';
 
   @override
   String get setupStorageAccessMessageAndroid11 =>
-      'Android 11+ requires \"All files access\" permission to save files to your chosen download folder.';
+      'Для Android 11+ требуется разрешение \"Доступ ко всем файлам\" для сохранения файлов в выбранную вами папку загрузки.';
 
   @override
-  String get setupOpenSettings => 'Open Settings';
+  String get setupOpenSettings => 'Открыть настройки';
 
   @override
   String get setupPermissionDeniedMessage =>
-      'Permission denied. Please grant all permissions to continue.';
+      'В разрешении отказано. Пожалуйста, предоставьте все разрешения для продолжения.';
 
   @override
   String setupPermissionRequired(String permissionType) {
-    return '$permissionType Permission Required';
+    return 'Требуется разрешение $permissionType';
   }
 
   @override
   String setupPermissionRequiredMessage(String permissionType) {
-    return '$permissionType permission is required for the best experience. You can change this later in Settings.';
+    return 'Для оптимальной работы требуется разрешение $permissionType. Вы можете изменить это позже в настройках.';
   }
 
   @override
-  String get setupSelectDownloadFolder => 'Select Download Folder';
+  String get setupSelectDownloadFolder => 'Выбрать папку для скачивания';
 
   @override
-  String get setupUseDefaultFolder => 'Use Default Folder?';
+  String get setupUseDefaultFolder => 'Использовать папку по умолчанию?';
 
   @override
   String get setupNoFolderSelected =>
-      'No folder selected. Would you like to use the default Music folder?';
+      'Папка не выбрана. Хотите использовать папку Музыка по умолчанию?';
 
   @override
-  String get setupUseDefault => 'Use Default';
+  String get setupUseDefault => 'По умолчанию';
 
   @override
-  String get setupDownloadLocationTitle => 'Download Location';
+  String get setupDownloadLocationTitle => 'Папка для скачивания';
 
   @override
   String get setupDownloadLocationIosMessage =>
-      'On iOS, downloads are saved to the app\'s Documents folder. You can access them via the Files app.';
+      'В iOS загрузки сохраняются в папке Документы приложения. Вы можете получить к ним доступ через приложение Файлы.';
 
   @override
-  String get setupAppDocumentsFolder => 'App Documents Folder';
+  String get setupAppDocumentsFolder => 'Папка Документы приложения';
 
   @override
   String get setupAppDocumentsFolderSubtitle =>
-      'Recommended - accessible via Files app';
+      'Рекомендуется - доступ через Файлы';
 
   @override
-  String get setupChooseFromFiles => 'Choose from Files';
+  String get setupChooseFromFiles => 'Выбрать из файлов';
 
   @override
-  String get setupChooseFromFilesSubtitle => 'Select iCloud or other location';
+  String get setupChooseFromFilesSubtitle =>
+      'Выберите iCloud или другое местоположение';
 
   @override
   String get setupIosEmptyFolderWarning =>
-      'iOS limitation: Empty folders cannot be selected. Choose a folder with at least one file.';
+      'Ограничение iOS: пустые папки не могут быть выбраны. Выберите папку, содержащую хотя бы один файл.';
 
   @override
-  String get setupDownloadInFlac => 'Download Spotify tracks in FLAC';
+  String get setupDownloadInFlac => 'Скачать Spotify треки во FLAC';
 
   @override
-  String get setupStepStorage => 'Storage';
+  String get setupStepStorage => 'Хранилище';
 
   @override
-  String get setupStepNotification => 'Notification';
+  String get setupStepNotification => 'Уведомления';
 
   @override
-  String get setupStepFolder => 'Folder';
+  String get setupStepFolder => 'Папка';
 
   @override
   String get setupStepSpotify => 'Spotify';
 
   @override
-  String get setupStepPermission => 'Permission';
+  String get setupStepPermission => 'Разрешение';
 
   @override
-  String get setupStorageGranted => 'Storage Permission Granted!';
+  String get setupStorageGranted => 'Доступ к хранилищу предоставлен!';
 
   @override
-  String get setupStorageRequired => 'Storage Permission Required';
+  String get setupStorageRequired => 'Требуется доступ к хранилищу';
 
   @override
   String get setupStorageDescription =>
-      'SpotiFLAC needs storage permission to save your downloaded music files.';
+      'SpotiFLAC требуется разрешение на хранение для сохранения скачанных файлов.';
 
   @override
-  String get setupNotificationGranted => 'Notification Permission Granted!';
+  String get setupNotificationGranted =>
+      'Разрешение на уведомление предоставлено!';
 
   @override
-  String get setupNotificationEnable => 'Enable Notifications';
+  String get setupNotificationEnable => 'Включить уведомления';
 
   @override
   String get setupNotificationDescription =>
-      'Get notified when downloads complete or require attention.';
+      'Получайте уведомления о завершении загрузки или о необходимости привлечения внимания.';
 
   @override
-  String get setupFolderSelected => 'Download Folder Selected!';
+  String get setupFolderSelected => 'Папка для загрузки выбрана!';
 
   @override
-  String get setupFolderChoose => 'Choose Download Folder';
+  String get setupFolderChoose => 'Выбрать папку для скачивания';
 
   @override
   String get setupFolderDescription =>
-      'Select a folder where your downloaded music will be saved.';
+      'Выберите папку, в которой будет сохраняться скачанная музыка.';
 
   @override
-  String get setupChangeFolder => 'Change Folder';
+  String get setupChangeFolder => 'Сменить папку';
 
   @override
-  String get setupSelectFolder => 'Select Folder';
+  String get setupSelectFolder => 'Выбрать папку';
 
   @override
-  String get setupSpotifyApiOptional => 'Spotify API (Optional)';
+  String get setupSpotifyApiOptional => 'Spotify API (необязательно)';
 
   @override
   String get setupSpotifyApiDescription =>
-      'Add your Spotify API credentials for better search results and access to Spotify-exclusive content.';
+      'Добавьте свои учётные данные Spotify для улучшения результатов поиска и доступа к эксклюзивному контенту Spotify.';
 
   @override
-  String get setupUseSpotifyApi => 'Use Spotify API';
+  String get setupUseSpotifyApi => 'Использовать Spotify API';
 
   @override
-  String get setupEnterCredentialsBelow => 'Enter your credentials below';
+  String get setupEnterCredentialsBelow => 'Введите ваши учётные данные ниже';
 
   @override
-  String get setupUsingDeezer => 'Using Deezer (no account needed)';
+  String get setupUsingDeezer => 'Использование Deezer (аккаунт не требуется)';
 
   @override
-  String get setupEnterClientId => 'Enter Spotify Client ID';
+  String get setupEnterClientId => 'Введите Client ID Spotify';
 
   @override
-  String get setupEnterClientSecret => 'Enter Spotify Client Secret';
+  String get setupEnterClientSecret => 'Введите Spotify Client Secret';
 
   @override
   String get setupGetFreeCredentials =>
-      'Get your free API credentials from the Spotify Developer Dashboard.';
+      'Получите бесплатный API учётной записи на панели разработчика Spotify.';
 
   @override
-  String get setupEnableNotifications => 'Enable Notifications';
+  String get setupEnableNotifications => 'Включить уведомления';
 
   @override
-  String get setupProceedToNextStep => 'You can now proceed to the next step.';
+  String get setupProceedToNextStep =>
+      'Теперь вы можете перейти к следующему шагу.';
 
   @override
   String get setupNotificationProgressDescription =>
-      'You will receive download progress notifications.';
+      'Вы будете получать уведомления о ходе загрузки.';
 
   @override
   String get setupNotificationBackgroundDescription =>
-      'Get notified about download progress and completion. This helps you track downloads when the app is in background.';
+      'Получайте уведомления о ходе и завершении загрузки. Это поможет вам отслеживать загрузки, когда приложение находится в фоновом режиме.';
 
   @override
-  String get setupSkipForNow => 'Skip for now';
+  String get setupSkipForNow => 'Пропустить';
 
   @override
-  String get setupBack => 'Back';
+  String get setupBack => 'Назад';
 
   @override
-  String get setupNext => 'Next';
+  String get setupNext => 'Далее';
 
   @override
-  String get setupGetStarted => 'Get Started';
+  String get setupGetStarted => 'Приступить к работе';
 
   @override
-  String get setupSkipAndStart => 'Skip & Start';
+  String get setupSkipAndStart => 'Пропустить и начать';
 
   @override
   String get setupAllowAccessToManageFiles =>
-      'Please enable \"Allow access to manage all files\" in the next screen.';
+      'Пожалуйста, включите \"Разрешить доступ для управления всеми файлами\" на следующем экране.';
 
   @override
   String get setupGetCredentialsFromSpotify =>
-      'Get credentials from developer.spotify.com';
+      'Получить учётные данные с developer.spotify.com';
 
   @override
-  String get dialogCancel => 'Cancel';
+  String get dialogCancel => 'Отмена';
 
   @override
-  String get dialogOk => 'OK';
+  String get dialogOk => 'ОК';
 
   @override
-  String get dialogSave => 'Save';
+  String get dialogSave => 'Сохранить';
 
   @override
-  String get dialogDelete => 'Delete';
+  String get dialogDelete => 'Удалить';
 
   @override
-  String get dialogRetry => 'Retry';
+  String get dialogRetry => 'Повторить';
 
   @override
-  String get dialogClose => 'Close';
+  String get dialogClose => 'Закрыть';
 
   @override
-  String get dialogYes => 'Yes';
+  String get dialogYes => 'Да';
 
   @override
-  String get dialogNo => 'No';
+  String get dialogNo => 'Нет';
 
   @override
-  String get dialogClear => 'Clear';
+  String get dialogClear => 'Очистить';
 
   @override
-  String get dialogConfirm => 'Confirm';
+  String get dialogConfirm => 'Подтвердить';
 
   @override
-  String get dialogDone => 'Done';
+  String get dialogDone => 'Готово';
 
   @override
-  String get dialogImport => 'Import';
+  String get dialogImport => 'Импорт';
 
   @override
-  String get dialogDiscard => 'Discard';
+  String get dialogDiscard => 'Отменить';
 
   @override
-  String get dialogRemove => 'Remove';
+  String get dialogRemove => 'Убрать';
 
   @override
-  String get dialogUninstall => 'Uninstall';
+  String get dialogUninstall => 'Удалить';
 
   @override
-  String get dialogDiscardChanges => 'Discard Changes?';
+  String get dialogDiscardChanges => 'Отменить изменения?';
 
   @override
   String get dialogUnsavedChanges =>
-      'You have unsaved changes. Do you want to discard them?';
+      'Есть несохраненные изменения. Отменить их?';
 
   @override
-  String get dialogDownloadFailed => 'Download Failed';
+  String get dialogDownloadFailed => 'Ошибка скачивания';
 
   @override
-  String get dialogTrackLabel => 'Track:';
+  String get dialogTrackLabel => 'Трек:';
 
   @override
-  String get dialogArtistLabel => 'Artist:';
+  String get dialogArtistLabel => 'Исполнитель:';
 
   @override
-  String get dialogErrorLabel => 'Error:';
+  String get dialogErrorLabel => 'Ошибка:';
 
   @override
-  String get dialogClearAll => 'Clear All';
+  String get dialogClearAll => 'Очистить всё';
 
   @override
   String get dialogClearAllDownloads =>
-      'Are you sure you want to clear all downloads?';
+      'Вы уверены, что хотите очистить все загрузки?';
 
   @override
-  String get dialogRemoveFromDevice => 'Remove from device?';
+  String get dialogRemoveFromDevice => 'Удалить с устройства?';
 
   @override
-  String get dialogRemoveExtension => 'Remove Extension';
+  String get dialogRemoveExtension => 'Удалить расширение';
 
   @override
   String get dialogRemoveExtensionMessage =>
-      'Are you sure you want to remove this extension? This cannot be undone.';
+      'Вы уверены, что хотите удалить это расширение? Это действие не может быть отменено.';
 
   @override
-  String get dialogUninstallExtension => 'Uninstall Extension?';
+  String get dialogUninstallExtension => 'Удалить расширение?';
 
   @override
   String dialogUninstallExtensionMessage(String extensionName) {
-    return 'Are you sure you want to remove $extensionName?';
+    return 'Вы уверены, что хотите удалить $extensionName?';
   }
 
   @override
-  String get dialogClearHistoryTitle => 'Clear History';
+  String get dialogClearHistoryTitle => 'Очистить историю';
 
   @override
   String get dialogClearHistoryMessage =>
-      'Are you sure you want to clear all download history? This cannot be undone.';
+      'Вы уверены, что хотите удалить всю историю загрузок? Это действие необратимо.';
 
   @override
-  String get dialogDeleteSelectedTitle => 'Delete Selected';
+  String get dialogDeleteSelectedTitle => 'Удалить выбранные';
 
   @override
   String dialogDeleteSelectedMessage(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'tracks',
-      one: 'track',
+      other: 'треков',
+      many: 'треков',
+      few: 'трека',
+      one: 'трек',
     );
-    return 'Delete $count $_temp0 from history?\n\nThis will also delete the files from storage.';
+    return 'Удалить $count $_temp0 из истории?\n\nЭто также удалит файлы из хранилища.';
   }
 
   @override
-  String get dialogImportPlaylistTitle => 'Import Playlist';
+  String get dialogImportPlaylistTitle => 'Импорт плейлиста';
 
   @override
   String dialogImportPlaylistMessage(int count) {
-    return 'Found $count tracks in CSV. Add them to download queue?';
+    return 'Найдено $count треков в CSV. Добавить их в очередь загрузки?';
+  }
+
+  @override
+  String csvImportTracks(int count) {
+    return '$count tracks from CSV';
   }
 
   @override
   String snackbarAddedToQueue(String trackName) {
-    return 'Added \"$trackName\" to queue';
+    return '\"$trackName\" добавлен в очередь';
   }
 
   @override
   String snackbarAddedTracksToQueue(int count) {
-    return 'Added $count tracks to queue';
+    return 'Добавлено $count треков в очередь';
   }
 
   @override
   String snackbarAlreadyDownloaded(String trackName) {
-    return '\"$trackName\" already downloaded';
+    return '\"$trackName\" уже скачан';
   }
 
   @override
-  String get snackbarHistoryCleared => 'History cleared';
+  String get snackbarHistoryCleared => 'История очищена';
 
   @override
-  String get snackbarCredentialsSaved => 'Credentials saved';
+  String get snackbarCredentialsSaved => 'Учётные данные сохранены';
 
   @override
-  String get snackbarCredentialsCleared => 'Credentials cleared';
+  String get snackbarCredentialsCleared => 'Учётные данные очищены';
 
   @override
   String snackbarDeletedTracks(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'tracks',
-      one: 'track',
+      other: 'треков',
+      many: 'треков',
+      few: 'трека',
+      one: 'трек',
     );
-    return 'Deleted $count $_temp0';
+    return 'Удалено $count $_temp0';
   }
 
   @override
   String snackbarCannotOpenFile(String error) {
-    return 'Cannot open file: $error';
+    return 'Невозможно открыть файл: $error';
   }
 
   @override
-  String get snackbarFillAllFields => 'Please fill all fields';
+  String get snackbarFillAllFields => 'Пожалуйста, заполните все поля';
 
   @override
-  String get snackbarViewQueue => 'View Queue';
+  String get snackbarViewQueue => 'Просмотр очереди';
 
   @override
   String snackbarFailedToLoad(String error) {
-    return 'Failed to load: $error';
+    return 'Ошибка загрузки: $error';
   }
 
   @override
   String snackbarUrlCopied(String platform) {
-    return '$platform URL copied to clipboard';
+    return '$platform ссылка скопирована в буфер обмена';
   }
 
   @override
-  String get snackbarFileNotFound => 'File not found';
+  String get snackbarFileNotFound => 'Файл не найден';
 
   @override
-  String get snackbarSelectExtFile => 'Please select a .spotiflac-ext file';
+  String get snackbarSelectExtFile =>
+      'Пожалуйста, выберите .spotiflac-ext-файл';
 
   @override
-  String get snackbarProviderPrioritySaved => 'Provider priority saved';
+  String get snackbarProviderPrioritySaved => 'Приоритет провайдера сохранён';
 
   @override
   String get snackbarMetadataProviderSaved =>
-      'Metadata provider priority saved';
+      'Приоритет провайдера метаданных сохранён';
 
   @override
   String snackbarExtensionInstalled(String extensionName) {
-    return '$extensionName installed.';
+    return '$extensionName установлено.';
   }
 
   @override
   String snackbarExtensionUpdated(String extensionName) {
-    return '$extensionName updated.';
+    return '$extensionName Обновлено.';
   }
 
   @override
-  String get snackbarFailedToInstall => 'Failed to install extension';
+  String get snackbarFailedToInstall => 'Не удалось установить расширение';
 
   @override
-  String get snackbarFailedToUpdate => 'Failed to update extension';
+  String get snackbarFailedToUpdate => 'Не удалось обновить расширение';
 
   @override
-  String get errorRateLimited => 'Rate Limited';
+  String get errorRateLimited => 'Слишком много запросов';
 
   @override
   String get errorRateLimitedMessage =>
-      'Too many requests. Please wait a moment before searching again.';
+      'Слишком много запросов. Пожалуйста, подождите минуту перед повторным поиском.';
 
   @override
   String errorFailedToLoad(String item) {
-    return 'Failed to load $item';
+    return 'Ошибка загрузки $item';
   }
 
   @override
-  String get errorNoTracksFound => 'No tracks found';
+  String get errorNoTracksFound => 'Треки не найдены';
 
   @override
   String errorMissingExtensionSource(String item) {
-    return 'Cannot load $item: missing extension source';
+    return 'Невозможно загрузить $item: отсутствует источник расширения';
   }
 
   @override
-  String get statusQueued => 'Queued';
+  String get statusQueued => 'В очереди';
 
   @override
-  String get statusDownloading => 'Downloading';
+  String get statusDownloading => 'Скачивание';
 
   @override
-  String get statusFinalizing => 'Finalizing';
+  String get statusFinalizing => 'Завершение';
 
   @override
-  String get statusCompleted => 'Completed';
+  String get statusCompleted => 'Завершено';
 
   @override
-  String get statusFailed => 'Failed';
+  String get statusFailed => 'Неудачно';
 
   @override
-  String get statusSkipped => 'Skipped';
+  String get statusSkipped => 'Пропущено';
 
   @override
-  String get statusPaused => 'Paused';
+  String get statusPaused => 'Приостановлено';
 
   @override
-  String get actionPause => 'Pause';
+  String get actionPause => 'Пауза';
 
   @override
-  String get actionResume => 'Resume';
+  String get actionResume => 'Возобновить';
 
   @override
-  String get actionCancel => 'Cancel';
+  String get actionCancel => 'Отмена';
 
   @override
-  String get actionStop => 'Stop';
+  String get actionStop => 'Стоп';
 
   @override
-  String get actionSelect => 'Select';
+  String get actionSelect => 'Выбрать';
 
   @override
-  String get actionSelectAll => 'Select All';
+  String get actionSelectAll => 'Выбрать все';
 
   @override
-  String get actionDeselect => 'Deselect';
+  String get actionDeselect => 'Снять выделение';
 
   @override
-  String get actionPaste => 'Paste';
+  String get actionPaste => 'Вставить';
 
   @override
-  String get actionImportCsv => 'Import CSV';
+  String get actionImportCsv => 'Импорт CSV';
 
   @override
-  String get actionRemoveCredentials => 'Remove Credentials';
+  String get actionRemoveCredentials => 'Удалить учётные данные';
 
   @override
-  String get actionSaveCredentials => 'Save Credentials';
+  String get actionSaveCredentials => 'Сохранить учётные данные';
 
   @override
   String selectionSelected(int count) {
-    return '$count selected';
+    return '$count выбрано';
   }
 
   @override
-  String get selectionAllSelected => 'All tracks selected';
+  String get selectionAllSelected => 'Все треки выбраны';
 
   @override
-  String get selectionTapToSelect => 'Tap tracks to select';
+  String get selectionTapToSelect => 'Нажмите на треки для выбора';
 
   @override
   String selectionDeleteTracks(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'tracks',
-      one: 'track',
+      other: 'треков',
+      many: 'треков',
+      few: 'трека',
+      one: 'трек',
     );
-    return 'Delete $count $_temp0';
+    return 'Удалить $count $_temp0';
   }
 
   @override
-  String get selectionSelectToDelete => 'Select tracks to delete';
+  String get selectionSelectToDelete => 'Выберите треки для удаления';
 
   @override
   String progressFetchingMetadata(int current, int total) {
-    return 'Fetching metadata... $current/$total';
+    return 'Получение метаданных... $current/$total';
   }
 
   @override
-  String get progressReadingCsv => 'Reading CSV...';
+  String get progressReadingCsv => 'Чтение CSV...';
 
   @override
-  String get searchSongs => 'Songs';
+  String get searchSongs => 'Песни';
 
   @override
-  String get searchArtists => 'Artists';
+  String get searchArtists => 'Исполнители';
 
   @override
-  String get searchAlbums => 'Albums';
+  String get searchAlbums => 'Альбомы';
 
   @override
-  String get searchPlaylists => 'Playlists';
+  String get searchPlaylists => 'Плейлисты';
 
   @override
-  String get tooltipPlay => 'Play';
+  String get tooltipPlay => 'Воспроизвести';
 
   @override
-  String get tooltipCancel => 'Cancel';
+  String get tooltipCancel => 'Отмена';
 
   @override
-  String get tooltipStop => 'Stop';
+  String get tooltipStop => 'Стоп';
 
   @override
-  String get tooltipRetry => 'Retry';
+  String get tooltipRetry => 'Повторить';
 
   @override
-  String get tooltipRemove => 'Remove';
+  String get tooltipRemove => 'Убрать';
 
   @override
-  String get tooltipClear => 'Clear';
+  String get tooltipClear => 'Очистить';
 
   @override
-  String get tooltipPaste => 'Paste';
+  String get tooltipPaste => 'Вставить';
 
   @override
-  String get filenameFormat => 'Filename Format';
+  String get filenameFormat => 'Формат имени файла';
 
   @override
   String filenameFormatPreview(String preview) {
-    return 'Preview: $preview';
+    return 'Предпросмотр: $preview';
   }
 
   @override
-  String get filenameAvailablePlaceholders => 'Available placeholders:';
+  String get filenameAvailablePlaceholders => 'Доступные заполнители:';
 
   @override
   String filenameHint(Object artist, Object title) {
@@ -1136,342 +1171,374 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get folderOrganization => 'Folder Organization';
+  String get folderOrganization => 'Организация папок';
 
   @override
-  String get folderOrganizationNone => 'No organization';
+  String get folderOrganizationNone => 'Без организации';
 
   @override
-  String get folderOrganizationByArtist => 'By Artist';
+  String get folderOrganizationByArtist => 'По исполнителю';
 
   @override
-  String get folderOrganizationByAlbum => 'By Album';
+  String get folderOrganizationByAlbum => 'По альбому';
 
   @override
-  String get folderOrganizationByArtistAlbum => 'Artist/Album';
+  String get folderOrganizationByArtistAlbum => 'Исполнитель/Альбом';
 
   @override
   String get folderOrganizationDescription =>
-      'Organize downloaded files into folders';
+      'Сортировать скачанные файлы по папкам';
 
   @override
-  String get folderOrganizationNoneSubtitle => 'All files in download folder';
+  String get folderOrganizationNoneSubtitle => 'Все файлы в папке загрузок';
 
   @override
   String get folderOrganizationByArtistSubtitle =>
-      'Separate folder for each artist';
+      'Отдельная папка для каждого исполнителя';
 
   @override
   String get folderOrganizationByAlbumSubtitle =>
-      'Separate folder for each album';
+      'Отдельная папка для каждого альбома';
 
   @override
   String get folderOrganizationByArtistAlbumSubtitle =>
-      'Nested folders for artist and album';
+      'Вложенные папки для исполнителей и альбомов';
 
   @override
-  String get updateAvailable => 'Update Available';
+  String get updateAvailable => 'Доступно обновление';
 
   @override
   String updateNewVersion(String version) {
-    return 'Version $version is available';
+    return 'Версия $version доступна';
   }
 
   @override
-  String get updateDownload => 'Download';
+  String get updateDownload => 'Скачать';
 
   @override
-  String get updateLater => 'Later';
+  String get updateLater => 'Позже';
 
   @override
-  String get updateChangelog => 'Changelog';
+  String get updateChangelog => 'Список изменений';
 
   @override
-  String get updateStartingDownload => 'Starting download...';
+  String get updateStartingDownload => 'Загрузка началась...';
 
   @override
-  String get updateDownloadFailed => 'Download failed';
+  String get updateDownloadFailed => 'Не удалось скачать';
 
   @override
-  String get updateFailedMessage => 'Failed to download update';
+  String get updateFailedMessage => 'Сбой загрузки обновления';
 
   @override
-  String get updateNewVersionReady => 'A new version is ready';
+  String get updateNewVersionReady => 'Доступна новая версия';
 
   @override
-  String get updateCurrent => 'Current';
+  String get updateCurrent => 'Текущая';
 
   @override
-  String get updateNew => 'New';
+  String get updateNew => 'Новая';
 
   @override
-  String get updateDownloading => 'Downloading...';
+  String get updateDownloading => 'Скачивание...';
 
   @override
-  String get updateWhatsNew => 'What\'s New';
+  String get updateWhatsNew => 'Что нового';
 
   @override
-  String get updateDownloadInstall => 'Download & Install';
+  String get updateDownloadInstall => 'Скачать и установить';
 
   @override
-  String get updateDontRemind => 'Don\'t remind';
+  String get updateDontRemind => 'Не напоминать';
 
   @override
-  String get providerPriority => 'Provider Priority';
+  String get providerPriority => 'Приоритет провайдера';
 
   @override
-  String get providerPrioritySubtitle => 'Drag to reorder download providers';
+  String get providerPrioritySubtitle => 'Перетащите для изменения порядка';
 
   @override
-  String get providerPriorityTitle => 'Provider Priority';
+  String get providerPriorityTitle => 'Приоритет провайдера';
 
   @override
   String get providerPriorityDescription =>
-      'Drag to reorder download providers. The app will try providers from top to bottom when downloading tracks.';
+      'Перетаскивайте, чтобы изменить порядок провайдеров загрузки. Приложение будет пробовать провайдеров сверху вниз при загрузке треков.';
 
   @override
   String get providerPriorityInfo =>
-      'If a track is not available on the first provider, the app will automatically try the next one.';
+      'Если трек не доступен у первого провайдера, приложение автоматически попробует следующий.';
 
   @override
-  String get providerBuiltIn => 'Built-in';
+  String get providerBuiltIn => 'Встроенные';
 
   @override
-  String get providerExtension => 'Extension';
+  String get providerExtension => 'Расширение';
 
   @override
-  String get metadataProviderPriority => 'Metadata Provider Priority';
+  String get metadataProviderPriority => 'Приоритет провайдера метаданных';
 
   @override
   String get metadataProviderPrioritySubtitle =>
-      'Order used when fetching track metadata';
+      'Порядок, используемый при получении метаданных';
 
   @override
-  String get metadataProviderPriorityTitle => 'Metadata Priority';
+  String get metadataProviderPriorityTitle => 'Приоритет метаданных';
 
   @override
   String get metadataProviderPriorityDescription =>
-      'Drag to reorder metadata providers. The app will try providers from top to bottom when searching for tracks and fetching metadata.';
+      'Перетаскивайте, чтобы изменить порядок провайдеров метаданных. Приложение будет пробовать провайдеров сверху вниз при поиске треков и извлечении метаданных.';
 
   @override
   String get metadataProviderPriorityInfo =>
-      'Deezer has no rate limits and is recommended as primary. Spotify may rate limit after many requests.';
+      'Deezer не имеет ограничений по скорости и рекомендуется в качестве основного. Spotify может ограничивать скорость после большого количества запросов.';
 
   @override
-  String get metadataNoRateLimits => 'No rate limits';
+  String get metadataNoRateLimits => 'Без ограничений по скорости';
 
   @override
-  String get metadataMayRateLimit => 'May rate limit';
+  String get metadataMayRateLimit => 'Есть ограничения по скорости';
 
   @override
-  String get logTitle => 'Logs';
+  String get logTitle => 'Логи';
 
   @override
-  String get logCopy => 'Copy Logs';
+  String get logCopy => 'Скопировать логи';
 
   @override
-  String get logClear => 'Clear Logs';
+  String get logClear => 'Очистить логи';
 
   @override
-  String get logShare => 'Share Logs';
+  String get logShare => 'Поделиться логами';
 
   @override
-  String get logEmpty => 'No logs yet';
+  String get logEmpty => 'Логов нет';
 
   @override
-  String get logCopied => 'Logs copied to clipboard';
+  String get logCopied => 'Логи скопированы в буфер обмена';
 
   @override
-  String get logSearchHint => 'Search logs...';
+  String get logSearchHint => 'Поиск логов...';
 
   @override
-  String get logFilterLevel => 'Level';
+  String get logFilterLevel => 'Уровень';
 
   @override
-  String get logFilterSection => 'Filter';
+  String get logFilterSection => 'Фильтр';
 
   @override
-  String get logShareLogs => 'Share logs';
+  String get logShareLogs => 'Поделиться логами';
 
   @override
-  String get logClearLogs => 'Clear logs';
+  String get logClearLogs => 'Очистить логи';
 
   @override
-  String get logClearLogsTitle => 'Clear Logs';
+  String get logClearLogsTitle => 'Очистить логи';
 
   @override
-  String get logClearLogsMessage => 'Are you sure you want to clear all logs?';
+  String get logClearLogsMessage => 'Вы уверены, что хотите очистить все логи?';
 
   @override
-  String get logIspBlocking => 'ISP BLOCKING DETECTED';
+  String get logIspBlocking => 'ОБНАРУЖЕНА БЛОКИРОВКА ИНТЕРНЕТ ПРОВАЙДЕРОМ';
 
   @override
-  String get logRateLimited => 'RATE LIMITED';
+  String get logRateLimited => 'ОГРАНИЧЕННАЯ СКОРОСТЬ';
 
   @override
-  String get logNetworkError => 'NETWORK ERROR';
+  String get logNetworkError => 'ОШИБКА СЕТИ';
 
   @override
-  String get logTrackNotFound => 'TRACK NOT FOUND';
+  String get logTrackNotFound => 'ТРЕК НЕ НАЙДЕН';
 
   @override
-  String get logFilterBySeverity => 'Filter logs by severity';
+  String get logFilterBySeverity => 'Фильтровать логи по серьезности';
 
   @override
-  String get logNoLogsYet => 'No logs yet';
+  String get logNoLogsYet => 'Логов нет';
 
   @override
-  String get logNoLogsYetSubtitle => 'Logs will appear here as you use the app';
+  String get logNoLogsYetSubtitle =>
+      'Логи появятся здесь по мере использования приложения';
 
   @override
-  String get logIssueSummary => 'Issue Summary';
+  String get logIssueSummary => 'Краткое описание проблемы';
 
   @override
   String get logIspBlockingDescription =>
-      'Your ISP may be blocking access to download services';
+      'Ваш провайдер может блокировать доступ к сервисам скачивания';
 
   @override
   String get logIspBlockingSuggestion =>
-      'Try using a VPN or change DNS to 1.1.1.1 or 8.8.8.8';
+      'Попробуйте использовать VPN или измените DNS на 1.1.1.1 или 8.8.8.8';
 
   @override
-  String get logRateLimitedDescription => 'Too many requests to the service';
+  String get logRateLimitedDescription => 'Слишком много запросов к сервису';
 
   @override
   String get logRateLimitedSuggestion =>
-      'Wait a few minutes before trying again';
+      'Подождите несколько минут, прежде чем повторить попытку';
 
   @override
-  String get logNetworkErrorDescription => 'Connection issues detected';
+  String get logNetworkErrorDescription => 'Обнаружены проблемы с подключением';
 
   @override
-  String get logNetworkErrorSuggestion => 'Check your internet connection';
+  String get logNetworkErrorSuggestion => 'Проверьте подключение к Интернету';
 
   @override
   String get logTrackNotFoundDescription =>
-      'Some tracks could not be found on download services';
+      'Некоторые треки не найдены в сервисах загрузки';
 
   @override
   String get logTrackNotFoundSuggestion =>
-      'The track may not be available in lossless quality';
+      'Трек может быть недоступен в lossless формате';
 
   @override
   String logTotalErrors(int count) {
-    return 'Total errors: $count';
+    return 'Всего ошибок: $count';
   }
 
   @override
   String logAffected(String domains) {
-    return 'Affected: $domains';
+    return 'Затронуто: $domains';
   }
 
   @override
   String logEntriesFiltered(int count) {
-    return 'Entries ($count filtered)';
+    return 'Записи ($count фильтровано)';
   }
 
   @override
   String logEntries(int count) {
-    return 'Entries ($count)';
+    return 'Записи ($count)';
   }
 
   @override
-  String get credentialsTitle => 'Spotify Credentials';
+  String get credentialsTitle => 'Учётные данные Spotify';
 
   @override
   String get credentialsDescription =>
-      'Enter your Client ID and Secret to use your own Spotify application quota.';
+      'Введите свой Client ID и Secret, чтобы использовать собственные квоты в Spotify.';
 
   @override
   String get credentialsClientId => 'Client ID';
 
   @override
-  String get credentialsClientIdHint => 'Paste Client ID';
+  String get credentialsClientIdHint => 'Вставьте Client ID';
 
   @override
   String get credentialsClientSecret => 'Client Secret';
 
   @override
-  String get credentialsClientSecretHint => 'Paste Client Secret';
+  String get credentialsClientSecretHint => 'Вставьте Client Secret';
 
   @override
-  String get channelStable => 'Stable';
+  String get channelStable => 'Стабильный';
 
   @override
-  String get channelPreview => 'Preview';
+  String get channelPreview => 'Предварительный';
 
   @override
-  String get sectionSearchSource => 'Search Source';
+  String get sectionSearchSource => 'Поиск источника';
 
   @override
-  String get sectionDownload => 'Download';
+  String get sectionDownload => 'Скачивание';
 
   @override
-  String get sectionPerformance => 'Performance';
+  String get sectionPerformance => 'Производительность';
 
   @override
-  String get sectionApp => 'App';
+  String get sectionApp => 'Приложение';
 
   @override
-  String get sectionData => 'Data';
+  String get sectionData => 'Данные';
 
   @override
-  String get sectionDebug => 'Debug';
+  String get sectionDebug => 'Отладка';
 
   @override
-  String get sectionService => 'Service';
+  String get sectionService => 'Сервис';
 
   @override
-  String get sectionAudioQuality => 'Audio Quality';
+  String get sectionAudioQuality => 'Качество аудио';
 
   @override
-  String get sectionFileSettings => 'File Settings';
+  String get sectionFileSettings => 'Настройки файла';
 
   @override
-  String get sectionColor => 'Color';
+  String get sectionLyrics => 'Lyrics';
 
   @override
-  String get sectionTheme => 'Theme';
+  String get lyricsMode => 'Lyrics Mode';
 
   @override
-  String get sectionLayout => 'Layout';
+  String get lyricsModeDescription =>
+      'Choose how lyrics are saved with your downloads';
 
   @override
-  String get sectionLanguage => 'Language';
+  String get lyricsModeEmbed => 'Embed in file';
 
   @override
-  String get appearanceLanguage => 'App Language';
+  String get lyricsModeEmbedSubtitle => 'Lyrics stored inside FLAC metadata';
 
   @override
-  String get appearanceLanguageSubtitle => 'Choose your preferred language';
+  String get lyricsModeExternal => 'External .lrc file';
 
   @override
-  String get settingsAppearanceSubtitle => 'Theme, colors, display';
+  String get lyricsModeExternalSubtitle =>
+      'Separate .lrc file for players like Samsung Music';
 
   @override
-  String get settingsDownloadSubtitle => 'Service, quality, filename format';
+  String get lyricsModeBoth => 'Both';
 
   @override
-  String get settingsOptionsSubtitle => 'Fallback, lyrics, cover art, updates';
+  String get lyricsModeBothSubtitle => 'Embed and save .lrc file';
 
   @override
-  String get settingsExtensionsSubtitle => 'Manage download providers';
+  String get sectionColor => 'Цвет';
 
   @override
-  String get settingsLogsSubtitle => 'View app logs for debugging';
+  String get sectionTheme => 'Тема';
 
   @override
-  String get loadingSharedLink => 'Loading shared link...';
+  String get sectionLayout => 'Разметка';
 
   @override
-  String get pressBackAgainToExit => 'Press back again to exit';
+  String get sectionLanguage => 'Язык';
 
   @override
-  String get tracksHeader => 'Tracks';
+  String get appearanceLanguage => 'Язык приложения';
+
+  @override
+  String get appearanceLanguageSubtitle => 'Выберите предпочитаемый язык';
+
+  @override
+  String get settingsAppearanceSubtitle => 'Тема, цвета, дисплей';
+
+  @override
+  String get settingsDownloadSubtitle =>
+      'Сервисы, качество, формат имени файла';
+
+  @override
+  String get settingsOptionsSubtitle =>
+      'Резерв. сервер, тексты песен, обложки, обновления';
+
+  @override
+  String get settingsExtensionsSubtitle => 'Управление провайдерами скачивания';
+
+  @override
+  String get settingsLogsSubtitle => 'Просмотреть логи для отладки';
+
+  @override
+  String get loadingSharedLink => 'Загрузка общедоступной ссылки...';
+
+  @override
+  String get pressBackAgainToExit => 'Нажмите «Назад» ещё раз, чтобы выйти';
+
+  @override
+  String get tracksHeader => 'Треки';
 
   @override
   String downloadAllCount(int count) {
-    return 'Download All ($count)';
+    return 'Скачать все ($count)';
   }
 
   @override
@@ -1479,366 +1546,400 @@ class AppLocalizationsRu extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count tracks',
-      one: '1 track',
+      other: '$count треков',
+      many: '$count треков',
+      few: '$count трека',
+      one: '$count трек',
     );
     return '$_temp0';
   }
 
   @override
-  String get trackCopyFilePath => 'Copy file path';
+  String get trackCopyFilePath => 'Скопировать путь к файлу';
 
   @override
-  String get trackRemoveFromDevice => 'Remove from device';
+  String get trackRemoveFromDevice => 'Удалить с устройства';
 
   @override
-  String get trackLoadLyrics => 'Load Lyrics';
+  String get trackLoadLyrics => 'Загрузить текст песни';
 
   @override
-  String get trackMetadata => 'Metadata';
+  String get trackMetadata => 'Метаданные';
 
   @override
-  String get trackFileInfo => 'File Info';
+  String get trackFileInfo => 'Информация о файле';
 
   @override
-  String get trackLyrics => 'Lyrics';
+  String get trackLyrics => 'Текст песни';
 
   @override
-  String get trackFileNotFound => 'File not found';
+  String get trackFileNotFound => 'Файл не найден';
 
   @override
-  String get trackOpenInDeezer => 'Open in Deezer';
+  String get trackOpenInDeezer => 'Открыть в Deezer';
 
   @override
-  String get trackOpenInSpotify => 'Open in Spotify';
+  String get trackOpenInSpotify => 'Открыть в Spotify';
 
   @override
-  String get trackTrackName => 'Track name';
+  String get trackTrackName => 'Название';
 
   @override
-  String get trackArtist => 'Artist';
+  String get trackArtist => 'Исполнитель';
 
   @override
-  String get trackAlbumArtist => 'Album artist';
+  String get trackAlbumArtist => 'Исполнитель альбома';
 
   @override
-  String get trackAlbum => 'Album';
+  String get trackAlbum => 'Альбом';
 
   @override
-  String get trackTrackNumber => 'Track number';
+  String get trackTrackNumber => 'Номер трека';
 
   @override
-  String get trackDiscNumber => 'Disc number';
+  String get trackDiscNumber => 'Номер диска';
 
   @override
-  String get trackDuration => 'Duration';
+  String get trackDuration => 'Продолжительность';
 
   @override
-  String get trackAudioQuality => 'Audio quality';
+  String get trackAudioQuality => 'Качество записи';
 
   @override
-  String get trackReleaseDate => 'Release date';
+  String get trackReleaseDate => 'Дата выхода';
 
   @override
-  String get trackDownloaded => 'Downloaded';
+  String get trackGenre => 'Genre';
 
   @override
-  String get trackCopyLyrics => 'Copy lyrics';
+  String get trackLabel => 'Label';
 
   @override
-  String get trackLyricsNotAvailable => 'Lyrics not available for this track';
+  String get trackCopyright => 'Copyright';
 
   @override
-  String get trackLyricsTimeout => 'Request timed out. Try again later.';
+  String get trackDownloaded => 'Скачано';
 
   @override
-  String get trackLyricsLoadFailed => 'Failed to load lyrics';
+  String get trackCopyLyrics => 'Копировать текст';
 
   @override
-  String get trackCopiedToClipboard => 'Copied to clipboard';
+  String get trackLyricsNotAvailable =>
+      'Текст песни недоступен для этого трека';
 
   @override
-  String get trackDeleteConfirmTitle => 'Remove from device?';
+  String get trackLyricsTimeout =>
+      'Время ожидания запроса истекло. Повторите попытку позже.';
+
+  @override
+  String get trackLyricsLoadFailed => 'Не удалось загрузить текст песни';
+
+  @override
+  String get trackCopiedToClipboard => 'Скопировано в буфер обмена';
+
+  @override
+  String get trackDeleteConfirmTitle => 'Удалить с устройства?';
 
   @override
   String get trackDeleteConfirmMessage =>
-      'This will permanently delete the downloaded file and remove it from your history.';
+      'Это приведет к окончательному удалению загруженного файла и его удалению из истории.';
 
   @override
   String trackCannotOpen(String message) {
-    return 'Cannot open: $message';
+    return 'Невозможно открыть: $message';
   }
 
   @override
-  String get dateToday => 'Today';
+  String get dateToday => 'Сегодня';
 
   @override
-  String get dateYesterday => 'Yesterday';
+  String get dateYesterday => 'Вчера';
 
   @override
   String dateDaysAgo(int count) {
-    return '$count days ago';
+    return '$count дней назад';
   }
 
   @override
   String dateWeeksAgo(int count) {
-    return '$count weeks ago';
+    return '$count недель назад';
   }
 
   @override
   String dateMonthsAgo(int count) {
-    return '$count months ago';
+    return '$count месяцев назад';
   }
 
   @override
-  String get concurrentSequential => 'Sequential';
+  String get concurrentSequential => 'Последовательно';
 
   @override
-  String get concurrentParallel2 => '2 Parallel';
+  String get concurrentParallel2 => '2 параллельно';
 
   @override
-  String get concurrentParallel3 => '3 Parallel';
+  String get concurrentParallel3 => '3 параллельно';
 
   @override
-  String get tapToSeeError => 'Tap to see error details';
+  String get tapToSeeError => 'Нажмите, чтобы увидеть подробности ошибки';
 
   @override
-  String get storeFilterAll => 'All';
+  String get storeFilterAll => 'Все';
 
   @override
-  String get storeFilterMetadata => 'Metadata';
+  String get storeFilterMetadata => 'Метаданные';
 
   @override
-  String get storeFilterDownload => 'Download';
+  String get storeFilterDownload => 'Скачивание';
 
   @override
-  String get storeFilterUtility => 'Utility';
+  String get storeFilterUtility => 'Утилиты';
 
   @override
-  String get storeFilterLyrics => 'Lyrics';
+  String get storeFilterLyrics => 'Тексты песен';
 
   @override
-  String get storeFilterIntegration => 'Integration';
+  String get storeFilterIntegration => 'Интеграция';
 
   @override
-  String get storeClearFilters => 'Clear filters';
+  String get storeClearFilters => 'Очистить фильтры';
 
   @override
-  String get storeNoResults => 'No extensions found';
+  String get storeNoResults => 'Расширения не найдены';
 
   @override
-  String get extensionProviderPriority => 'Provider Priority';
+  String get extensionProviderPriority => 'Приоритет провайдера';
 
   @override
-  String get extensionInstallButton => 'Install Extension';
+  String get extensionInstallButton => 'Установить расширение';
 
   @override
-  String get extensionDefaultProvider => 'Default (Deezer/Spotify)';
+  String get extensionDefaultProvider => 'По умолчанию (Deezer/Spotify)';
 
   @override
-  String get extensionDefaultProviderSubtitle => 'Use built-in search';
+  String get extensionDefaultProviderSubtitle =>
+      'Использовать встроенный поиск';
 
   @override
-  String get extensionAuthor => 'Author';
+  String get extensionAuthor => 'Автор';
 
   @override
   String get extensionId => 'ID';
 
   @override
-  String get extensionError => 'Error';
+  String get extensionError => 'Ошибка';
 
   @override
-  String get extensionCapabilities => 'Capabilities';
+  String get extensionCapabilities => 'Возможности';
 
   @override
-  String get extensionMetadataProvider => 'Metadata Provider';
+  String get extensionMetadataProvider => 'Провайдер метаданных';
 
   @override
-  String get extensionDownloadProvider => 'Download Provider';
+  String get extensionDownloadProvider => 'Провайдер скачивания';
 
   @override
-  String get extensionLyricsProvider => 'Lyrics Provider';
+  String get extensionLyricsProvider => 'Провайдер текстов';
 
   @override
-  String get extensionUrlHandler => 'URL Handler';
+  String get extensionUrlHandler => 'URL-обработчик';
 
   @override
-  String get extensionQualityOptions => 'Quality Options';
+  String get extensionQualityOptions => 'Параметры качества';
 
   @override
-  String get extensionPostProcessingHooks => 'Post-Processing Hooks';
+  String get extensionPostProcessingHooks => 'Хуки постобработки';
 
   @override
-  String get extensionPermissions => 'Permissions';
+  String get extensionPermissions => 'Разрешения';
 
   @override
-  String get extensionSettings => 'Settings';
+  String get extensionSettings => 'Настройки';
 
   @override
-  String get extensionRemoveButton => 'Remove Extension';
+  String get extensionRemoveButton => 'Удалить расширение';
 
   @override
-  String get extensionUpdated => 'Updated';
+  String get extensionUpdated => 'Обновлено';
 
   @override
-  String get extensionMinAppVersion => 'Min App Version';
+  String get extensionMinAppVersion => 'Мин. версия приложения';
 
   @override
-  String get extensionCustomTrackMatching => 'Custom Track Matching';
+  String get extensionCustomTrackMatching =>
+      'Соответствие пользовательских треков';
 
   @override
-  String get extensionPostProcessing => 'Post-Processing';
+  String get extensionPostProcessing => 'Постобработка';
 
   @override
   String extensionHooksAvailable(int count) {
-    return '$count hook(s) available';
+    return 'Доступно $count хуков(ов)';
   }
 
   @override
   String extensionPatternsCount(int count) {
-    return '$count pattern(s)';
+    return '$count шаблон(ов)';
   }
 
   @override
   String extensionStrategy(String strategy) {
-    return 'Strategy: $strategy';
+    return 'Стратегия: $strategy';
   }
 
   @override
-  String get extensionsProviderPrioritySection => 'Provider Priority';
+  String get extensionsProviderPrioritySection => 'Приоритет провайдера';
 
   @override
-  String get extensionsInstalledSection => 'Installed Extensions';
+  String get extensionsInstalledSection => 'Установленные расширения';
 
   @override
-  String get extensionsNoExtensions => 'No extensions installed';
+  String get extensionsNoExtensions => 'Нет установленных расширений';
 
   @override
   String get extensionsNoExtensionsSubtitle =>
-      'Install .spotiflac-ext files to add new providers';
+      'Установите .spotiflac-ext файлы для добавления новых провайдеров';
 
   @override
-  String get extensionsInstallButton => 'Install Extension';
+  String get extensionsInstallButton => 'Установить расширение';
 
   @override
   String get extensionsInfoTip =>
-      'Extensions can add new metadata and download providers. Only install extensions from trusted sources.';
+      'Расширения могут добавлять новые метаданные и провайдеров загрузки. Устанавливайте только расширения из надежных источников.';
 
   @override
-  String get extensionsInstalledSuccess => 'Extension installed successfully';
+  String get extensionsInstalledSuccess => 'Расширение успешно установлено';
 
   @override
-  String get extensionsDownloadPriority => 'Download Priority';
+  String get extensionsDownloadPriority => 'Приоритет скачивания';
 
   @override
-  String get extensionsDownloadPrioritySubtitle => 'Set download service order';
+  String get extensionsDownloadPrioritySubtitle =>
+      'Установка порядок сервисов скачивания';
 
   @override
   String get extensionsNoDownloadProvider =>
-      'No extensions with download provider';
+      'Нет расширений с провайдером загрузки';
 
   @override
-  String get extensionsMetadataPriority => 'Metadata Priority';
+  String get extensionsMetadataPriority => 'Приоритет метаданных';
 
   @override
   String get extensionsMetadataPrioritySubtitle =>
-      'Set search & metadata source order';
+      'Установка порядка поиска и источника метаданных';
 
   @override
   String get extensionsNoMetadataProvider =>
-      'No extensions with metadata provider';
+      'Нет расширений с провайдером метаданных';
 
   @override
-  String get extensionsSearchProvider => 'Search Provider';
+  String get extensionsSearchProvider => 'Провайдер поиска';
 
   @override
-  String get extensionsNoCustomSearch => 'No extensions with custom search';
+  String get extensionsNoCustomSearch =>
+      'Нет расширений с пользовательским поиском';
 
   @override
   String get extensionsSearchProviderDescription =>
-      'Choose which service to use for searching tracks';
+      'Выберите, какой сервис использовать для поиска треков';
 
   @override
-  String get extensionsCustomSearch => 'Custom search';
+  String get extensionsCustomSearch => 'Пользовательский поиск';
 
   @override
-  String get extensionsErrorLoading => 'Error loading extension';
+  String get extensionsErrorLoading => 'Ошибка загрузки расширения';
 
   @override
   String get qualityFlacLossless => 'FLAC Lossless';
 
   @override
-  String get qualityFlacLosslessSubtitle => '16-bit / 44.1kHz';
+  String get qualityFlacLosslessSubtitle => '16-бит / 44.1 кГц';
 
   @override
   String get qualityHiResFlac => 'Hi-Res FLAC';
 
   @override
-  String get qualityHiResFlacSubtitle => '24-bit / up to 96kHz';
+  String get qualityHiResFlacSubtitle => '24-бит / до 96кГц';
 
   @override
-  String get qualityHiResFlacMax => 'Hi-Res FLAC Max';
+  String get qualityHiResFlacMax => 'Hi-Res FLAC Макс.';
 
   @override
-  String get qualityHiResFlacMaxSubtitle => '24-bit / up to 192kHz';
+  String get qualityHiResFlacMaxSubtitle => '24-бит / до 192кГц';
+
+  @override
+  String get qualityMp3 => 'MP3';
+
+  @override
+  String get qualityMp3Subtitle => '320kbps (converted from FLAC)';
+
+  @override
+  String get enableMp3Option => 'Enable MP3 Option';
+
+  @override
+  String get enableMp3OptionSubtitleOn => 'MP3 quality option is available';
+
+  @override
+  String get enableMp3OptionSubtitleOff =>
+      'Downloads FLAC then converts to 320kbps MP3';
 
   @override
   String get qualityNote =>
-      'Actual quality depends on track availability from the service';
+      'Фактическое качество зависит от доступности треков в сервисе';
 
   @override
-  String get downloadAskBeforeDownload => 'Ask Before Download';
+  String get downloadAskBeforeDownload => 'Спрашивать перед скачиванием';
 
   @override
-  String get downloadDirectory => 'Download Directory';
+  String get downloadDirectory => 'Папка для скачивания';
 
   @override
-  String get downloadSeparateSinglesFolder => 'Separate Singles Folder';
+  String get downloadSeparateSinglesFolder => 'Отдельная папка для синглов';
 
   @override
-  String get downloadAlbumFolderStructure => 'Album Folder Structure';
+  String get downloadAlbumFolderStructure => 'Структура папок альбома';
 
   @override
-  String get downloadSaveFormat => 'Save Format';
+  String get downloadSaveFormat => 'Формат сохранения';
 
   @override
-  String get downloadSelectService => 'Select Service';
+  String get downloadSelectService => 'Выбор сервиса';
 
   @override
-  String get downloadSelectQuality => 'Select Quality';
+  String get downloadSelectQuality => 'Выбор качества';
 
   @override
-  String get downloadFrom => 'Download From';
+  String get downloadFrom => 'Скачивать из';
 
   @override
-  String get downloadDefaultQualityLabel => 'Default Quality';
+  String get downloadDefaultQualityLabel => 'Качество по умолчанию';
 
   @override
-  String get downloadBestAvailable => 'Best available';
+  String get downloadBestAvailable => 'Лучшее из доступных';
 
   @override
-  String get folderNone => 'None';
+  String get folderNone => 'Отсутствует';
 
   @override
-  String get folderNoneSubtitle => 'Save all files directly to download folder';
+  String get folderNoneSubtitle =>
+      'Сохранить все файлы непосредственно в папку загрузки';
 
   @override
-  String get folderArtist => 'Artist';
+  String get folderArtist => 'Исполнитель';
 
   @override
-  String get folderArtistSubtitle => 'Artist Name/filename';
+  String get folderArtistSubtitle => 'Исполнитель/имя файла';
 
   @override
-  String get folderAlbum => 'Album';
+  String get folderAlbum => 'Альбом';
 
   @override
-  String get folderAlbumSubtitle => 'Album Name/filename';
+  String get folderAlbumSubtitle => 'Альбом/имя файла';
 
   @override
-  String get folderArtistAlbum => 'Artist/Album';
+  String get folderArtistAlbum => 'Исполнитель/Альбом';
 
   @override
-  String get folderArtistAlbumSubtitle => 'Artist Name/Album Name/filename';
+  String get folderArtistAlbumSubtitle => 'Исполнитель/ Альбом/имя файла';
 
   @override
   String get serviceTidal => 'Tidal';
@@ -1856,145 +1957,156 @@ class AppLocalizationsRu extends AppLocalizations {
   String get serviceSpotify => 'Spotify';
 
   @override
-  String get appearanceAmoledDark => 'AMOLED Dark';
+  String get appearanceAmoledDark => 'AMOLED';
 
   @override
-  String get appearanceAmoledDarkSubtitle => 'Pure black background';
+  String get appearanceAmoledDarkSubtitle => 'Глубокий чёрный фон';
 
   @override
-  String get appearanceChooseAccentColor => 'Choose Accent Color';
+  String get appearanceChooseAccentColor => 'Выберите акцентный цвет';
 
   @override
-  String get appearanceChooseTheme => 'Theme Mode';
+  String get appearanceChooseTheme => 'Режим темы';
 
   @override
-  String get queueTitle => 'Download Queue';
+  String get queueTitle => 'Очередь скачиваний';
 
   @override
-  String get queueClearAll => 'Clear All';
+  String get queueClearAll => 'Очистить всё';
 
   @override
   String get queueClearAllMessage =>
-      'Are you sure you want to clear all downloads?';
+      'Вы уверены, что хотите очистить все загрузки?';
 
   @override
-  String get queueEmpty => 'No downloads in queue';
+  String get queueEmpty => 'Нет загрузок в очереди';
 
   @override
-  String get queueEmptySubtitle => 'Add tracks from the home screen';
+  String get queueEmptySubtitle => 'Добавить треки с главного экрана';
 
   @override
-  String get queueClearCompleted => 'Clear completed';
+  String get queueClearCompleted => 'Очистка завершена';
 
   @override
-  String get queueDownloadFailed => 'Download Failed';
+  String get queueDownloadFailed => 'Ошибка скачивания';
 
   @override
-  String get queueTrackLabel => 'Track:';
+  String get queueTrackLabel => 'Трек:';
 
   @override
-  String get queueArtistLabel => 'Artist:';
+  String get queueArtistLabel => 'Исполнитель:';
 
   @override
-  String get queueErrorLabel => 'Error:';
+  String get queueErrorLabel => 'Ошибка:';
 
   @override
-  String get queueUnknownError => 'Unknown error';
+  String get queueUnknownError => 'Неизвестная ошибка';
 
   @override
-  String get albumFolderArtistAlbum => 'Artist / Album';
+  String get albumFolderArtistAlbum => 'Исполнитель / Альбом';
 
   @override
-  String get albumFolderArtistAlbumSubtitle => 'Albums/Artist Name/Album Name/';
+  String get albumFolderArtistAlbumSubtitle =>
+      'Альбомы/Исполнитель/Название Альбома/';
 
   @override
-  String get albumFolderArtistYearAlbum => 'Artist / [Year] Album';
+  String get albumFolderArtistYearAlbum => 'Исполнитель / [Год] Альбом';
 
   @override
   String get albumFolderArtistYearAlbumSubtitle =>
-      'Albums/Artist Name/[2005] Album Name/';
+      'Альбомы/Исполнитель/[2005] Название Альбома/';
 
   @override
-  String get albumFolderAlbumOnly => 'Album Only';
+  String get albumFolderAlbumOnly => 'Только альбом';
 
   @override
-  String get albumFolderAlbumOnlySubtitle => 'Albums/Album Name/';
+  String get albumFolderAlbumOnlySubtitle => 'Альбомы/Название Альбома/';
 
   @override
-  String get albumFolderYearAlbum => '[Year] Album';
+  String get albumFolderYearAlbum => '[Год] Альбом';
 
   @override
-  String get albumFolderYearAlbumSubtitle => 'Albums/[2005] Album Name/';
+  String get albumFolderYearAlbumSubtitle =>
+      'Альбомы/[2005] Название Альбома /';
 
   @override
-  String get downloadedAlbumDeleteSelected => 'Delete Selected';
+  String get downloadedAlbumDeleteSelected => 'Удалить выбранные';
 
   @override
   String downloadedAlbumDeleteMessage(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'tracks',
-      one: 'track',
+      other: 'треков',
+      many: 'треков',
+      few: 'трека',
+      one: 'трек',
     );
-    return 'Delete $count $_temp0 from this album?\n\nThis will also delete the files from storage.';
+    return 'Удалить $count $_temp0 из этого альбома?\n\nЭто также удалит файлы из хранилища.';
   }
 
   @override
-  String get downloadedAlbumTracksHeader => 'Tracks';
+  String get downloadedAlbumTracksHeader => 'Треки';
 
   @override
   String downloadedAlbumDownloadedCount(int count) {
-    return '$count downloaded';
+    return '$count скачано';
   }
 
   @override
   String downloadedAlbumSelectedCount(int count) {
-    return '$count selected';
+    return '$count выбрано';
   }
 
   @override
-  String get downloadedAlbumAllSelected => 'All tracks selected';
+  String get downloadedAlbumAllSelected => 'Все треки выбраны';
 
   @override
-  String get downloadedAlbumTapToSelect => 'Tap tracks to select';
+  String get downloadedAlbumTapToSelect => 'Нажмите на треки для выбора';
 
   @override
   String downloadedAlbumDeleteCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'tracks',
-      one: 'track',
+      other: 'треков',
+      many: 'треков',
+      few: 'трека',
+      one: 'трек',
     );
-    return 'Delete $count $_temp0';
+    return 'Удалить $count $_temp0';
   }
 
   @override
-  String get downloadedAlbumSelectToDelete => 'Select tracks to delete';
+  String get downloadedAlbumSelectToDelete => 'Выберите треки для удаления';
 
   @override
-  String get utilityFunctions => 'Utility Functions';
+  String downloadedAlbumDiscHeader(int discNumber) {
+    return 'Disc $discNumber';
+  }
 
   @override
-  String get recentTypeArtist => 'Artist';
+  String get utilityFunctions => 'Функции утилиты';
 
   @override
-  String get recentTypeAlbum => 'Album';
+  String get recentTypeArtist => 'Исполнитель';
 
   @override
-  String get recentTypeSong => 'Song';
+  String get recentTypeAlbum => 'Альбом';
 
   @override
-  String get recentTypePlaylist => 'Playlist';
+  String get recentTypeSong => 'Песня';
+
+  @override
+  String get recentTypePlaylist => 'Плейлист';
 
   @override
   String recentPlaylistInfo(String name) {
-    return 'Playlist: $name';
+    return 'Плейлист: $name';
   }
 
   @override
   String errorGeneric(String message) {
-    return 'Error: $message';
+    return 'Ошибка: $message';
   }
 }

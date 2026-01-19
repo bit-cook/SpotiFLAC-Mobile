@@ -17,13 +17,12 @@ import (
 	"time"
 )
 
-// AmazonDownloader handles Amazon Music downloads using DoubleDouble service (same as PC)
 type AmazonDownloader struct {
 	client           *http.Client
-	regions          []string  // us, eu regions for DoubleDouble service
-	lastAPICallTime  time.Time // Rate limiting: track last API call
-	apiCallCount     int       // Rate limiting: counter per minute
-	apiCallResetTime time.Time // Rate limiting: reset time
+	regions          []string
+	lastAPICallTime  time.Time
+	apiCallCount     int
+	apiCallResetTime time.Time
 }
 
 var (
@@ -38,7 +37,6 @@ type DoubleDoubleSubmitResponse struct {
 	ID      string `json:"id"`
 }
 
-// DoubleDoubleStatusResponse is the response from DoubleDouble status endpoint
 type DoubleDoubleStatusResponse struct {
 	Status         string `json:"status"`
 	FriendlyStatus string `json:"friendlyStatus"`
@@ -49,7 +47,6 @@ type DoubleDoubleStatusResponse struct {
 	} `json:"current"`
 }
 
-// amazonArtistsMatch checks if the artist names are similar enough
 func amazonArtistsMatch(expectedArtist, foundArtist string) bool {
 	normExpected := strings.ToLower(strings.TrimSpace(expectedArtist))
 	normFound := strings.ToLower(strings.TrimSpace(foundArtist))
@@ -90,7 +87,6 @@ func amazonArtistsMatch(expectedArtist, foundArtist string) bool {
 	return false
 }
 
-// amazonIsASCIIString checks if a string contains only ASCII characters
 func amazonIsASCIIString(s string) bool {
 	for _, r := range s {
 		if r > 127 {
@@ -100,7 +96,6 @@ func amazonIsASCIIString(s string) bool {
 	return true
 }
 
-// NewAmazonDownloader creates a new Amazon downloader (returns singleton for connection reuse)
 func NewAmazonDownloader() *AmazonDownloader {
 	amazonDownloaderOnce.Do(func() {
 		globalAmazonDownloader = &AmazonDownloader{
@@ -113,7 +108,6 @@ func NewAmazonDownloader() *AmazonDownloader {
 }
 
 // waitForRateLimit implements rate limiting similar to PC version
-// Max 9 requests per minute with 7 second delay between requests
 func (a *AmazonDownloader) waitForRateLimit() {
 	amazonRateLimitMu.Lock()
 	defer amazonRateLimitMu.Unlock()
@@ -125,7 +119,6 @@ func (a *AmazonDownloader) waitForRateLimit() {
 		a.apiCallResetTime = now
 	}
 
-	// If we've hit the limit (9 requests per minute), wait until next minute
 	if a.apiCallCount >= 9 {
 		waitTime := time.Minute - now.Sub(a.apiCallResetTime)
 		if waitTime > 0 {
@@ -136,7 +129,6 @@ func (a *AmazonDownloader) waitForRateLimit() {
 		}
 	}
 
-	// Add delay between requests (7 seconds like PC version)
 	if !a.lastAPICallTime.IsZero() {
 		timeSinceLastCall := now.Sub(a.lastAPICallTime)
 		minDelay := 7 * time.Second
@@ -151,7 +143,6 @@ func (a *AmazonDownloader) waitForRateLimit() {
 	a.apiCallCount++
 }
 
-// GetAvailableAPIs returns list of available DoubleDouble regions
 // Uses same service as PC version (doubledouble.top)
 func (a *AmazonDownloader) GetAvailableAPIs() []string {
 	// DoubleDouble service regions (same as PC)
@@ -176,11 +167,9 @@ func (a *AmazonDownloader) downloadFromDoubleDoubleService(amazonURL, _ string) 
 		serviceDomain, _ := base64.StdEncoding.DecodeString("LmRvdWJsZWRvdWJsZS50b3A=") // .doubledouble.top
 		baseURL := fmt.Sprintf("%s%s%s", string(serviceBase), region, string(serviceDomain))
 
-		// Step 1: Submit download request with rate limiting
 		encodedURL := url.QueryEscape(amazonURL)
 		submitURL := fmt.Sprintf("%s/dl?url=%s", baseURL, encodedURL)
 
-		// Apply rate limiting before request (like PC version)
 		a.waitForRateLimit()
 
 		req, err := http.NewRequest("GET", submitURL, nil)
@@ -334,7 +323,6 @@ func (a *AmazonDownloader) downloadFromDoubleDoubleService(amazonURL, _ string) 
 	return "", "", "", fmt.Errorf("all regions failed. Last error: %v", lastError)
 }
 
-// DownloadFile downloads a file from URL with User-Agent and progress tracking
 func (a *AmazonDownloader) DownloadFile(downloadURL, outputPath, itemID string) error {
 	ctx := context.Background()
 
@@ -434,7 +422,6 @@ type AmazonDownloadResult struct {
 	ISRC        string
 }
 
-// downloadFromAmazon downloads a track using the request parameters
 // Uses DoubleDouble service (same as PC version)
 func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 	downloader := NewAmazonDownloader()
@@ -564,6 +551,9 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 		TotalTracks: req.TotalTracks,
 		DiscNumber:  actualDiscNum,
 		ISRC:        req.ISRC,
+		Genre:       req.Genre,     // From Deezer album metadata
+		Label:       req.Label,     // From Deezer album metadata
+		Copyright:   req.Copyright, // From Deezer album metadata
 	}
 
 	// Use cover data from parallel fetch
@@ -577,13 +567,28 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 		fmt.Printf("Warning: failed to embed metadata: %v\n", err)
 	}
 
-	// Embed lyrics from parallel fetch
 	if req.EmbedLyrics && parallelResult != nil && parallelResult.LyricsLRC != "" {
-		GoLog("[Amazon] Embedding parallel-fetched lyrics (%d lines)...\n", len(parallelResult.LyricsData.Lines))
-		if embedErr := EmbedLyrics(outputPath, parallelResult.LyricsLRC); embedErr != nil {
-			GoLog("[Amazon] Warning: failed to embed lyrics: %v\n", embedErr)
-		} else {
-			fmt.Println("[Amazon] Lyrics embedded successfully")
+		lyricsMode := req.LyricsMode
+		if lyricsMode == "" {
+			lyricsMode = "embed" // default
+		}
+
+		if lyricsMode == "external" || lyricsMode == "both" {
+			GoLog("[Amazon] Saving external LRC file...\n")
+			if lrcPath, lrcErr := SaveLRCFile(outputPath, parallelResult.LyricsLRC); lrcErr != nil {
+				GoLog("[Amazon] Warning: failed to save LRC file: %v\n", lrcErr)
+			} else {
+				GoLog("[Amazon] LRC file saved: %s\n", lrcPath)
+			}
+		}
+
+		if lyricsMode == "embed" || lyricsMode == "both" {
+			GoLog("[Amazon] Embedding parallel-fetched lyrics (%d lines)...\n", len(parallelResult.LyricsData.Lines))
+			if embedErr := EmbedLyrics(outputPath, parallelResult.LyricsLRC); embedErr != nil {
+				GoLog("[Amazon] Warning: failed to embed lyrics: %v\n", embedErr)
+			} else {
+				fmt.Println("[Amazon] Lyrics embedded successfully")
+			}
 		}
 	} else if req.EmbedLyrics {
 		fmt.Println("[Amazon] No lyrics available from parallel fetch")

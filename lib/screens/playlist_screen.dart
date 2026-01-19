@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:palette_generator/palette_generator.dart';
+import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/models/track.dart';
 import 'package:spotiflac_android/models/download_item.dart';
@@ -9,8 +11,7 @@ import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/widgets/download_service_picker.dart';
 
-/// Playlist detail screen with Material Expressive 3 design
-class PlaylistScreen extends ConsumerWidget {
+class PlaylistScreen extends ConsumerStatefulWidget {
   final String playlistName;
   final String? coverUrl;
   final List<Track> tracks;
@@ -23,16 +24,65 @@ class PlaylistScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PlaylistScreen> createState() => _PlaylistScreenState();
+}
+
+class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
+  Color? _dominantColor;
+  bool _showTitleInAppBar = false;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    _extractDominantColor();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    final shouldShow = _scrollController.offset > 280;
+    if (shouldShow != _showTitleInAppBar) {
+      setState(() => _showTitleInAppBar = shouldShow);
+    }
+  }
+
+  Future<void> _extractDominantColor() async {
+    if (widget.coverUrl == null) return;
+    try {
+      final paletteGenerator = await PaletteGenerator.fromImageProvider(
+        CachedNetworkImageProvider(widget.coverUrl!),
+        maximumColorCount: 16,
+      );
+      if (mounted) {
+        setState(() {
+          _dominantColor = paletteGenerator.dominantColor?.color ??
+              paletteGenerator.vibrantColor?.color ??
+              paletteGenerator.mutedColor?.color;
+        });
+      }
+    } catch (_) {
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
           _buildAppBar(context, colorScheme),
-          _buildInfoCard(context, ref, colorScheme),
+          _buildInfoCard(context, colorScheme),
           _buildTrackListHeader(context, colorScheme),
-          _buildTrackList(context, ref, colorScheme),
+          _buildTrackList(context, colorScheme),
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
@@ -40,59 +90,115 @@ class PlaylistScreen extends ConsumerWidget {
   }
 
   Widget _buildAppBar(BuildContext context, ColorScheme colorScheme) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final coverSize = screenWidth * 0.5; // 50% of screen width
+    final bgColor = _dominantColor ?? colorScheme.surface;
+    
     return SliverAppBar(
-      expandedHeight: 280,
+      expandedHeight: 320,
       pinned: true,
       stretch: true,
-      backgroundColor: colorScheme.surface,
+      backgroundColor: colorScheme.surface, // Use theme color for collapsed state
       surfaceTintColor: Colors.transparent,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (coverUrl != null)
-              CachedNetworkImage(imageUrl: coverUrl!, fit: BoxFit.cover, color: Colors.black.withValues(alpha: 0.5), colorBlendMode: BlendMode.darken, memCacheWidth: 600),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, colorScheme.surface.withValues(alpha: 0.8), colorScheme.surface],
-                  stops: const [0.0, 0.7, 1.0],
-                ),
-              ),
-            ),
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 60),
-                child: Container(
-                  width: 140,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 10))],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: coverUrl != null
-                        ? CachedNetworkImage(imageUrl: coverUrl!, fit: BoxFit.cover, memCacheWidth: 280)
-                        : Container(color: colorScheme.surfaceContainerHighest, child: Icon(Icons.playlist_play, size: 48, color: colorScheme.onSurfaceVariant)),
-                  ),
-                ),
-              ),
-            ),
-          ],
+      title: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: _showTitleInAppBar ? 1.0 : 0.0,
+        child: Text(
+          widget.playlistName,
+          style: TextStyle(
+            color: colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-        stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
+      ),
+      flexibleSpace: LayoutBuilder(
+        builder: (context, constraints) {
+          final collapseRatio = (constraints.maxHeight - kToolbarHeight) / (320 - kToolbarHeight);
+          final showContent = collapseRatio > 0.3;
+          
+          return FlexibleSpaceBar(
+            collapseMode: CollapseMode.none,
+            background: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Background with dominant color
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 500),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        bgColor,
+                        bgColor.withValues(alpha: 0.8),
+                        colorScheme.surface,
+                      ],
+                      stops: const [0.0, 0.6, 1.0],
+                    ),
+                  ),
+                ),
+                // Cover image centered - fade out when collapsing
+                AnimatedOpacity(
+                  duration: const Duration(milliseconds: 150),
+                  opacity: showContent ? 1.0 : 0.0,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 60),
+                      child: Container(
+                        width: coverSize,
+                        height: coverSize,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.4),
+                              blurRadius: 30,
+                              offset: const Offset(0, 15),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: widget.coverUrl != null
+? CachedNetworkImage(
+                                  imageUrl: widget.coverUrl!, 
+                                  fit: BoxFit.cover, 
+                                  memCacheWidth: (coverSize * 2).toInt(),
+                                  cacheManager: CoverCacheManager.instance,
+                                )
+                              : Container(
+                                  color: colorScheme.surfaceContainerHighest, 
+                                  child: Icon(Icons.playlist_play, size: 64, color: colorScheme.onSurfaceVariant),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
+          );
+        },
       ),
       leading: IconButton(
-        icon: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: colorScheme.surface.withValues(alpha: 0.8), shape: BoxShape.circle), child: Icon(Icons.arrow_back, color: colorScheme.onSurface)),
+        icon: Container(
+          padding: const EdgeInsets.all(8), 
+          decoration: BoxDecoration(
+            color: colorScheme.surface.withValues(alpha: 0.8), 
+            shape: BoxShape.circle,
+          ), 
+          child: Icon(Icons.arrow_back, color: colorScheme.onSurface),
+        ),
         onPressed: () => Navigator.pop(context),
       ),
     );
   }
 
-  Widget _buildInfoCard(BuildContext context, WidgetRef ref, ColorScheme colorScheme) {
+  Widget _buildInfoCard(BuildContext context, ColorScheme colorScheme) {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -105,7 +211,7 @@ class PlaylistScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(playlistName, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.onSurface)),
+                Text(widget.playlistName, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.onSurface)),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -115,15 +221,15 @@ class PlaylistScreen extends ConsumerWidget {
                     children: [
                       Icon(Icons.playlist_play, size: 14, color: colorScheme.onTertiaryContainer),
                       const SizedBox(width: 4),
-                      Text(context.l10n.tracksCount(tracks.length), style: TextStyle(color: colorScheme.onTertiaryContainer, fontWeight: FontWeight.w600, fontSize: 12)),
+                      Text(context.l10n.tracksCount(widget.tracks.length), style: TextStyle(color: colorScheme.onTertiaryContainer, fontWeight: FontWeight.w600, fontSize: 12)),
                     ],
                   ),
                 ),
                 const SizedBox(height: 16),
                 FilledButton.icon(
-                  onPressed: () => _downloadAll(context, ref),
+                  onPressed: () => _downloadAll(context),
                   icon: const Icon(Icons.download),
-                  label: Text(context.l10n.downloadAllCount(tracks.length)),
+                  label: Text(context.l10n.downloadAllCount(widget.tracks.length)),
                   style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                 ),
               ],
@@ -149,25 +255,25 @@ class PlaylistScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTrackList(BuildContext context, WidgetRef ref, ColorScheme colorScheme) {
+  Widget _buildTrackList(BuildContext context, ColorScheme colorScheme) {
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
-          final track = tracks[index];
+          final track = widget.tracks[index];
           return KeyedSubtree(
             key: ValueKey(track.id),
             child: _PlaylistTrackItem(
               track: track,
-              onDownload: () => _downloadTrack(context, ref, track),
+              onDownload: () => _downloadTrack(context, track),
             ),
           );
         },
-        childCount: tracks.length,
+        childCount: widget.tracks.length,
       ),
     );
   }
 
-  void _downloadTrack(BuildContext context, WidgetRef ref, Track track) {
+  void _downloadTrack(BuildContext context, Track track) {
     final settings = ref.read(settingsProvider);
     if (settings.askQualityBeforeDownload) {
       DownloadServicePicker.show(
@@ -186,22 +292,22 @@ class PlaylistScreen extends ConsumerWidget {
     }
   }
 
-  void _downloadAll(BuildContext context, WidgetRef ref) {
-    if (tracks.isEmpty) return;
+  void _downloadAll(BuildContext context) {
+    if (widget.tracks.isEmpty) return;
     final settings = ref.read(settingsProvider);
     if (settings.askQualityBeforeDownload) {
       DownloadServicePicker.show(
         context,
-        trackName: '${tracks.length} tracks',
-        artistName: playlistName,
+        trackName: '${widget.tracks.length} tracks',
+        artistName: widget.playlistName,
         onSelect: (quality, service) {
-          ref.read(downloadQueueProvider.notifier).addMultipleToQueue(tracks, service, qualityOverride: quality);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.snackbarAddedTracksToQueue(tracks.length))));
+          ref.read(downloadQueueProvider.notifier).addMultipleToQueue(widget.tracks, service, qualityOverride: quality);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.snackbarAddedTracksToQueue(widget.tracks.length))));
         },
       );
     } else {
-      ref.read(downloadQueueProvider.notifier).addMultipleToQueue(tracks, settings.defaultService);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.snackbarAddedTracksToQueue(tracks.length))));
+      ref.read(downloadQueueProvider.notifier).addMultipleToQueue(widget.tracks, settings.defaultService);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.snackbarAddedTracksToQueue(widget.tracks.length))));
     }
   }
 }
@@ -217,9 +323,9 @@ class _PlaylistTrackItem extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     
-    final queueItem = ref.watch(downloadQueueProvider.select((state) {
-      return state.items.where((item) => item.track.id == track.id).firstOrNull;
-    }));
+    final queueItem = ref.watch(
+      downloadQueueLookupProvider.select((lookup) => lookup.byTrackId[track.id]),
+    );
     
     final isInHistory = ref.watch(downloadHistoryProvider.select((state) {
       return state.isDownloaded(track.id);
@@ -241,8 +347,8 @@ class _PlaylistTrackItem extends ConsumerWidget {
         margin: const EdgeInsets.symmetric(vertical: 2),
         child: ListTile(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          leading: track.coverUrl != null
-              ? ClipRRect(borderRadius: BorderRadius.circular(8), child: CachedNetworkImage(imageUrl: track.coverUrl!, width: 48, height: 48, fit: BoxFit.cover, memCacheWidth: 96))
+leading: track.coverUrl != null
+              ? ClipRRect(borderRadius: BorderRadius.circular(8), child: CachedNetworkImage(imageUrl: track.coverUrl!, width: 48, height: 48, fit: BoxFit.cover, memCacheWidth: 96, cacheManager: CoverCacheManager.instance))
               : Container(width: 48, height: 48, decoration: BoxDecoration(color: colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)), child: Icon(Icons.music_note, color: colorScheme.onSurfaceVariant)),
           title: Text(track.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500)),
           subtitle: Text(track.artistName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: colorScheme.onSurfaceVariant)),

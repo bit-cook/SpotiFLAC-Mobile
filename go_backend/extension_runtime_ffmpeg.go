@@ -31,14 +31,12 @@ var (
 	ffmpegCommandID  int64
 )
 
-// GetPendingFFmpegCommand returns a pending FFmpeg command (called from Flutter)
 func GetPendingFFmpegCommand(commandID string) *FFmpegCommand {
 	ffmpegCommandsMu.RLock()
 	defer ffmpegCommandsMu.RUnlock()
 	return ffmpegCommands[commandID]
 }
 
-// SetFFmpegCommandResult sets the result of an FFmpeg command (called from Flutter)
 func SetFFmpegCommandResult(commandID string, success bool, output, errorMsg string) {
 	ffmpegCommandsMu.Lock()
 	defer ffmpegCommandsMu.Unlock()
@@ -50,14 +48,12 @@ func SetFFmpegCommandResult(commandID string, success bool, output, errorMsg str
 	}
 }
 
-// ClearFFmpegCommand removes a completed FFmpeg command
 func ClearFFmpegCommand(commandID string) {
 	ffmpegCommandsMu.Lock()
 	defer ffmpegCommandsMu.Unlock()
 	delete(ffmpegCommands, commandID)
 }
 
-// ffmpegExecute queues an FFmpeg command for execution by Flutter
 func (r *ExtensionRuntime) ffmpegExecute(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
 		return r.vm.ToValue(map[string]interface{}{
@@ -118,7 +114,6 @@ func (r *ExtensionRuntime) ffmpegExecute(call goja.FunctionCall) goja.Value {
 	}
 }
 
-// ffmpegGetInfo gets audio file information using FFprobe
 func (r *ExtensionRuntime) ffmpegGetInfo(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
 		return r.vm.ToValue(map[string]interface{}{
@@ -147,7 +142,6 @@ func (r *ExtensionRuntime) ffmpegGetInfo(call goja.FunctionCall) goja.Value {
 	})
 }
 
-// ffmpegConvert is a helper for common conversion operations
 func (r *ExtensionRuntime) ffmpegConvert(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 2 {
 		return r.vm.ToValue(map[string]interface{}{

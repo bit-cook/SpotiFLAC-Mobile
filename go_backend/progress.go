@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-// DownloadProgress represents current download progress
-// Now unified - returns data from multi-progress system
 type DownloadProgress struct {
 	CurrentFile   string  `json:"current_file"`
 	Progress      float64 `json:"progress"`
@@ -15,21 +13,19 @@ type DownloadProgress struct {
 	BytesTotal    int64   `json:"bytes_total"`
 	BytesReceived int64   `json:"bytes_received"`
 	IsDownloading bool    `json:"is_downloading"`
-	Status        string  `json:"status"` // "downloading", "finalizing", "completed"
+	Status        string  `json:"status"`
 }
 
-// ItemProgress represents progress for a single download item
 type ItemProgress struct {
 	ItemID        string  `json:"item_id"`
 	BytesTotal    int64   `json:"bytes_total"`
 	BytesReceived int64   `json:"bytes_received"`
-	Progress      float64 `json:"progress"`   // 0.0 to 1.0
-	SpeedMBps     float64 `json:"speed_mbps"` // Download speed in MB/s
+	Progress      float64 `json:"progress"`
+	SpeedMBps     float64 `json:"speed_mbps"`
 	IsDownloading bool    `json:"is_downloading"`
-	Status        string  `json:"status"` // "downloading", "finalizing", "completed"
+	Status        string  `json:"status"`
 }
 
-// MultiProgress holds progress for multiple concurrent downloads
 type MultiProgress struct {
 	Items map[string]*ItemProgress `json:"items"`
 }
@@ -38,12 +34,10 @@ var (
 	downloadDir   string
 	downloadDirMu sync.RWMutex
 
-	// Multi-download progress tracking (unified system)
 	multiProgress = MultiProgress{Items: make(map[string]*ItemProgress)}
 	multiMu       sync.RWMutex
 )
 
-// getProgress returns current download progress from multi-progress system
 func getProgress() DownloadProgress {
 	multiMu.RLock()
 	defer multiMu.RUnlock()
@@ -62,7 +56,6 @@ func getProgress() DownloadProgress {
 	return DownloadProgress{}
 }
 
-// GetMultiProgress returns progress for all active downloads as JSON
 func GetMultiProgress() string {
 	multiMu.RLock()
 	defer multiMu.RUnlock()
@@ -74,7 +67,6 @@ func GetMultiProgress() string {
 	return string(jsonBytes)
 }
 
-// GetItemProgress returns progress for a specific item as JSON
 func GetItemProgress(itemID string) string {
 	multiMu.RLock()
 	defer multiMu.RUnlock()
@@ -200,14 +192,6 @@ func setDownloadDir(path string) error {
 	downloadDir = path
 	return nil
 }
-
-// getDownloadDir returns the default download directory
-// Kept for potential future use
-// func getDownloadDir() string {
-// 	downloadDirMu.RLock()
-// 	defer downloadDirMu.RUnlock()
-// 	return downloadDir
-// }
 
 // ItemProgressWriter wraps io.Writer to track download progress for a specific item
 type ItemProgressWriter struct {

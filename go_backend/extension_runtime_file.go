@@ -21,8 +21,6 @@ var (
 	allowedDownloadDirsMu sync.RWMutex
 )
 
-// SetAllowedDownloadDirs sets the list of directories where extensions can write files
-// This should be called by the Go backend when setting up download paths
 func SetAllowedDownloadDirs(dirs []string) {
 	allowedDownloadDirsMu.Lock()
 	defer allowedDownloadDirsMu.Unlock()
@@ -30,7 +28,6 @@ func SetAllowedDownloadDirs(dirs []string) {
 	GoLog("[Extension] Allowed download directories set: %v\n", dirs)
 }
 
-// AddAllowedDownloadDir adds a directory to the allowed list
 func AddAllowedDownloadDir(dir string) {
 	allowedDownloadDirsMu.Lock()
 	defer allowedDownloadDirsMu.Unlock()
@@ -40,7 +37,6 @@ func AddAllowedDownloadDir(dir string) {
 	}
 }
 
-// isPathInAllowedDirs checks if an absolute path is within any allowed directory
 func isPathInAllowedDirs(absPath string) bool {
 	allowedDownloadDirsMu.RLock()
 	defer allowedDownloadDirsMu.RUnlock()
@@ -62,36 +58,28 @@ func (r *ExtensionRuntime) validatePath(path string) (string, error) {
 		return "", fmt.Errorf("file access denied: extension does not have 'file' permission")
 	}
 
-	// Clean and resolve the path
 	cleanPath := filepath.Clean(path)
 
-	// SECURITY: Block absolute paths by default
-	// Only allow if path is in explicitly allowed download directories
 	if filepath.IsAbs(cleanPath) {
 		absPath, err := filepath.Abs(cleanPath)
 		if err != nil {
 			return "", fmt.Errorf("invalid path: %w", err)
 		}
 
-		// Check if path is in allowed download directories
 		if isPathInAllowedDirs(absPath) {
 			return absPath, nil
 		}
 
-		// Block all other absolute paths
 		return "", fmt.Errorf("file access denied: absolute paths are not allowed. Use relative paths within extension sandbox")
 	}
 
-	// For relative paths, join with data directory (extension's sandbox)
 	fullPath := filepath.Join(r.dataDir, cleanPath)
 
-	// Resolve to absolute path
 	absPath, err := filepath.Abs(fullPath)
 	if err != nil {
 		return "", fmt.Errorf("invalid path: %w", err)
 	}
 
-	// Ensure path is within data directory (prevent path traversal)
 	absDataDir, _ := filepath.Abs(r.dataDir)
 	if !strings.HasPrefix(absPath, absDataDir) {
 		return "", fmt.Errorf("file access denied: path '%s' is outside sandbox", path)
@@ -100,8 +88,6 @@ func (r *ExtensionRuntime) validatePath(path string) (string, error) {
 	return absPath, nil
 }
 
-// fileDownload downloads a file from URL to the specified path
-// Supports progress callback via options.onProgress
 func (r *ExtensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 2 {
 		return r.vm.ToValue(map[string]interface{}{
@@ -113,7 +99,6 @@ func (r *ExtensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 	urlStr := call.Arguments[0].String()
 	outputPath := call.Arguments[1].String()
 
-	// Validate domain
 	if err := r.validateDomain(urlStr); err != nil {
 		return r.vm.ToValue(map[string]interface{}{
 			"success": false,
@@ -121,7 +106,6 @@ func (r *ExtensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		})
 	}
 
-	// Validate output path (allows absolute paths for download queue)
 	fullPath, err := r.validatePath(outputPath)
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -130,20 +114,17 @@ func (r *ExtensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		})
 	}
 
-	// Get options if provided
 	var onProgress goja.Callable
 	var headers map[string]string
 	if len(call.Arguments) > 2 && !goja.IsUndefined(call.Arguments[2]) && !goja.IsNull(call.Arguments[2]) {
 		optionsObj := call.Arguments[2].Export()
 		if opts, ok := optionsObj.(map[string]interface{}); ok {
-			// Extract headers
 			if h, ok := opts["headers"].(map[string]interface{}); ok {
 				headers = make(map[string]string)
 				for k, v := range h {
 					headers[k] = fmt.Sprintf("%v", v)
 				}
 			}
-			// Extract onProgress callback
 			if progressVal, ok := opts["onProgress"]; ok {
 				if callable, ok := goja.AssertFunction(r.vm.ToValue(progressVal)); ok {
 					onProgress = callable
@@ -152,7 +133,6 @@ func (r *ExtensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		}
 	}
 
-	// Create directory if needed
 	dir := filepath.Dir(fullPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -161,7 +141,6 @@ func (r *ExtensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		})
 	}
 
-	// Create HTTP request
 	req, err := http.NewRequest("GET", urlStr, nil)
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -170,7 +149,6 @@ func (r *ExtensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		})
 	}
 
-	// Set headers
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
@@ -178,7 +156,6 @@ func (r *ExtensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		req.Header.Set("User-Agent", "SpotiFLAC-Extension/1.0")
 	}
 
-	// Download file
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -195,7 +172,6 @@ func (r *ExtensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		})
 	}
 
-	// Create output file
 	out, err := os.Create(fullPath)
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -205,12 +181,10 @@ func (r *ExtensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 	}
 	defer out.Close()
 
-	// Get content length for progress
 	contentLength := resp.ContentLength
 
-	// Copy content with progress reporting
 	var written int64
-	buf := make([]byte, 32*1024) // 32KB buffer
+	buf := make([]byte, 32*1024)
 	for {
 		nr, er := resp.Body.Read(buf)
 		if nr > 0 {
@@ -235,7 +209,6 @@ func (r *ExtensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 				})
 			}
 
-			// Report progress
 			if onProgress != nil && contentLength > 0 {
 				_, _ = onProgress(goja.Undefined(), r.vm.ToValue(written), r.vm.ToValue(contentLength))
 			}
@@ -260,7 +233,6 @@ func (r *ExtensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 	})
 }
 
-// fileExists checks if a file exists in the sandbox
 func (r *ExtensionRuntime) fileExists(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
 		return r.vm.ToValue(false)
@@ -276,7 +248,6 @@ func (r *ExtensionRuntime) fileExists(call goja.FunctionCall) goja.Value {
 	return r.vm.ToValue(err == nil)
 }
 
-// fileDelete deletes a file in the sandbox
 func (r *ExtensionRuntime) fileDelete(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
 		return r.vm.ToValue(map[string]interface{}{
@@ -306,7 +277,6 @@ func (r *ExtensionRuntime) fileDelete(call goja.FunctionCall) goja.Value {
 	})
 }
 
-// fileRead reads a file from the sandbox
 func (r *ExtensionRuntime) fileRead(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
 		return r.vm.ToValue(map[string]interface{}{
@@ -338,7 +308,6 @@ func (r *ExtensionRuntime) fileRead(call goja.FunctionCall) goja.Value {
 	})
 }
 
-// fileWrite writes data to a file in the sandbox
 func (r *ExtensionRuntime) fileWrite(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 2 {
 		return r.vm.ToValue(map[string]interface{}{
@@ -380,7 +349,6 @@ func (r *ExtensionRuntime) fileWrite(call goja.FunctionCall) goja.Value {
 	})
 }
 
-// fileCopy copies a file within the sandbox
 func (r *ExtensionRuntime) fileCopy(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 2 {
 		return r.vm.ToValue(map[string]interface{}{
@@ -408,7 +376,6 @@ func (r *ExtensionRuntime) fileCopy(call goja.FunctionCall) goja.Value {
 		})
 	}
 
-	// Read source file
 	data, err := os.ReadFile(fullSrc)
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -417,7 +384,6 @@ func (r *ExtensionRuntime) fileCopy(call goja.FunctionCall) goja.Value {
 		})
 	}
 
-	// Create destination directory if needed
 	dir := filepath.Dir(fullDst)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -426,7 +392,6 @@ func (r *ExtensionRuntime) fileCopy(call goja.FunctionCall) goja.Value {
 		})
 	}
 
-	// Write to destination
 	if err := os.WriteFile(fullDst, data, 0644); err != nil {
 		return r.vm.ToValue(map[string]interface{}{
 			"success": false,
@@ -440,7 +405,6 @@ func (r *ExtensionRuntime) fileCopy(call goja.FunctionCall) goja.Value {
 	})
 }
 
-// fileMove moves/renames a file within the sandbox
 func (r *ExtensionRuntime) fileMove(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 2 {
 		return r.vm.ToValue(map[string]interface{}{
@@ -468,7 +432,6 @@ func (r *ExtensionRuntime) fileMove(call goja.FunctionCall) goja.Value {
 		})
 	}
 
-	// Create destination directory if needed
 	dir := filepath.Dir(fullDst)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -490,7 +453,6 @@ func (r *ExtensionRuntime) fileMove(call goja.FunctionCall) goja.Value {
 	})
 }
 
-// fileGetSize returns the size of a file in bytes
 func (r *ExtensionRuntime) fileGetSize(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
 		return r.vm.ToValue(map[string]interface{}{

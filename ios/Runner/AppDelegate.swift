@@ -227,6 +227,13 @@ import Gobackend  // Import Go framework
             if let error = error { throw error }
             return response
 
+        case "getDeezerExtendedMetadata":
+            let args = call.arguments as! [String: Any]
+            let trackId = args["track_id"] as! String
+            let response = GobackendGetDeezerExtendedMetadata(trackId, &error)
+            if let error = error { throw error }
+            return response
+
         case "convertSpotifyToDeezer":
             let args = call.arguments as! [String: Any]
             let resourceType = args["resource_type"] as! String
@@ -374,6 +381,14 @@ import Gobackend  // Import Go framework
             GobackendSetExtensionSettingsJSON(extensionId, settingsJson, &error)
             if let error = error { throw error }
             return nil
+            
+        case "invokeExtensionAction":
+            let args = call.arguments as! [String: Any]
+            let extensionId = args["extension_id"] as! String
+            let actionName = args["action"] as! String
+            let response = GobackendInvokeExtensionActionJSON(extensionId, actionName, &error)
+            if let error = error { throw error }
+            return response
             
         case "searchTracksWithExtensions":
             let args = call.arguments as! [String: Any]

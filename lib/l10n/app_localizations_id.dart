@@ -407,6 +407,9 @@ class AppLocalizationsId extends AppLocalizations {
       'Seniman berbakat yang membuat logo aplikasi kita yang indah!';
 
   @override
+  String get aboutTranslators => 'Translators';
+
+  @override
   String get aboutSpecialThanks => 'Terima Kasih Khusus';
 
   @override
@@ -898,6 +901,11 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String dialogImportPlaylistMessage(int count) {
     return 'Ditemukan $count lagu di CSV. Tambahkan ke antrian unduhan?';
+  }
+
+  @override
+  String csvImportTracks(int count) {
+    return '$count tracks from CSV';
   }
 
   @override
@@ -1438,6 +1446,35 @@ class AppLocalizationsId extends AppLocalizations {
   String get sectionFileSettings => 'Pengaturan File';
 
   @override
+  String get sectionLyrics => 'Lyrics';
+
+  @override
+  String get lyricsMode => 'Lyrics Mode';
+
+  @override
+  String get lyricsModeDescription =>
+      'Choose how lyrics are saved with your downloads';
+
+  @override
+  String get lyricsModeEmbed => 'Embed in file';
+
+  @override
+  String get lyricsModeEmbedSubtitle => 'Lyrics stored inside FLAC metadata';
+
+  @override
+  String get lyricsModeExternal => 'External .lrc file';
+
+  @override
+  String get lyricsModeExternalSubtitle =>
+      'Separate .lrc file for players like Samsung Music';
+
+  @override
+  String get lyricsModeBoth => 'Both';
+
+  @override
+  String get lyricsModeBothSubtitle => 'Embed and save .lrc file';
+
+  @override
   String get sectionColor => 'Warna';
 
   @override
@@ -1548,6 +1585,15 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get trackReleaseDate => 'Tanggal rilis';
+
+  @override
+  String get trackGenre => 'Genre';
+
+  @override
+  String get trackLabel => 'Label';
+
+  @override
+  String get trackCopyright => 'Copyright';
 
   @override
   String get trackDownloaded => 'Diunduh';
@@ -1795,6 +1841,22 @@ class AppLocalizationsId extends AppLocalizations {
   String get qualityHiResFlacMaxSubtitle => '24-bit / hingga 192kHz';
 
   @override
+  String get qualityMp3 => 'MP3';
+
+  @override
+  String get qualityMp3Subtitle => '320kbps (konversi dari FLAC)';
+
+  @override
+  String get enableMp3Option => 'Aktifkan Opsi MP3';
+
+  @override
+  String get enableMp3OptionSubtitleOn => 'Opsi kualitas MP3 tersedia';
+
+  @override
+  String get enableMp3OptionSubtitleOff =>
+      'Unduh FLAC lalu konversi ke MP3 320kbps';
+
+  @override
   String get qualityNote =>
       'Kualitas sebenarnya tergantung ketersediaan lagu dari layanan';
 
@@ -1985,6 +2047,11 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get downloadedAlbumSelectToDelete => 'Pilih lagu untuk dihapus';
+
+  @override
+  String downloadedAlbumDiscHeader(int discNumber) {
+    return 'Disc $discNumber';
+  }
 
   @override
   String get utilityFunctions => 'Fungsi Utilitas';

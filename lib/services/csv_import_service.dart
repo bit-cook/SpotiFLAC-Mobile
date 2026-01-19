@@ -7,8 +7,6 @@ import 'package:spotiflac_android/utils/logger.dart';
 class CsvImportService {
   static final _log = AppLogger('CsvImportService');
 
-  /// Pick and parse CSV file, then enrich metadata from Deezer
-  /// [onProgress] callback receives (current, total) for progress updates
   static Future<List<Track>> pickAndParseCsv({
     void Function(int current, int total)? onProgress,
   }) async {
@@ -34,8 +32,6 @@ class CsvImportService {
     return [];
   }
 
-  /// Enrich tracks with metadata from Deezer using ISRC or search
-  /// This fetches cover URL, duration, and other metadata that CSV doesn't have
   static Future<List<Track>> _enrichTracksMetadata(
     List<Track> tracks, {
     void Function(int current, int total)? onProgress,

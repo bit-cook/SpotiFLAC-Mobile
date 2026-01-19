@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:spotiflac_android/models/theme_settings.dart';
 
-/// App theme configuration for Material Expressive 3
 class AppTheme {
   /// Default seed color (Spotify green)
   static const Color defaultSeedColor = Color(kDefaultSeedColor);
 
-  /// Create light theme
   static ThemeData light({ColorScheme? dynamicScheme, Color? seedColor}) {
     final scheme =
         dynamicScheme ??
@@ -73,7 +71,6 @@ class AppTheme {
     );
   }
 
-  /// AppBar theme
   static AppBarTheme _appBarTheme(
     ColorScheme scheme, {
     bool isAmoled = false,
@@ -101,7 +98,6 @@ class AppTheme {
     surfaceTintColor: scheme.surfaceTint,
   );
 
-  /// Elevated button theme
   static ElevatedButtonThemeData _elevatedButtonTheme(ColorScheme scheme) =>
       ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -124,7 +120,6 @@ class AppTheme {
         ),
       );
 
-  /// Outlined button theme
   static OutlinedButtonThemeData _outlinedButtonTheme(ColorScheme scheme) =>
       OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
@@ -146,7 +141,6 @@ class AppTheme {
         ),
       );
 
-  /// FAB theme
   static FloatingActionButtonThemeData _fabTheme(ColorScheme scheme) =>
       FloatingActionButtonThemeData(
         elevation: 3,
@@ -184,7 +178,6 @@ class AppTheme {
         ), // consistent padding
       );
 
-  /// List tile theme
   static ListTileThemeData _listTileTheme(ColorScheme scheme) =>
       ListTileThemeData(
         shape: RoundedRectangleBorder(
@@ -193,7 +186,6 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       );
 
-  /// Dialog theme
   static DialogThemeData _dialogTheme(ColorScheme scheme) => DialogThemeData(
     elevation: 6,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
@@ -213,7 +205,6 @@ class AppTheme {
     labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
   );
 
-  /// SnackBar theme
   static SnackBarThemeData _snackBarTheme(ColorScheme scheme) =>
       SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
@@ -231,7 +222,6 @@ class AppTheme {
     circularTrackColor: scheme.surfaceContainerHighest,
   );
 
-  /// Switch theme
   static SwitchThemeData _switchTheme(ColorScheme scheme) => SwitchThemeData(
     thumbColor: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.selected)) {
@@ -260,7 +250,6 @@ class AppTheme {
     selectedColor: scheme.secondaryContainer,
   );
 
-  /// Divider theme
   static DividerThemeData _dividerTheme(ColorScheme scheme) =>
       DividerThemeData(color: scheme.outlineVariant, thickness: 1, space: 1);
 }

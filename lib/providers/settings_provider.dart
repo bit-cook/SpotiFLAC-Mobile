@@ -30,7 +30,6 @@ class SettingsNotifier extends Notifier<AppSettings> {
     }
   }
 
-  /// Run one-time migrations for settings
   Future<void> _runMigrations(SharedPreferences prefs) async {
     final lastMigration = prefs.getInt(_migrationVersionKey) ?? 0;
     
@@ -51,7 +50,6 @@ class SettingsNotifier extends Notifier<AppSettings> {
     await prefs.setString(_settingsKey, jsonEncode(state.toJson()));
   }
 
-  /// Apply current Spotify credentials to Go backend
   Future<void> _applySpotifyCredentials() async {
     if (state.spotifyClientId.isNotEmpty && 
         state.spotifyClientSecret.isNotEmpty) {
@@ -90,6 +88,13 @@ class SettingsNotifier extends Notifier<AppSettings> {
   void setEmbedLyrics(bool enabled) {
     state = state.copyWith(embedLyrics: enabled);
     _saveSettings();
+  }
+
+  void setLyricsMode(String mode) {
+    if (mode == 'embed' || mode == 'external' || mode == 'both') {
+      state = state.copyWith(lyricsMode: mode);
+      _saveSettings();
+    }
   }
 
   void setMaxQualityCover(bool enabled) {
@@ -221,6 +226,15 @@ class SettingsNotifier extends Notifier<AppSettings> {
 
   void setLocale(String locale) {
     state = state.copyWith(locale: locale);
+    _saveSettings();
+  }
+
+  void setEnableMp3Option(bool enabled) {
+    state = state.copyWith(enableMp3Option: enabled);
+    // If MP3 is disabled and current quality is MP3, reset to LOSSLESS
+    if (!enabled && state.audioQuality == 'MP3') {
+      state = state.copyWith(audioQuality: 'LOSSLESS');
+    }
     _saveSettings();
   }
 }

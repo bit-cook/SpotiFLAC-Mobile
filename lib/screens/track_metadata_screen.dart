@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:palette_generator/palette_generator.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/utils/mime_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
@@ -11,8 +13,6 @@ import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 
-/// Screen to display detailed metadata for a downloaded track
-/// Designed with Material Expressive 3 style
 class TrackMetadataScreen extends ConsumerStatefulWidget {
   final DownloadHistoryItem item;
 
@@ -28,6 +28,25 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   String? _lyrics;
   bool _lyricsLoading = false;
   String? _lyricsError;
+  Color? _dominantColor;
+  bool _showTitleInAppBar = false;
+  final ScrollController _scrollController = ScrollController();
+  static final RegExp _lrcTimestampPattern =
+      RegExp(r'^\[\d{2}:\d{2}\.\d{2,3}\]');
+  static const List<String> _months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
 
   String? _normalizeOptionalString(String? value) {
     if (value == null) return null;
@@ -40,7 +59,47 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _checkFile();
+    _extractDominantColor();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    final shouldShow = _scrollController.offset > 280;
+    if (shouldShow != _showTitleInAppBar) {
+      setState(() => _showTitleInAppBar = shouldShow);
+    }
+  }
+
+  Future<void> _extractDominantColor() async {
+    final coverUrl = widget.item.coverUrl;
+    if (coverUrl == null || coverUrl.isEmpty) return;
+    if (!coverUrl.startsWith('http://') && !coverUrl.startsWith('https://')) {
+      return;
+    }
+    try {
+      final paletteGenerator = await PaletteGenerator.fromImageProvider(
+        CachedNetworkImageProvider(coverUrl),
+        size: const Size(128, 128),
+        maximumColorCount: 12,
+      );
+      final nextColor = paletteGenerator.dominantColor?.color ??
+          paletteGenerator.vibrantColor?.color ??
+          paletteGenerator.mutedColor?.color;
+      if (mounted && nextColor != _dominantColor) {
+        setState(() {
+          _dominantColor = nextColor;
+        });
+      }
+    } catch (_) {
+    }
   }
 
   Future<void> _checkFile() async {
@@ -48,26 +107,26 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
     if (filePath.startsWith('EXISTS:')) {
       filePath = filePath.substring(7);
     }
-    
-    final file = File(filePath);
-    final exists = await file.exists();
+
+    bool exists = false;
     int? size;
-    
-    if (exists) {
-      try {
-        size = await file.length();
-      } catch (_) {}
-    }
-    
-    if (mounted) {
+    try {
+      final stat = await FileStat.stat(filePath);
+      exists = stat.type != FileSystemEntityType.notFound;
+      if (exists) {
+        size = stat.size;
+      }
+    } catch (_) {}
+
+    if (mounted && (exists != _fileExists || size != _fileSize)) {
       setState(() {
         _fileExists = exists;
         _fileSize = size;
       });
-      
-      if (exists) {
-        _fetchLyrics();
-      }
+    }
+
+    if (mounted && exists && _lyrics == null && !_lyricsLoading) {
+      _fetchLyrics();
     }
   }
 
@@ -80,6 +139,9 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   int? get discNumber => item.discNumber;
   String? get releaseDate => item.releaseDate;
   String? get isrc => item.isrc;
+  String? get genre => item.genre;
+  String? get label => item.label;
+  String? get copyright => item.copyright;
   
   String get cleanFilePath {
     final path = item.filePath;
@@ -91,21 +153,48 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final coverSize = screenWidth * 0.5;
+    final bgColor = _dominantColor ?? colorScheme.surface;
 
     return Scaffold(
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
           SliverAppBar(
-            expandedHeight: 280,
+            expandedHeight: 320,
             pinned: true,
             stretch: true,
-            backgroundColor: colorScheme.surface,
-            flexibleSpace: FlexibleSpaceBar(
-              background: _buildHeaderBackground(context, colorScheme),
-              stretchModes: const [
-                StretchMode.zoomBackground,
-                StretchMode.blurBackground,
-              ],
+            backgroundColor: colorScheme.surface, // Use theme color for collapsed state
+            surfaceTintColor: Colors.transparent,
+            title: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: _showTitleInAppBar ? 1.0 : 0.0,
+              child: Text(
+                trackName,
+                style: TextStyle(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            flexibleSpace: LayoutBuilder(
+              builder: (context, constraints) {
+                final collapseRatio = (constraints.maxHeight - kToolbarHeight) / (320 - kToolbarHeight);
+                final showContent = collapseRatio > 0.3;
+                
+                return FlexibleSpaceBar(
+                  collapseMode: CollapseMode.none,
+                  background: _buildHeaderBackground(context, colorScheme, coverSize, bgColor, showContent),
+                  stretchModes: const [
+                    StretchMode.zoomBackground,
+                    StretchMode.blurBackground,
+                  ],
+                );
+              },
             ),
             leading: IconButton(
               icon: Container(
@@ -167,74 +256,73 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
     );
   }
 
-  Widget _buildHeaderBackground(BuildContext context, ColorScheme colorScheme) {
+  Widget _buildHeaderBackground(BuildContext context, ColorScheme colorScheme, double coverSize, Color bgColor, bool showContent) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (item.coverUrl != null)
-          CachedNetworkImage(
-            imageUrl: item.coverUrl!,
-            fit: BoxFit.cover,
-            color: Colors.black.withValues(alpha: 0.5),
-            colorBlendMode: BlendMode.darken,
-          ),
-        
-        Container(
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 500),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.transparent,
-                colorScheme.surface.withValues(alpha: 0.8),
+                bgColor,
+                bgColor.withValues(alpha: 0.8),
                 colorScheme.surface,
               ],
-              stops: const [0.0, 0.7, 1.0],
+              stops: const [0.0, 0.6, 1.0],
             ),
           ),
         ),
         
-        Center(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 60),
-            child: Hero(
-              tag: 'cover_${item.id}',
-              child: Container(
-                width: 140,
-                height: 140,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: item.coverUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: item.coverUrl!,
-                          fit: BoxFit.cover,
-                          placeholder: (_, _) => Container(
+        AnimatedOpacity(
+          duration: const Duration(milliseconds: 150),
+          opacity: showContent ? 1.0 : 0.0,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 60),
+              child: Hero(
+                tag: 'cover_${item.id}',
+                child: Container(
+                  width: coverSize,
+                  height: coverSize,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        blurRadius: 30,
+                        offset: const Offset(0, 15),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: item.coverUrl != null
+? CachedNetworkImage(
+                            imageUrl: item.coverUrl!,
+                            fit: BoxFit.cover,
+                            memCacheWidth: (coverSize * 2).toInt(),
+                            cacheManager: CoverCacheManager.instance,
+                            placeholder: (_, _) => Container(
+                              color: colorScheme.surfaceContainerHighest,
+                              child: Icon(
+                                Icons.music_note,
+                                size: 64,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          )
+                        : Container(
                             color: colorScheme.surfaceContainerHighest,
                             child: Icon(
                               Icons.music_note,
-                              size: 48,
+                              size: 64,
                               color: colorScheme.onSurfaceVariant,
                             ),
                           ),
-                        )
-                      : Container(
-                          color: colorScheme.surfaceContainerHighest,
-                          child: Icon(
-                            Icons.music_note,
-                            size: 48,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
+                  ),
                 ),
               ),
             ),
@@ -425,8 +513,14 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   }
 
   Widget _buildMetadataGrid(BuildContext context, ColorScheme colorScheme) {
+    // Determine audio quality string based on file type
     String? audioQualityStr;
-    if (bitDepth != null && sampleRate != null) {
+    final fileName = item.filePath.split('/').last;
+    final fileExt = fileName.contains('.') ? fileName.split('.').last.toUpperCase() : '';
+    
+    if (fileExt == 'MP3') {
+      audioQualityStr = '320kbps';
+    } else if (bitDepth != null && sampleRate != null) {
       final sampleRateKHz = (sampleRate! / 1000).toStringAsFixed(1);
       audioQualityStr = '$bitDepth-bit/${sampleRateKHz}kHz';
     }
@@ -447,6 +541,12 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
         _MetadataItem(context.l10n.trackAudioQuality, audioQualityStr),
       if (releaseDate != null && releaseDate!.isNotEmpty)
         _MetadataItem(context.l10n.trackReleaseDate, releaseDate!),
+      if (genre != null && genre!.isNotEmpty)
+        _MetadataItem(context.l10n.trackGenre, genre!),
+      if (label != null && label!.isNotEmpty)
+        _MetadataItem(context.l10n.trackLabel, label!),
+      if (copyright != null && copyright!.isNotEmpty)
+        _MetadataItem(context.l10n.trackCopyright, copyright!),
       if (isrc != null && isrc!.isNotEmpty)
         _MetadataItem('ISRC', isrc!),
     ];
@@ -578,7 +678,23 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
                       ),
                     ),
                   ),
-                if (bitDepth != null && sampleRate != null)
+                if (fileExtension == 'MP3')
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: colorScheme.tertiaryContainer,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '320kbps',
+                      style: TextStyle(
+                        color: colorScheme.onTertiaryContainer,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  )
+                else if (bitDepth != null && sampleRate != null)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
@@ -811,10 +927,9 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   String _cleanLrcForDisplay(String lrc) {
     final lines = lrc.split('\n');
     final cleanLines = <String>[];
-    final timestampPattern = RegExp(r'^\[\d{2}:\d{2}\.\d{2,3}\]');
     
     for (final line in lines) {
-      final cleanLine = line.replaceAll(timestampPattern, '').trim();
+      final cleanLine = line.replaceAll(_lrcTimestampPattern, '').trim();
       if (cleanLine.isNotEmpty) {
         cleanLines.add(cleanLine);
       }
@@ -936,8 +1051,8 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
               ref.read(downloadHistoryProvider.notifier).removeFromHistory(item.id);
               
               if (context.mounted) {
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Go back to history
+                Navigator.pop(context);
+                Navigator.pop(context);
               }
             },
             child: Text(context.l10n.dialogDelete, style: TextStyle(color: colorScheme.error)),
@@ -995,9 +1110,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   }
 
   String _formatFullDate(DateTime date) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${date.day} ${months[date.month - 1]} ${date.year}, '
+    return '${date.day} ${_months[date.month - 1]} ${date.year}, '
            '${date.hour.toString().padLeft(2, '0')}:'
            '${date.minute.toString().padLeft(2, '0')}';
   }

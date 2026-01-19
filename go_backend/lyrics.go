@@ -6,6 +6,8 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -13,13 +15,9 @@ import (
 	"time"
 )
 
-// ========================================
-// Lyrics Cache with TTL
-// ========================================
-
 const (
-	lyricsCacheTTL       = 24 * time.Hour // Cache lyrics for 24 hours
-	durationToleranceSec = 10.0           // Duration matching tolerance in seconds
+	lyricsCacheTTL       = 24 * time.Hour
+	durationToleranceSec = 10.0
 )
 
 type lyricsCacheEntry struct {
@@ -37,10 +35,8 @@ var globalLyricsCache = &lyricsCache{
 }
 
 func (c *lyricsCache) generateKey(artist, track string, durationSec float64) string {
-	// Normalize key: lowercase, trim spaces
 	normalizedArtist := strings.ToLower(strings.TrimSpace(artist))
 	normalizedTrack := strings.ToLower(strings.TrimSpace(track))
-	// Round duration to nearest 10 seconds for cache key
 	roundedDuration := math.Round(durationSec/10) * 10
 	return fmt.Sprintf("%s|%s|%.0f", normalizedArtist, normalizedTrack, roundedDuration)
 }
@@ -55,7 +51,6 @@ func (c *lyricsCache) Get(artist, track string, durationSec float64) (*LyricsRes
 		return nil, false
 	}
 
-	// Check if expired
 	if time.Now().After(entry.expiresAt) {
 		return nil, false
 	}
@@ -74,7 +69,6 @@ func (c *lyricsCache) Set(artist, track string, durationSec float64, response *L
 	}
 }
 
-// CleanExpired removes expired entries from cache
 func (c *lyricsCache) CleanExpired() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -90,7 +84,6 @@ func (c *lyricsCache) CleanExpired() int {
 	return cleaned
 }
 
-// Size returns current cache size
 func (c *lyricsCache) Size() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -130,9 +123,7 @@ type LyricsClient struct {
 
 func NewLyricsClient() *LyricsClient {
 	return &LyricsClient{
-		httpClient: &http.Client{
-			Timeout: 15 * time.Second,
-		},
+		httpClient: NewHTTPClientWithTimeout(15 * time.Second),
 	}
 }
 
@@ -172,8 +163,6 @@ func (c *LyricsClient) FetchLyricsWithMetadata(artist, track string) (*LyricsRes
 	return c.parseLRCLibResponse(&lrcResp), nil
 }
 
-// FetchLyricsFromLRCLibSearch searches lyrics with optional duration matching
-// durationSec: track duration in seconds, use 0 to skip duration matching
 func (c *LyricsClient) FetchLyricsFromLRCLibSearch(query string, durationSec float64) (*LyricsResponse, error) {
 	baseURL := "https://lrclib.net/api/search"
 	params := url.Values{}
@@ -206,13 +195,11 @@ func (c *LyricsClient) FetchLyricsFromLRCLibSearch(query string, durationSec flo
 		return nil, fmt.Errorf("no lyrics found")
 	}
 
-	// Filter and score results based on duration matching and synced lyrics
 	bestMatch := c.findBestMatch(results, durationSec)
 	if bestMatch != nil {
 		return c.parseLRCLibResponse(bestMatch), nil
 	}
 
-	// Fallback: return first result with synced lyrics
 	for _, result := range results {
 		if result.SyncedLyrics != "" {
 			return c.parseLRCLibResponse(&result), nil
@@ -222,7 +209,6 @@ func (c *LyricsClient) FetchLyricsFromLRCLibSearch(query string, durationSec flo
 	return c.parseLRCLibResponse(&results[0]), nil
 }
 
-// findBestMatch finds the best matching lyrics based on duration and sync status
 func (c *LyricsClient) findBestMatch(results []LRCLibResponse, targetDurationSec float64) *LRCLibResponse {
 	var bestSynced *LRCLibResponse
 	var bestPlain *LRCLibResponse
@@ -230,11 +216,9 @@ func (c *LyricsClient) findBestMatch(results []LRCLibResponse, targetDurationSec
 	for i := range results {
 		result := &results[i]
 
-		// Check duration match if target duration is provided
 		durationMatches := targetDurationSec == 0 || c.durationMatches(result.Duration, targetDurationSec)
 
 		if durationMatches {
-			// Prefer synced lyrics over plain
 			if result.SyncedLyrics != "" && bestSynced == nil {
 				bestSynced = result
 			} else if result.PlainLyrics != "" && bestPlain == nil {
@@ -243,20 +227,17 @@ func (c *LyricsClient) findBestMatch(results []LRCLibResponse, targetDurationSec
 		}
 	}
 
-	// Return synced first, then plain
 	if bestSynced != nil {
 		return bestSynced
 	}
 	return bestPlain
 }
 
-// durationMatches checks if two durations are within tolerance
 func (c *LyricsClient) durationMatches(lrcDuration, targetDuration float64) bool {
 	diff := math.Abs(lrcDuration - targetDuration)
 	return diff <= durationToleranceSec
 }
 
-// FetchLyricsAllSources fetches lyrics from multiple sources with caching and duration matching
 // durationSec: track duration in seconds for matching, use 0 to skip duration matching
 func (c *LyricsClient) FetchLyricsAllSources(spotifyID, trackName, artistName string, durationSec float64) (*LyricsResponse, error) {
 	// Check cache first
@@ -394,7 +375,6 @@ func msToLRCTimestamp(ms int64) string {
 	return fmt.Sprintf("[%02d:%02d.%02d]", minutes, seconds, centiseconds)
 }
 
-// convertToLRC converts lyrics to LRC format string (without metadata headers)
 // Use convertToLRCWithMetadata for full LRC with headers
 // Kept for potential future use
 // func convertToLRC(lyrics *LyricsResponse) string {
@@ -421,8 +401,6 @@ func msToLRCTimestamp(ms int64) string {
 // 	return builder.String()
 // }
 
-// convertToLRCWithMetadata converts lyrics to LRC format with metadata headers
-// Includes [ti:], [ar:], [by:] headers
 func convertToLRCWithMetadata(lyrics *LyricsResponse, trackName, artistName string) string {
 	if lyrics == nil || len(lyrics.Lines) == 0 {
 		return ""
@@ -430,13 +408,11 @@ func convertToLRCWithMetadata(lyrics *LyricsResponse, trackName, artistName stri
 
 	var builder strings.Builder
 
-	// Add metadata headers
 	builder.WriteString(fmt.Sprintf("[ti:%s]\n", trackName))
 	builder.WriteString(fmt.Sprintf("[ar:%s]\n", artistName))
 	builder.WriteString("[by:SpotiFLAC-Mobile]\n")
 	builder.WriteString("\n")
 
-	// Add lyrics lines
 	if lyrics.SyncType == "LINE_SYNCED" {
 		for _, line := range lyrics.Lines {
 			if line.Words == "" {
@@ -484,4 +460,23 @@ func simplifyTrackName(name string) string {
 	}
 
 	return strings.TrimSpace(result)
+}
+
+func SaveLRCFile(audioFilePath, lrcContent string) (string, error) {
+	if lrcContent == "" {
+		return "", fmt.Errorf("empty LRC content")
+	}
+
+	dir := filepath.Dir(audioFilePath)
+	ext := filepath.Ext(audioFilePath)
+	baseName := strings.TrimSuffix(filepath.Base(audioFilePath), ext)
+
+	lrcFilePath := filepath.Join(dir, baseName+".lrc")
+
+	if err := os.WriteFile(lrcFilePath, []byte(lrcContent), 0644); err != nil {
+		return "", fmt.Errorf("failed to write LRC file: %w", err)
+	}
+
+	GoLog("[Lyrics] Saved LRC file: %s\n", lrcFilePath)
+	return lrcFilePath, nil
 }
