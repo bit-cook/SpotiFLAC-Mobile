@@ -127,7 +127,7 @@
   "@historyNoSinglesSubtitle": {
     "description": "Empty state subtitle for singles filter"
   },
-  "historySearchHint": "Search history...",
+  "historySearchHint": "検索履歴...",
   "@historySearchHint": {
     "description": "Search bar placeholder in history"
   },
@@ -195,7 +195,7 @@
   "@downloadFilenameFormat": {
     "description": "Setting for output filename pattern"
   },
-  "downloadFolderOrganization": "Folder Organization",
+  "downloadFolderOrganization": "フォルダ構成",
   "@downloadFolderOrganization": {
     "description": "Setting for folder structure"
   },
@@ -308,7 +308,7 @@
   "@optionsUseExtensionProviders": {
     "description": "Enable extension download providers"
   },
-  "optionsUseExtensionProvidersOn": "Extensions will be tried first",
+  "optionsUseExtensionProvidersOn": "最初に拡張で試みます",
   "@optionsUseExtensionProvidersOn": {
     "description": "Status when extension providers enabled"
   },
@@ -332,7 +332,7 @@
   "@optionsMaxQualityCoverSubtitle": {
     "description": "Subtitle for max quality cover"
   },
-  "optionsConcurrentDownloads": "Concurrent Downloads",
+  "optionsConcurrentDownloads": "同時ダウンロード",
   "@optionsConcurrentDownloads": {
     "description": "Number of parallel downloads"
   },
@@ -357,7 +357,7 @@
   "@optionsExtensionStore": {
     "description": "Show/hide store tab"
   },
-  "optionsExtensionStoreSubtitle": "Show Store tab in navigation",
+  "optionsExtensionStoreSubtitle": "ナビゲーションにストアタブを表示",
   "@optionsExtensionStoreSubtitle": {
     "description": "Subtitle for extension store toggle"
   },
@@ -389,19 +389,19 @@
   "@optionsClearHistory": {
     "description": "Delete all download history"
   },
-  "optionsClearHistorySubtitle": "Remove all downloaded tracks from history",
+  "optionsClearHistorySubtitle": "ダウンロード済みのすべてのトラックを履歴から削除",
   "@optionsClearHistorySubtitle": {
     "description": "Subtitle for clear history"
   },
-  "optionsDetailedLogging": "Detailed Logging",
+  "optionsDetailedLogging": "詳細ログ",
   "@optionsDetailedLogging": {
     "description": "Enable verbose logs for debugging"
   },
-  "optionsDetailedLoggingOn": "Detailed logs are being recorded",
+  "optionsDetailedLoggingOn": "詳細なログを記録しています",
   "@optionsDetailedLoggingOn": {
     "description": "Status when logging enabled"
   },
-  "optionsDetailedLoggingOff": "Enable for bug reports",
+  "optionsDetailedLoggingOff": "バグレポートを有効",
   "@optionsDetailedLoggingOff": {
     "description": "Status when logging disabled"
   },
@@ -422,7 +422,7 @@
   "@optionsSpotifyCredentialsRequired": {
     "description": "Prompt to set up credentials"
   },
-  "optionsSpotifyWarning": "Spotify requires your own API credentials. Get them free from developer.spotify.com",
+  "optionsSpotifyWarning": "Spotify は独自の API 認証情報が必要です。developer.spotify.com から取得できます。",
   "@optionsSpotifyWarning": {
     "description": "Info about Spotify API requirement"
   },
@@ -552,23 +552,23 @@
   "@aboutFeatureRequestSubtitle": {
     "description": "Subtitle for feature request"
   },
-  "aboutTelegramChannel": "Telegram Channel",
+  "aboutTelegramChannel": "Telegram チャンネル",
   "@aboutTelegramChannel": {
     "description": "Link to Telegram channel"
   },
-  "aboutTelegramChannelSubtitle": "Announcements and updates",
+  "aboutTelegramChannelSubtitle": "お知らせと更新",
   "@aboutTelegramChannelSubtitle": {
     "description": "Subtitle for Telegram channel"
   },
-  "aboutTelegramChat": "Telegram Community",
+  "aboutTelegramChat": "Telegram コミュニティ",
   "@aboutTelegramChat": {
     "description": "Link to Telegram chat group"
   },
-  "aboutTelegramChatSubtitle": "Chat with other users",
+  "aboutTelegramChatSubtitle": "その他のユーザーとチャット",
   "@aboutTelegramChatSubtitle": {
     "description": "Subtitle for Telegram chat"
   },
-  "aboutSocial": "Social",
+  "aboutSocial": "ソーシャル",
   "@aboutSocial": {
     "description": "Section for social links"
   },
@@ -943,7 +943,7 @@
   "@setupUseSpotifyApi": {
     "description": "Toggle to enable Spotify API"
   },
-  "setupEnterCredentialsBelow": "Enter your credentials below",
+  "setupEnterCredentialsBelow": "以下に認証情報を入力してください",
   "@setupEnterCredentialsBelow": {
     "description": "Prompt to enter credentials"
   },
@@ -959,7 +959,7 @@
   "@setupEnterClientSecret": {
     "description": "Placeholder for client secret field"
   },
-  "setupGetFreeCredentials": "Get your free API credentials from the Spotify Developer Dashboard.",
+  "setupGetFreeCredentials": "Spotify 開発者ダッシュボードから無料の API 認証情報を取得します。",
   "@setupGetFreeCredentials": {
     "description": "Info about getting Spotify credentials"
   },
@@ -1315,7 +1315,7 @@
   "@errorNoTracksFound": {
     "description": "Error - search returned no results"
   },
-  "errorMissingExtensionSource": "Cannot load {item}: missing extension source",
+  "errorMissingExtensionSource": "{item} を読み込めません: 拡張ソースがありません",
   "@errorMissingExtensionSource": {
     "description": "Error - extension source not available",
     "placeholders": {
@@ -1332,7 +1332,7 @@
   "@statusDownloading": {
     "description": "Download status - in progress"
   },
-  "statusFinalizing": "Finalizing",
+  "statusFinalizing": "終了処理中",
   "@statusFinalizing": {
     "description": "Download status - writing metadata"
   },
@@ -1507,19 +1507,19 @@
   "@filenameHint": {
     "description": "Default filename format hint"
   },
-  "folderOrganization": "Folder Organization",
+  "folderOrganization": "フォルダ構成",
   "@folderOrganization": {
     "description": "Setting title - folder structure"
   },
-  "folderOrganizationNone": "No organization",
+  "folderOrganizationNone": "構成がありません",
   "@folderOrganizationNone": {
     "description": "Folder option - flat structure"
   },
-  "folderOrganizationByArtist": "By Artist",
+  "folderOrganizationByArtist": "アーティスト別",
   "@folderOrganizationByArtist": {
     "description": "Folder option - artist folders"
   },
-  "folderOrganizationByAlbum": "By Album",
+  "folderOrganizationByAlbum": "アルバム別",
   "@folderOrganizationByAlbum": {
     "description": "Folder option - album folders"
   },
@@ -1527,11 +1527,11 @@
   "@folderOrganizationByArtistAlbum": {
     "description": "Folder option - nested folders"
   },
-  "folderOrganizationDescription": "Organize downloaded files into folders",
+  "folderOrganizationDescription": "ダウンロードしたファイルをフォルダに整理する",
   "@folderOrganizationDescription": {
     "description": "Folder organization sheet description"
   },
-  "folderOrganizationNoneSubtitle": "All files in download folder",
+  "folderOrganizationNoneSubtitle": "ダウンロードフォルダ内のすべてのファイル",
   "@folderOrganizationNoneSubtitle": {
     "description": "Subtitle for no organization option"
   },
@@ -1564,7 +1564,7 @@
   "@updateDownload": {
     "description": "Update button - download update"
   },
-  "updateLater": "Later",
+  "updateLater": "後で",
   "@updateLater": {
     "description": "Update button - dismiss"
   },
@@ -1608,7 +1608,7 @@
   "@updateDownloadInstall": {
     "description": "Update button - download and install"
   },
-  "updateDontRemind": "Don't remind",
+  "updateDontRemind": "通知しない",
   "@updateDontRemind": {
     "description": "Update button - skip this version"
   },
@@ -1616,7 +1616,7 @@
   "@providerPriority": {
     "description": "Setting title - download provider order"
   },
-  "providerPrioritySubtitle": "Drag to reorder download providers",
+  "providerPrioritySubtitle": "ドラッグでダウンロードプロバイダーを並べ替え",
   "@providerPrioritySubtitle": {
     "description": "Subtitle for provider priority"
   },
@@ -1716,7 +1716,7 @@
   "@logClearLogsTitle": {
     "description": "Clear logs dialog title"
   },
-  "logClearLogsMessage": "Are you sure you want to clear all logs?",
+  "logClearLogsMessage": "すべてのログを消去してもよろしいですか？",
   "@logClearLogsMessage": {
     "description": "Clear logs confirmation message"
   },
@@ -1793,7 +1793,7 @@
       }
     }
   },
-  "logAffected": "Affected: {domains}",
+  "logAffected": "影響: {domains}",
   "@logAffected": {
     "description": "Affected domains display",
     "placeholders": {
@@ -1802,7 +1802,7 @@
       }
     }
   },
-  "logEntriesFiltered": "Entries ({count} filtered)",
+  "logEntriesFiltered": "エントリー ({count} 個をフィルター済み)",
   "@logEntriesFiltered": {
     "description": "Log count with filter active",
     "placeholders": {
@@ -1811,7 +1811,7 @@
       }
     }
   },
-  "logEntries": "Entries ({count})",
+  "logEntries": "エントリー ({count})",
   "@logEntries": {
     "description": "Total log count",
     "placeholders": {
@@ -1888,11 +1888,11 @@
   "@sectionFileSettings": {
     "description": "Settings section header"
   },
-  "sectionLyrics": "Lyrics",
+  "sectionLyrics": "歌詞",
   "@sectionLyrics": {
     "description": "Settings section header"
   },
-  "lyricsMode": "Lyrics Mode",
+  "lyricsMode": "歌詞モード",
   "@lyricsMode": {
     "description": "Setting - how to save lyrics"
   },
@@ -1904,11 +1904,11 @@
   "@lyricsModeEmbed": {
     "description": "Lyrics mode option - embed in audio file"
   },
-  "lyricsModeEmbedSubtitle": "Lyrics stored inside FLAC metadata",
+  "lyricsModeEmbedSubtitle": "FLAC メタデータに保存された歌詞",
   "@lyricsModeEmbedSubtitle": {
     "description": "Subtitle for embed option"
   },
-  "lyricsModeExternal": "External .lrc file",
+  "lyricsModeExternal": "外部 .lrc ファイル",
   "@lyricsModeExternal": {
     "description": "Lyrics mode option - separate LRC file"
   },
@@ -1916,7 +1916,7 @@
   "@lyricsModeExternalSubtitle": {
     "description": "Subtitle for external option"
   },
-  "lyricsModeBoth": "Both",
+  "lyricsModeBoth": "両方",
   "@lyricsModeBoth": {
     "description": "Lyrics mode option - embed and external"
   },
@@ -2070,15 +2070,15 @@
   "@trackReleaseDate": {
     "description": "Metadata label - release date"
   },
-  "trackGenre": "Genre",
+  "trackGenre": "ジャンル",
   "@trackGenre": {
     "description": "Metadata label - music genre"
   },
-  "trackLabel": "Label",
+  "trackLabel": "レーベル",
   "@trackLabel": {
     "description": "Metadata label - record label"
   },
-  "trackCopyright": "Copyright",
+  "trackCopyright": "著作権",
   "@trackCopyright": {
     "description": "Metadata label - copyright information"
   },
@@ -2162,11 +2162,11 @@
   "@concurrentSequential": {
     "description": "Download mode - one at a time"
   },
-  "concurrentParallel2": "2 Parallel",
+  "concurrentParallel2": "2 並列",
   "@concurrentParallel2": {
     "description": "Download mode - 2 simultaneous"
   },
-  "concurrentParallel3": "3 Parallel",
+  "concurrentParallel3": "3 並列",
   "@concurrentParallel3": {
     "description": "Download mode - 3 simultaneous"
   },
@@ -2234,7 +2234,7 @@
   "@extensionError": {
     "description": "Extension detail - error message"
   },
-  "extensionCapabilities": "Capabilities",
+  "extensionCapabilities": "機能",
   "@extensionCapabilities": {
     "description": "Section header - extension features"
   },
@@ -2726,5 +2726,123 @@
         "description": "Error message"
       }
     }
+  },
+  "discographyDownload": "ディスコグラフィをダウンロード",
+  "@discographyDownload": {
+    "description": "Button - download artist discography"
+  },
+  "discographyDownloadAll": "すべてダウンロード",
+  "@discographyDownloadAll": {
+    "description": "Option - download entire discography"
+  },
+  "discographyDownloadAllSubtitle": "{albumCount} 個のリリースから {count} 個のトラック",
+  "@discographyDownloadAllSubtitle": {
+    "description": "Subtitle showing total tracks and albums",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "albumCount": {
+        "type": "int"
+      }
+    }
+  },
+  "discographyAlbumsOnly": "アルバムのみ",
+  "@discographyAlbumsOnly": {
+    "description": "Option - download only albums"
+  },
+  "discographyAlbumsOnlySubtitle": "{count} tracks from {albumCount} albums",
+  "@discographyAlbumsOnlySubtitle": {
+    "description": "Subtitle showing album tracks count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "albumCount": {
+        "type": "int"
+      }
+    }
+  },
+  "discographySinglesOnly": "シングルと EP のみ",
+  "@discographySinglesOnly": {
+    "description": "Option - download only singles"
+  },
+  "discographySinglesOnlySubtitle": "{count} tracks from {albumCount} singles",
+  "@discographySinglesOnlySubtitle": {
+    "description": "Subtitle showing singles tracks count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "albumCount": {
+        "type": "int"
+      }
+    }
+  },
+  "discographySelectAlbums": "アルバムを選択...",
+  "@discographySelectAlbums": {
+    "description": "Option - manually select albums to download"
+  },
+  "discographySelectAlbumsSubtitle": "Choose specific albums or singles",
+  "@discographySelectAlbumsSubtitle": {
+    "description": "Subtitle for select albums option"
+  },
+  "discographyFetchingTracks": "トラックを取得中です...",
+  "@discographyFetchingTracks": {
+    "description": "Progress - fetching album tracks"
+  },
+  "discographyFetchingAlbum": "Fetching {current} of {total}...",
+  "@discographyFetchingAlbum": {
+    "description": "Progress - fetching specific album",
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "discographySelectedCount": "{count} 個を選択済み",
+  "@discographySelectedCount": {
+    "description": "Selection count badge",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "discographyDownloadSelected": "選択済みをダウンロード",
+  "@discographyDownloadSelected": {
+    "description": "Button - download selected albums"
+  },
+  "discographyAddedToQueue": "Added {count} tracks to queue",
+  "@discographyAddedToQueue": {
+    "description": "Snackbar - tracks added from discography",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "discographySkippedDownloaded": "{added} added, {skipped} already downloaded",
+  "@discographySkippedDownloaded": {
+    "description": "Snackbar - with skipped tracks count",
+    "placeholders": {
+      "added": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "discographyNoAlbums": "利用可能なアルバムがありません",
+  "@discographyNoAlbums": {
+    "description": "Error - no albums found for artist"
+  },
+  "discographyFailedToFetch": "一部のアルバムの取得に失敗しました",
+  "@discographyFailedToFetch": {
+    "description": "Error - some albums failed to load"
   }
 }
