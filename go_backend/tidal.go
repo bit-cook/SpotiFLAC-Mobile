@@ -331,7 +331,6 @@ func (t *TidalDownloader) SearchTrackByISRC(isrc string) (*TidalTrack, error) {
 	return nil, fmt.Errorf("no exact ISRC match found for: %s", isrc)
 }
 
-
 // Now includes romaji conversion for Japanese text (4 search strategies like PC)
 func (t *TidalDownloader) SearchTrackByMetadataWithISRC(trackName, artistName, spotifyISRC string, expectedDuration int) (*TidalTrack, error) {
 	token, err := t.GetAccessToken()
@@ -630,7 +629,7 @@ func getDownloadURLParallel(apis []string, trackID int64, quality string) (strin
 
 			var v2Response TidalAPIResponseV2
 			if err := json.Unmarshal(body, &v2Response); err == nil && v2Response.Data.Manifest != "" {
-						if v2Response.Data.AssetPresentation == "PREVIEW" {
+				if v2Response.Data.AssetPresentation == "PREVIEW" {
 					resultChan <- tidalAPIResult{apiURL: api, err: fmt.Errorf("returned PREVIEW instead of FULL"), duration: time.Since(reqStart)}
 					return
 				}
@@ -903,7 +902,7 @@ func (t *TidalDownloader) downloadFromManifest(ctx context.Context, manifestB64,
 
 	if directURL != "" {
 		GoLog("[Tidal] BTS format - downloading from direct URL: %s...\n", directURL[:min(80, len(directURL))])
-			if isDownloadCancelled(itemID) {
+		if isDownloadCancelled(itemID) {
 			return ErrDownloadCancelled
 		}
 
@@ -1346,7 +1345,6 @@ func isLatinScript(s string) bool {
 	return true
 }
 
-
 func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 	downloader := NewTidalDownloader()
 
@@ -1593,15 +1591,25 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 		GoLog("[Tidal] Using release date from Tidal API: %s\n", releaseDate)
 	}
 
+	// Use track number from request if available, otherwise from Tidal API
+	actualTrackNumber := req.TrackNumber
+	actualDiscNumber := req.DiscNumber
+	if actualTrackNumber == 0 {
+		actualTrackNumber = track.TrackNumber
+	}
+	if actualDiscNumber == 0 {
+		actualDiscNumber = track.VolumeNumber
+	}
+
 	metadata := Metadata{
 		Title:       req.TrackName,
 		Artist:      req.ArtistName,
 		Album:       req.AlbumName,
 		AlbumArtist: req.AlbumArtist,
 		Date:        releaseDate,
-		TrackNumber: track.TrackNumber,
+		TrackNumber: actualTrackNumber,
 		TotalTracks: req.TotalTracks,
-		DiscNumber:  track.VolumeNumber,
+		DiscNumber:  actualDiscNumber,
 		ISRC:        track.ISRC,
 		Genre:       req.Genre,
 		Label:       req.Label,
@@ -1659,8 +1667,8 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 		Artist:      track.Artist.Name,
 		Album:       track.Album.Title,
 		ReleaseDate: track.Album.ReleaseDate,
-		TrackNumber: track.TrackNumber,
-		DiscNumber:  track.VolumeNumber,
+		TrackNumber: actualTrackNumber,
+		DiscNumber:  actualDiscNumber,
 		ISRC:        track.ISRC,
 	}, nil
 }

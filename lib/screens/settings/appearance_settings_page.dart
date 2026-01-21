@@ -709,6 +709,7 @@ static const _allLanguages = [
     ('pt', 'Português', Icons.language),
     ('pt_PT', 'Português (Brasil)', Icons.language),
     ('ru', 'Русский', Icons.language),
+    ('tr', 'Türkçe', Icons.language),
     ('zh', '简体中文', Icons.language),
     ('zh_CN', '简体中文 (中国)', Icons.language),
     ('zh_TW', '繁體中文', Icons.language),

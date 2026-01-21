@@ -10,6 +10,8 @@ const _migrationVersionKey = 'settings_migration_version';
 const _currentMigrationVersion = 1;
 
 class SettingsNotifier extends Notifier<AppSettings> {
+  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
+
   @override
   AppSettings build() {
     _loadSettings();
@@ -17,7 +19,7 @@ class SettingsNotifier extends Notifier<AppSettings> {
   }
 
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     final json = prefs.getString(_settingsKey);
     if (json != null) {
       state = AppSettings.fromJson(jsonDecode(json));
@@ -46,7 +48,7 @@ class SettingsNotifier extends Notifier<AppSettings> {
   }
 
   Future<void> _saveSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setString(_settingsKey, jsonEncode(state.toJson()));
   }
 

@@ -1072,13 +1072,19 @@ func downloadFromQobuz(req DownloadRequest) (QobuzDownloadResult, error) {
 		albumName = req.AlbumName
 	}
 
+	// Use track number from request if available, otherwise from Qobuz API
+	actualTrackNumber := req.TrackNumber
+	if actualTrackNumber == 0 {
+		actualTrackNumber = track.TrackNumber
+	}
+
 	metadata := Metadata{
 		Title:       track.Title,
 		Artist:      track.Performer.Name,
 		Album:       albumName,
 		AlbumArtist: req.AlbumArtist, // Qobuz track struct might not have this handy, keep req or check album struct
 		Date:        track.Album.ReleaseDate,
-		TrackNumber: track.TrackNumber,
+		TrackNumber: actualTrackNumber,
 		TotalTracks: req.TotalTracks,
 		DiscNumber:  req.DiscNumber, // QobuzTrack struct usually doesn't have disc info in simple search result
 		ISRC:        track.ISRC,
@@ -1135,7 +1141,7 @@ func downloadFromQobuz(req DownloadRequest) (QobuzDownloadResult, error) {
 		Artist:      track.Performer.Name,
 		Album:       track.Album.Title,
 		ReleaseDate: track.Album.ReleaseDate,
-		TrackNumber: track.TrackNumber,
+		TrackNumber: actualTrackNumber,
 		DiscNumber:  req.DiscNumber, // Qobuz track struct limitations
 		ISRC:        track.ISRC,
 	}, nil

@@ -157,11 +157,35 @@ class AboutPage extends StatelessWidget {
                   onTap: () => _launchUrl('${AppInfo.githubUrl}/issues/new'),
                   showDivider: true,
                 ),
-                _AboutSettingsItem(
+_AboutSettingsItem(
                   icon: Icons.lightbulb_outline,
                   title: context.l10n.aboutFeatureRequest,
                   subtitle: context.l10n.aboutFeatureRequestSubtitle,
                   onTap: () => _launchUrl('${AppInfo.githubUrl}/issues/new'),
+                  showDivider: false,
+                ),
+              ],
+            ),
+          ),
+
+          SliverToBoxAdapter(
+            child: SettingsSectionHeader(title: context.l10n.aboutSocial),
+          ),
+          SliverToBoxAdapter(
+            child: SettingsGroup(
+              children: [
+                _AboutSettingsItem(
+                  icon: Icons.telegram,
+                  title: context.l10n.aboutTelegramChannel,
+                  subtitle: context.l10n.aboutTelegramChannelSubtitle,
+                  onTap: () => _launchUrl('https://t.me/spotiflac'),
+                  showDivider: true,
+                ),
+                _AboutSettingsItem(
+                  icon: Icons.forum_outlined,
+                  title: context.l10n.aboutTelegramChat,
+                  subtitle: context.l10n.aboutTelegramChatSubtitle,
+                  onTap: () => _launchUrl('https://t.me/spotiflacchat'),
                   showDivider: false,
                 ),
               ],

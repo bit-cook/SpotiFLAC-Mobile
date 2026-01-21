@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/dop251/goja"
 )
@@ -370,5 +371,25 @@ func (r *ExtensionRuntime) RegisterGoBackendAPIs(vm *goja.Runtime) {
 		}
 
 		return vm.ToValue(buildFilenameFromTemplate(template, metadata))
+	})
+
+	// Expose getLocalTime - returns device local time info
+	obj.Set("getLocalTime", func(call goja.FunctionCall) goja.Value {
+		now := time.Now()
+		_, offsetSeconds := now.Zone()
+		offsetMinutes := offsetSeconds / 60
+
+		return vm.ToValue(map[string]interface{}{
+			"year":          now.Year(),
+			"month":         int(now.Month()),
+			"day":           now.Day(),
+			"hour":          now.Hour(),
+			"minute":        now.Minute(),
+			"second":        now.Second(),
+			"weekday":       int(now.Weekday()),
+			"offsetMinutes": -offsetMinutes, // JS convention: negative for east of UTC
+			"timezone":      now.Location().String(),
+			"timestamp":     now.Unix(),
+		})
 	})
 }

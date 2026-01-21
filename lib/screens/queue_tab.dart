@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +21,7 @@ class _GroupedAlbum {
   final String? coverUrl;
   final List<DownloadHistoryItem> tracks;
   final DateTime latestDownload;
+  final String searchKey;
 
   _GroupedAlbum({
     required this.albumName,
@@ -26,7 +29,7 @@ class _GroupedAlbum {
     this.coverUrl,
     required this.tracks,
     required this.latestDownload,
-  });
+  }) : searchKey = '${albumName.toLowerCase()}|${artistName.toLowerCase()}';
 
   String get key => '$albumName|$artistName';
 }
@@ -43,6 +46,42 @@ class _HistoryStats {
     required this.albumCount,
     required this.singleTracks,
   });
+}
+
+Map<String, List<String>> _filterHistoryInIsolate(
+  Map<String, Object> payload,
+) {
+  final entries = (payload['entries'] as List).cast<List>();
+  final albumCounts = (payload['albumCounts'] as Map).cast<String, int>();
+  final query = (payload['query'] as String?) ?? '';
+
+  final allIds = <String>[];
+  final albumIds = <String>[];
+  final singleIds = <String>[];
+
+  for (final entry in entries) {
+    final id = entry[0] as String;
+    final albumKey = entry[1] as String;
+    final searchKey = entry[2] as String;
+
+    if (query.isNotEmpty && !searchKey.contains(query)) {
+      continue;
+    }
+
+    allIds.add(id);
+    final count = albumCounts[albumKey] ?? 0;
+    if (count > 1) {
+      albumIds.add(id);
+    } else if (count == 1) {
+      singleIds.add(id);
+    }
+  }
+
+  return {
+    'all': allIds,
+    'albums': albumIds,
+    'singles': singleIds,
+  };
 }
 
 class QueueTab extends ConsumerStatefulWidget {
@@ -73,6 +112,24 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   final List<String> _filterModes = ['all', 'albums', 'singles'];
   bool _isPageControllerInitialized = false;
 
+// Search functionality
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  String _searchQuery = '';
+  Timer? _searchDebounce;
+  List<DownloadHistoryItem>? _historyItemsCache;
+  _HistoryStats? _historyStatsCache;
+  final Map<String, String> _searchIndexCache = {};
+  Map<String, DownloadHistoryItem> _historyItemsById = {};
+  List<List<String>> _historyFilterEntries = const [];
+  Map<String, List<DownloadHistoryItem>> _filteredHistoryCache = const {};
+  List<DownloadHistoryItem>? _filterItemsCache;
+  String _filterQueryCache = '';
+  bool _filterRefreshScheduled = false;
+  bool _isFilteringHistory = false;
+  int _filterRequestId = 0;
+  static const int _filterIsolateThreshold = 800;
+
 
 
   @override
@@ -88,10 +145,176 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     _filterPageController = PageController(initialPage: initialPage);
   }
 
-  @override
+@override
   void dispose() {
     _filterPageController?.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    _searchDebounce?.cancel();
     super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    final normalized = value.trim().toLowerCase();
+    _searchDebounce = Timer(const Duration(milliseconds: 180), () {
+      if (!mounted || _searchQuery == normalized) return;
+      setState(() => _searchQuery = normalized);
+      _requestFilterRefresh();
+    });
+  }
+
+  void _clearSearch() {
+    _searchDebounce?.cancel();
+    if (_searchQuery.isEmpty) return;
+    setState(() => _searchQuery = '');
+    _requestFilterRefresh();
+  }
+
+  void _ensureHistoryCaches(List<DownloadHistoryItem> items) {
+    if (identical(items, _historyItemsCache)) return;
+    _historyItemsCache = items;
+    _historyStatsCache = _buildHistoryStats(items);
+    _searchIndexCache
+      ..clear()
+      ..addEntries(
+        items.map((item) => MapEntry(item.id, _buildSearchKey(item))),
+      );
+    _historyItemsById = {for (final item in items) item.id: item};
+    _historyFilterEntries = List<List<String>>.generate(
+      items.length,
+      (index) {
+        final item = items[index];
+        final searchKey =
+            _searchIndexCache[item.id] ?? _buildSearchKey(item);
+final albumKey =
+            '${item.albumName.toLowerCase()}|${(item.albumArtist ?? item.artistName).toLowerCase()}';
+        return [item.id, albumKey, searchKey];
+      },
+      growable: false,
+    );
+    _requestFilterRefresh();
+  }
+
+  String _buildSearchKey(DownloadHistoryItem item) {
+    return '${item.trackName} ${item.artistName} ${item.albumName}'
+        .toLowerCase();
+  }
+
+  bool _isFilterCacheValid(List<DownloadHistoryItem> items, String query) {
+    return identical(items, _filterItemsCache) && query == _filterQueryCache;
+  }
+
+  void _requestFilterRefresh() {
+    if (_filterRefreshScheduled) return;
+    _filterRefreshScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _filterRefreshScheduled = false;
+      if (!mounted) return;
+      _scheduleHistoryFilterUpdate();
+    });
+  }
+
+  void _scheduleHistoryFilterUpdate() {
+    final items = _historyItemsCache;
+    if (items == null) return;
+    final query = _searchQuery;
+    if (_isFilterCacheValid(items, query)) return;
+
+    final albumCounts =
+        _historyStatsCache?.albumCounts ?? const <String, int>{};
+    if (items.isEmpty) {
+      setState(() {
+        _filteredHistoryCache = const {};
+        _filterItemsCache = items;
+        _filterQueryCache = query;
+        _isFilteringHistory = false;
+      });
+      return;
+    }
+
+    if (items.length <= _filterIsolateThreshold) {
+      final filteredAll =
+          _filterHistoryItems(items, 'all', albumCounts, query);
+      final filteredAlbums =
+          _filterHistoryItems(items, 'albums', albumCounts, query);
+      final filteredSingles =
+          _filterHistoryItems(items, 'singles', albumCounts, query);
+      setState(() {
+        _filteredHistoryCache = {
+          'all': filteredAll,
+          'albums': filteredAlbums,
+          'singles': filteredSingles,
+        };
+        _filterItemsCache = items;
+        _filterQueryCache = query;
+        _isFilteringHistory = false;
+      });
+      return;
+    }
+
+    if (!_isFilteringHistory) {
+      setState(() => _isFilteringHistory = true);
+    }
+
+    final requestId = ++_filterRequestId;
+    final payload = <String, Object>{
+      'entries': _historyFilterEntries,
+      'albumCounts': albumCounts,
+      'query': query,
+    };
+
+    compute(_filterHistoryInIsolate, payload).then((result) {
+      if (!mounted || requestId != _filterRequestId) return;
+      final itemsById = _historyItemsById;
+      final filtered = <String, List<DownloadHistoryItem>>{};
+      for (final entry in result.entries) {
+        filtered[entry.key] = entry.value
+            .map((id) => itemsById[id])
+            .whereType<DownloadHistoryItem>()
+            .toList(growable: false);
+      }
+      setState(() {
+        _filteredHistoryCache = filtered;
+        _filterItemsCache = items;
+        _filterQueryCache = query;
+        _isFilteringHistory = false;
+      });
+    });
+  }
+
+  List<DownloadHistoryItem> _resolveHistoryItems({
+    required String filterMode,
+    required List<DownloadHistoryItem> allHistoryItems,
+    required Map<String, int> albumCounts,
+  }) {
+    final query = _searchQuery;
+    if (_isFilterCacheValid(allHistoryItems, query)) {
+      final cached = _filteredHistoryCache[filterMode];
+      if (cached != null) return cached;
+    }
+    if (allHistoryItems.isEmpty) return const [];
+    if (query.isEmpty && filterMode == 'all') return allHistoryItems;
+    if (allHistoryItems.length <= _filterIsolateThreshold) {
+      return _filterHistoryItems(
+        allHistoryItems,
+        filterMode,
+        albumCounts,
+        query,
+      );
+    }
+    return const [];
+  }
+
+  bool _shouldShowFilteringIndicator({
+    required List<DownloadHistoryItem> allHistoryItems,
+    required String filterMode,
+  }) {
+    if (allHistoryItems.isEmpty) return false;
+    if (_searchQuery.isEmpty && filterMode == 'all') return false;
+    if (allHistoryItems.length <= _filterIsolateThreshold) return false;
+    return !_isFilterCacheValid(allHistoryItems, _searchQuery) ||
+        _isFilteringHistory;
   }
 
   void _onFilterPageChanged(int index) {
@@ -274,7 +497,8 @@ class _QueueTabState extends ConsumerState<QueueTab> {
           ),
         );
 
-    _precacheCover(historyItem.coverUrl);
+_precacheCover(historyItem.coverUrl);
+    _searchFocusNode.unfocus();
     Navigator.push(
       context,
       PageRouteBuilder(
@@ -285,11 +509,12 @@ class _QueueTabState extends ConsumerState<QueueTab> {
         transitionsBuilder: (context, animation, secondaryAnimation, child) =>
             FadeTransition(opacity: animation, child: child),
       ),
-    );
+    ).then((_) => _searchFocusNode.unfocus());
   }
 
   void _navigateToHistoryMetadataScreen(DownloadHistoryItem item) {
     _precacheCover(item.coverUrl);
+    _searchFocusNode.unfocus();
     Navigator.push(
       context,
       PageRouteBuilder(
@@ -300,46 +525,63 @@ class _QueueTabState extends ConsumerState<QueueTab> {
         transitionsBuilder: (context, animation, secondaryAnimation, child) =>
             FadeTransition(opacity: animation, child: child),
       ),
-    );
+    ).then((_) => _searchFocusNode.unfocus());
   }
 
-  List<DownloadHistoryItem> _filterHistoryItems(
+List<DownloadHistoryItem> _filterHistoryItems(
     List<DownloadHistoryItem> items,
     String filterMode,
-    Map<String, int> albumCounts,
-  ) {
-    if (filterMode == 'all') return items;
+    Map<String, int> albumCounts, [
+    String searchQuery = '',
+  ]) {
+    // First apply search filter
+    var filteredItems = items;
+    if (searchQuery.isNotEmpty) {
+      final query = searchQuery;
+      filteredItems = items.where((item) {
+        final searchKey =
+            _searchIndexCache[item.id] ?? _buildSearchKey(item);
+        if (!_searchIndexCache.containsKey(item.id)) {
+          _searchIndexCache[item.id] = searchKey;
+        }
+        return searchKey.contains(query);
+      }).toList();
+    }
 
-    switch (filterMode) {
+    // Then apply filter mode
+    if (filterMode == 'all') return filteredItems;
+
+switch (filterMode) {
       case 'albums':
-        return items.where((item) {
+        return filteredItems.where((item) {
           final key =
-              '${item.albumName}|${item.albumArtist ?? item.artistName}';
+              '${item.albumName.toLowerCase()}|${(item.albumArtist ?? item.artistName).toLowerCase()}';
           return (albumCounts[key] ?? 0) > 1;
         }).toList();
       case 'singles':
-        return items.where((item) {
+        return filteredItems.where((item) {
           final key =
-              '${item.albumName}|${item.albumArtist ?? item.artistName}';
+              '${item.albumName.toLowerCase()}|${(item.albumArtist ?? item.artistName).toLowerCase()}';
           return (albumCounts[key] ?? 0) == 1;
         }).toList();
       default:
-        return items;
+        return filteredItems;
     }
   }
 
-  _HistoryStats _buildHistoryStats(List<DownloadHistoryItem> items) {
+_HistoryStats _buildHistoryStats(List<DownloadHistoryItem> items) {
     final albumCounts = <String, int>{};
     final albumMap = <String, List<DownloadHistoryItem>>{};
     for (final item in items) {
-      final key = '${item.albumName}|${item.albumArtist ?? item.artistName}';
+      // Use lowercase key for case-insensitive grouping
+      final key = '${item.albumName.toLowerCase()}|${(item.albumArtist ?? item.artistName).toLowerCase()}';
       albumCounts[key] = (albumCounts[key] ?? 0) + 1;
       albumMap.putIfAbsent(key, () => []).add(item);
     }
 
     int singleTracks = 0;
     for (final item in items) {
-      final key = '${item.albumName}|${item.albumArtist ?? item.artistName}';
+      final key = '${item.albumName.toLowerCase()}|${(item.albumArtist ?? item.artistName).toLowerCase()}';
       if ((albumCounts[key] ?? 0) <= 1) {
         singleTracks++;
       }
@@ -380,7 +622,8 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     );
   }
 
-  void _navigateToDownloadedAlbum(_GroupedAlbum album) {
+void _navigateToDownloadedAlbum(_GroupedAlbum album) {
+    _searchFocusNode.unfocus();
     Navigator.push(
       context,
       PageRouteBuilder(
@@ -395,27 +638,18 @@ class _QueueTabState extends ConsumerState<QueueTab> {
         transitionsBuilder: (context, animation, secondaryAnimation, child) =>
             FadeTransition(opacity: animation, child: child),
       ),
-    );
+    ).then((_) => _searchFocusNode.unfocus());
   }
 
   @override
   Widget build(BuildContext context) {
     _initializePageController();
 
-    final queueItems = ref.watch(downloadQueueProvider.select((s) => s.items));
-    final isProcessing = ref.watch(
-      downloadQueueProvider.select((s) => s.isProcessing),
-    );
-    final isPaused = ref.watch(downloadQueueProvider.select((s) => s.isPaused));
-    final queuedCount = ref.watch(
-      downloadQueueProvider.select((s) => s.queuedCount),
-    );
-    final completedCount = ref.watch(
-      downloadQueueProvider.select((s) => s.completedCount),
-    );
+final queueItems = ref.watch(downloadQueueProvider.select((s) => s.items));
     final allHistoryItems = ref.watch(
       downloadHistoryProvider.select((s) => s.items),
     );
+    _ensureHistoryCaches(allHistoryItems);
     final historyViewMode = ref.watch(
       settingsProvider.select((s) => s.historyViewMode),
     );
@@ -425,7 +659,8 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     final colorScheme = Theme.of(context).colorScheme;
     final topPadding = MediaQuery.of(context).padding.top;
 
-    final historyStats = _buildHistoryStats(allHistoryItems);
+    final historyStats =
+        _historyStatsCache ?? _buildHistoryStats(allHistoryItems);
     final groupedAlbums = historyStats.groupedAlbums;
     final albumCount = historyStats.albumCount;
     final singleCount = historyStats.singleTracks;
@@ -480,68 +715,88 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                     );
                   },
                 ),
-              ),
+),
 
-              if ((isProcessing || queuedCount > 0) &&
-                  (queueItems.length > 1 || isPaused))
+              // Search bar - always at top
+              if (allHistoryItems.isNotEmpty || queueItems.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: isPaused
-                                    ? colorScheme.errorContainer
-                                    : colorScheme.primaryContainer,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                isPaused ? Icons.pause : Icons.downloading,
-                                color: isPaused
-                                    ? colorScheme.onErrorContainer
-                                    : colorScheme.onPrimaryContainer,
-                              ),
+                    child: GestureDetector(
+                      onTap: () {},
+                      child: TextField(
+                        controller: _searchController,
+                        focusNode: _searchFocusNode,
+                        autofocus: false,
+                        canRequestFocus: true,
+                        decoration: InputDecoration(
+                          hintText: context.l10n.historySearchHint,
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _clearSearch();
+                                    FocusScope.of(context).unfocus();
+                                  },
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerHighest,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(28),
+                            borderSide: BorderSide(
+                              color: colorScheme.outlineVariant,
+                              width: 1,
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                isPaused
-                                    ? 'Paused'
-                                    : '$completedCount/${queueItems.length}',
-                                style: Theme.of(context).textTheme.titleSmall
-                                    ?.copyWith(fontWeight: FontWeight.bold),
-                              ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(28),
+                            borderSide: BorderSide(
+                              color: colorScheme.outlineVariant,
+                              width: 1.5,
                             ),
-                            FilledButton.tonal(
-                              onPressed: () => ref
-                                  .read(downloadQueueProvider.notifier)
-                                  .togglePause(),
-                              child: Text(isPaused ? 'Resume' : 'Pause'),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(28),
+                            borderSide: BorderSide(
+                              color: colorScheme.primary,
+                              width: 2.5,
                             ),
-                          ],
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
                         ),
+                        onChanged: _onSearchChanged,
+                        onTapOutside: (_) {
+                          FocusScope.of(context).unfocus();
+                        },
                       ),
                     ),
+                  ),
                 ),
-              ),
 
               if (queueItems.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                    child: Text(
-                      'Downloading (${queueItems.length})',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Downloading (${queueItems.length})',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        _buildPauseResumeButton(context, ref, colorScheme),
+                      ],
                     ),
+                  ),
                 ),
-              ),
 
               if (queueItems.isNotEmpty)
                 SliverList(
@@ -551,7 +806,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                       key: ValueKey(item.id),
                       child: _buildQueueItem(context, item, colorScheme),
                     );
-                  }, childCount: queueItems.length),
+}, childCount: queueItems.length),
                 ),
 
               if (allHistoryItems.isNotEmpty)
@@ -655,42 +910,24 @@ class _QueueTabState extends ConsumerState<QueueTab> {
 
                 return false;
               },
-              child: PageView(
+              child: PageView.builder(
                 controller: _filterPageController!,
                 physics: const ClampingScrollPhysics(),
                 onPageChanged: _onFilterPageChanged,
-                children: [
-                  _buildFilterContent(
+                itemCount: _filterModes.length,
+                itemBuilder: (context, index) {
+                  final filterMode = _filterModes[index];
+                  return _buildFilterContent(
                     context: context,
                     colorScheme: colorScheme,
-                    filterMode: 'all',
+                    filterMode: filterMode,
                     allHistoryItems: allHistoryItems,
                     historyViewMode: historyViewMode,
                     queueItems: queueItems,
                     groupedAlbums: groupedAlbums,
                     albumCounts: historyStats.albumCounts,
-                  ),
-                  _buildFilterContent(
-                    context: context,
-                    colorScheme: colorScheme,
-                    filterMode: 'albums',
-                    allHistoryItems: allHistoryItems,
-                    historyViewMode: historyViewMode,
-                    queueItems: queueItems,
-                    groupedAlbums: groupedAlbums,
-                    albumCounts: historyStats.albumCounts,
-                  ),
-                  _buildFilterContent(
-                    context: context,
-                    colorScheme: colorScheme,
-                    filterMode: 'singles',
-                    allHistoryItems: allHistoryItems,
-                    historyViewMode: historyViewMode,
-                    queueItems: queueItems,
-                    groupedAlbums: groupedAlbums,
-                    albumCounts: historyStats.albumCounts,
-                  ),
-                ],
+                  );
+                },
               ),
             ),
           ),
@@ -702,13 +939,13 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             left: 0,
             right: 0,
             bottom: _isSelectionMode ? 0 : -(200 + bottomPadding),
-            child: _buildSelectionBottomBar(
+child: _buildSelectionBottomBar(
               context,
               colorScheme,
-              _filterHistoryItems(
-                allHistoryItems,
-                historyFilterMode,
-                historyStats.albumCounts,
+              _resolveHistoryItems(
+                filterMode: historyFilterMode,
+                allHistoryItems: allHistoryItems,
+                albumCounts: historyStats.albumCounts,
               ),
               bottomPadding,
             ),
@@ -726,10 +963,25 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     required String historyViewMode,
     required List<DownloadItem> queueItems,
     required List<_GroupedAlbum> groupedAlbums,
-    required Map<String, int> albumCounts,
+required Map<String, int> albumCounts,
   }) {
-    final historyItems =
-        _filterHistoryItems(allHistoryItems, filterMode, albumCounts);
+final historyItems = _resolveHistoryItems(
+      filterMode: filterMode,
+      allHistoryItems: allHistoryItems,
+      albumCounts: albumCounts,
+    );
+    final showFilteringIndicator = _shouldShowFilteringIndicator(
+      allHistoryItems: allHistoryItems,
+      filterMode: filterMode,
+    );
+
+    // Filter grouped albums based on search query
+    final searchQuery = _searchQuery;
+    final filteredGroupedAlbums = searchQuery.isEmpty
+        ? groupedAlbums
+        : groupedAlbums
+            .where((album) => album.searchKey.contains(searchQuery))
+            .toList();
 
     return CustomScrollView(
       slivers: [
@@ -763,14 +1015,14 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             ),
           ),
 
-        if (groupedAlbums.isNotEmpty &&
+if (filteredGroupedAlbums.isNotEmpty &&
             queueItems.isEmpty &&
             filterMode == 'albums')
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: Text(
-                '${groupedAlbums.length} ${groupedAlbums.length == 1 ? 'album' : 'albums'}',
+                '${filteredGroupedAlbums.length} ${filteredGroupedAlbums.length == 1 ? 'album' : 'albums'}',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -791,7 +1043,33 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             ),
           ),
 
-        if (filterMode == 'albums' && groupedAlbums.isNotEmpty)
+        if (showFilteringIndicator)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Filtering...',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+if (filterMode == 'albums' && filteredGroupedAlbums.isNotEmpty)
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             sliver: SliverGrid(
@@ -803,12 +1081,12 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                     childAspectRatio: 0.75,
                   ),
               delegate: SliverChildBuilderDelegate((context, index) {
-                final album = groupedAlbums[index];
+                final album = filteredGroupedAlbums[index];
                 return KeyedSubtree(
                   key: ValueKey(album.key),
                   child: _buildAlbumGridItem(context, album, colorScheme),
                 );
-              }, childCount: groupedAlbums.length),
+              }, childCount: filteredGroupedAlbums.length),
             ),
           ),
 
@@ -854,9 +1132,10 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                   }, childCount: historyItems.length                ),
               ),
 
-        if (queueItems.isEmpty &&
+if (queueItems.isEmpty &&
             historyItems.isEmpty &&
-            (filterMode != 'albums' || groupedAlbums.isEmpty))
+            (filterMode != 'albums' || filteredGroupedAlbums.isEmpty) &&
+            !showFilteringIndicator)
           SliverFillRemaining(
             hasScrollBody: false,
             child: _buildEmptyState(
@@ -870,6 +1149,31 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             child: SizedBox(height: _isSelectionMode ? 100 : 16),
           ),
       ],
+    );
+  }
+
+  Widget _buildPauseResumeButton(
+    BuildContext context,
+    WidgetRef ref,
+    ColorScheme colorScheme,
+  ) {
+    final isPaused = ref.watch(downloadQueueProvider.select((s) => s.isPaused));
+    
+    return TextButton.icon(
+      onPressed: () {
+        ref.read(downloadQueueProvider.notifier).togglePause();
+      },
+      icon: Icon(
+        isPaused ? Icons.play_arrow : Icons.pause,
+        size: 18,
+      ),
+      label: Text(
+        isPaused ? context.l10n.actionResume : context.l10n.actionPause,
+      ),
+      style: TextButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        foregroundColor: isPaused ? colorScheme.primary : colorScheme.onSurfaceVariant,
+      ),
     );
   }
 

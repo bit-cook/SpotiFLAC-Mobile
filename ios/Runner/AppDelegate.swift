@@ -142,6 +142,27 @@ import Gobackend  // Import Go framework
             if let error = error { throw error }
             return response
             
+        case "checkDuplicatesBatch":
+            let args = call.arguments as! [String: Any]
+            let outputDir = args["output_dir"] as! String
+            let tracksJson = args["tracks"] as? String ?? "[]"
+            let response = GobackendCheckDuplicatesBatch(outputDir, tracksJson, &error)
+            if let error = error { throw error }
+            return response
+            
+        case "preBuildDuplicateIndex":
+            let args = call.arguments as! [String: Any]
+            let outputDir = args["output_dir"] as! String
+            GobackendPreBuildDuplicateIndex(outputDir, &error)
+            if let error = error { throw error }
+            return nil
+            
+        case "invalidateDuplicateIndex":
+            let args = call.arguments as! [String: Any]
+            let outputDir = args["output_dir"] as! String
+            GobackendInvalidateDuplicateIndex(outputDir)
+            return nil
+            
         case "buildFilename":
             let args = call.arguments as! [String: Any]
             let template = args["template"] as! String
@@ -246,6 +267,43 @@ import Gobackend  // Import Go framework
             let args = call.arguments as! [String: Any]
             let url = args["url"] as! String
             let response = GobackendGetSpotifyMetadataWithDeezerFallback(url, &error)
+            if let error = error { throw error }
+            return response
+            
+        case "checkAvailabilityFromDeezerID":
+            let args = call.arguments as! [String: Any]
+            let deezerTrackId = args["deezer_track_id"] as! String
+            let response = GobackendCheckAvailabilityFromDeezerID(deezerTrackId, &error)
+            if let error = error { throw error }
+            return response
+            
+        case "checkAvailabilityByPlatformID":
+            let args = call.arguments as! [String: Any]
+            let platform = args["platform"] as! String
+            let entityType = args["entity_type"] as! String
+            let entityId = args["entity_id"] as! String
+            let response = GobackendCheckAvailabilityByPlatformID(platform, entityType, entityId, &error)
+            if let error = error { throw error }
+            return response
+            
+        case "getSpotifyIDFromDeezerTrack":
+            let args = call.arguments as! [String: Any]
+            let deezerTrackId = args["deezer_track_id"] as! String
+            let response = GobackendGetSpotifyIDFromDeezerTrack(deezerTrackId, &error)
+            if let error = error { throw error }
+            return response
+            
+        case "getTidalURLFromDeezerTrack":
+            let args = call.arguments as! [String: Any]
+            let deezerTrackId = args["deezer_track_id"] as! String
+            let response = GobackendGetTidalURLFromDeezerTrack(deezerTrackId, &error)
+            if let error = error { throw error }
+            return response
+            
+        case "getAmazonURLFromDeezerTrack":
+            let args = call.arguments as! [String: Any]
+            let deezerTrackId = args["deezer_track_id"] as! String
+            let response = GobackendGetAmazonURLFromDeezerTrack(deezerTrackId, &error)
             if let error = error { throw error }
             return response
             
@@ -401,6 +459,14 @@ import Gobackend  // Import Go framework
         case "downloadWithExtensions":
             let requestJson = call.arguments as! String
             let response = GobackendDownloadWithExtensionsJSON(requestJson, &error)
+            if let error = error { throw error }
+            return response
+            
+        case "enrichTrackWithExtension":
+            let args = call.arguments as! [String: Any]
+            let extensionId = args["extension_id"] as! String
+            let trackJson = args["track"] as? String ?? "{}"
+            let response = GobackendEnrichTrackWithExtensionJSON(extensionId, trackJson, &error)
             if let error = error { throw error }
             return response
             
@@ -604,6 +670,21 @@ import Gobackend  // Import Go framework
             GobackendClearStoreCacheJSON(&error)
             if let error = error { throw error }
             return nil
+            
+        // Extension Home Feed API
+        case "getExtensionHomeFeed":
+            let args = call.arguments as! [String: Any]
+            let extensionId = args["extension_id"] as! String
+            let response = GobackendGetExtensionHomeFeedJSON(extensionId, &error)
+            if let error = error { throw error }
+            return response
+            
+        case "getExtensionBrowseCategories":
+            let args = call.arguments as! [String: Any]
+            let extensionId = args["extension_id"] as! String
+            let response = GobackendGetExtensionBrowseCategoriesJSON(extensionId, &error)
+            if let error = error { throw error }
+            return response
             
         default:
             throw NSError(

@@ -100,6 +100,8 @@ class RecentAccessState {
 
 /// Provider for managing recent access history
 class RecentAccessNotifier extends Notifier<RecentAccessState> {
+  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
+
   @override
   RecentAccessState build() {
     _loadHistory();
@@ -107,7 +109,7 @@ class RecentAccessNotifier extends Notifier<RecentAccessState> {
   }
 
   Future<void> _loadHistory() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     final json = prefs.getString(_recentAccessKey);
     final hiddenJson = prefs.getStringList(_hiddenDownloadsKey);
     
@@ -132,13 +134,13 @@ class RecentAccessNotifier extends Notifier<RecentAccessState> {
   }
 
   Future<void> _saveHistory() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     final json = jsonEncode(state.items.map((e) => e.toJson()).toList());
     await prefs.setString(_recentAccessKey, json);
   }
 
   Future<void> _saveHiddenDownloads() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setStringList(_hiddenDownloadsKey, state.hiddenDownloadIds.toList());
   }
 

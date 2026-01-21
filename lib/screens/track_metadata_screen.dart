@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:palette_generator/palette_generator.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:spotiflac_android/services/cover_cache_manager.dart';
+import 'package:spotiflac_android/services/palette_service.dart';
 import 'package:spotiflac_android/utils/mime_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
@@ -25,14 +25,20 @@ class TrackMetadataScreen extends ConsumerStatefulWidget {
 class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   bool _fileExists = false;
   int? _fileSize;
-  String? _lyrics;
+  String? _lyrics;        // Cleaned lyrics for display (no timestamps)
+  String? _rawLyrics;     // Raw LRC with timestamps for embedding
   bool _lyricsLoading = false;
   String? _lyricsError;
   Color? _dominantColor;
   bool _showTitleInAppBar = false;
+  bool _lyricsEmbedded = false;  // Track if lyrics are embedded in file
+  bool _isEmbedding = false;     // Track embed operation in progress
+  bool _isInstrumental = false;  // Track if detected as instrumental
   final ScrollController _scrollController = ScrollController();
   static final RegExp _lrcTimestampPattern =
       RegExp(r'^\[\d{2}:\d{2}\.\d{2,3}\]');
+  static final RegExp _lrcMetadataPattern =
+      RegExp(r'^\[[a-zA-Z]+:.*\]$');
   static const List<String> _months = [
     'Jan',
     'Feb',
@@ -61,7 +67,10 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
     super.initState();
     _scrollController.addListener(_onScroll);
     _checkFile();
-    _extractDominantColor();
+    // Delay palette extraction to avoid jitter during initial build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _extractDominantColor();
+    });
   }
 
   @override
@@ -80,25 +89,20 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
 
   Future<void> _extractDominantColor() async {
     final coverUrl = widget.item.coverUrl;
-    if (coverUrl == null || coverUrl.isEmpty) return;
-    if (!coverUrl.startsWith('http://') && !coverUrl.startsWith('https://')) {
+    
+    // Check cache first
+    final cachedColor = PaletteService.instance.getCached(coverUrl);
+    if (cachedColor != null) {
+      if (mounted && cachedColor != _dominantColor) {
+        setState(() => _dominantColor = cachedColor);
+      }
       return;
     }
-    try {
-      final paletteGenerator = await PaletteGenerator.fromImageProvider(
-        CachedNetworkImageProvider(coverUrl),
-        size: const Size(128, 128),
-        maximumColorCount: 12,
-      );
-      final nextColor = paletteGenerator.dominantColor?.color ??
-          paletteGenerator.vibrantColor?.color ??
-          paletteGenerator.mutedColor?.color;
-      if (mounted && nextColor != _dominantColor) {
-        setState(() {
-          _dominantColor = nextColor;
-        });
-      }
-    } catch (_) {
+    
+    // Extract using PaletteService (runs in isolate)
+    final color = await PaletteService.instance.extractDominantColor(coverUrl);
+    if (mounted && color != null && color != _dominantColor) {
+      setState(() => _dominantColor = color);
     }
   }
 
@@ -846,18 +850,62 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
                   ],
                 ),
               )
-            else if (_lyrics != null)
+            else if (_isInstrumental)
               Container(
-                constraints: const BoxConstraints(maxHeight: 300),
-                child: SingleChildScrollView(
-                  child: Text(
-                    _lyrics!,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface,
-                      height: 1.6,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: colorScheme.tertiaryContainer.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.music_note, color: colorScheme.tertiary, size: 20),
+                    const SizedBox(width: 12),
+                    Text(
+                      context.l10n.trackInstrumental,
+                      style: TextStyle(
+                        color: colorScheme.onTertiaryContainer,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (_lyrics != null)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 300),
+                    child: SingleChildScrollView(
+                      child: Text(
+                        _lyrics!,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurface,
+                          height: 1.6,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  // Show "Embed Lyrics" button if lyrics are from online (not already embedded)
+                  if (!_lyricsEmbedded && _fileExists) ...[
+                    const SizedBox(height: 16),
+                    Center(
+                      child: FilledButton.tonalIcon(
+                        onPressed: _isEmbedding ? null : _embedLyrics,
+                        icon: _isEmbedding
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.save_alt),
+                        label: Text(context.l10n.trackEmbedLyrics),
+                      ),
+                    ),
+                  ],
+                ],
               )
             else
               Center(
@@ -879,26 +927,57 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
     setState(() {
       _lyricsLoading = true;
       _lyricsError = null;
+      _isInstrumental = false;
     });
 
     try {
       // Convert duration from seconds to milliseconds
       final durationMs = (item.duration ?? 0) * 1000;
       
-      // Add timeout to prevent infinite loading
+      // First, check if lyrics are embedded in the file
+      if (_fileExists) {
+        final embeddedResult = await PlatformBridge.getLyricsLRC(
+          '',
+          item.trackName,
+          item.artistName,
+          filePath: cleanFilePath,
+          durationMs: 0,
+        ).timeout(const Duration(seconds: 5), onTimeout: () => '');
+        
+        if (embeddedResult.isNotEmpty) {
+          // Lyrics found in file
+          if (mounted) {
+            final cleanLyrics = _cleanLrcForDisplay(embeddedResult);
+            setState(() {
+              _lyrics = cleanLyrics;
+              _lyricsEmbedded = true;
+              _lyricsLoading = false;
+            });
+          }
+          return;
+        }
+      }
+      
+      // No embedded lyrics, fetch from online
       final result = await PlatformBridge.getLyricsLRC(
         item.spotifyId ?? '',
         item.trackName,
         item.artistName,
-        filePath: _fileExists ? cleanFilePath : null, // Try embedded lyrics first
+        filePath: null, // Don't check file again
         durationMs: durationMs,
       ).timeout(
         const Duration(seconds: 20),
-        onTimeout: () => '', // Return empty string on timeout
+        onTimeout: () => '',
       );
       
       if (mounted) {
-        if (result.isEmpty) {
+        // Check for instrumental marker
+        if (result == '[instrumental:true]') {
+          setState(() {
+            _isInstrumental = true;
+            _lyricsLoading = false;
+          });
+        } else if (result.isEmpty) {
           setState(() {
             _lyricsError = context.l10n.trackLyricsNotAvailable;
             _lyricsLoading = false;
@@ -907,6 +986,8 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
           final cleanLyrics = _cleanLrcForDisplay(result);
           setState(() {
             _lyrics = cleanLyrics;
+            _rawLyrics = result; // Keep raw LRC with timestamps for embedding
+            _lyricsEmbedded = false; // Lyrics from online, not embedded
             _lyricsLoading = false;
           });
         }
@@ -923,13 +1004,59 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
       }
     }
   }
+  
+  Future<void> _embedLyrics() async {
+    if (_isEmbedding || _rawLyrics == null || !_fileExists) return;
+    
+    setState(() => _isEmbedding = true);
+    
+    try {
+      // Use raw LRC content directly - it already has timestamps and metadata
+      final result = await PlatformBridge.embedLyricsToFile(
+        cleanFilePath,
+        _rawLyrics!,
+      );
+      
+      if (mounted) {
+        if (result['success'] == true) {
+          setState(() {
+            _lyricsEmbedded = true;
+            _isEmbedding = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.l10n.trackLyricsEmbedded)),
+          );
+        } else {
+          setState(() => _isEmbedding = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result['error'] ?? 'Failed to embed lyrics')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isEmbedding = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
 
   String _cleanLrcForDisplay(String lrc) {
     final lines = lrc.split('\n');
     final cleanLines = <String>[];
     
     for (final line in lines) {
-      final cleanLine = line.replaceAll(_lrcTimestampPattern, '').trim();
+      final trimmedLine = line.trim();
+      
+      // Skip metadata tags
+      if (_lrcMetadataPattern.hasMatch(trimmedLine)) {
+        continue;
+      }
+      
+      // Remove timestamp and clean up
+      final cleanLine = trimmedLine.replaceAll(_lrcTimestampPattern, '').trim();
       if (cleanLine.isNotEmpty) {
         cleanLines.add(cleanLine);
       }

@@ -719,27 +719,28 @@ func (m *ExtensionManager) GetInstalledExtensionsJSON() (string, error) {
 	extensions := m.GetAllExtensions()
 
 	type ExtensionInfo struct {
-		ID                     string                `json:"id"`
-		Name                   string                `json:"name"`
-		DisplayName            string                `json:"display_name"`
-		Version                string                `json:"version"`
-		Author                 string                `json:"author"`
-		Description            string                `json:"description"`
-		Homepage               string                `json:"homepage,omitempty"`
-		IconPath               string                `json:"icon_path,omitempty"`
-		Types                  []ExtensionType       `json:"types"`
-		Enabled                bool                  `json:"enabled"`
-		Status                 string                `json:"status"`
-		Error                  string                `json:"error_message,omitempty"`
-		Settings               []ExtensionSetting    `json:"settings,omitempty"`
-		QualityOptions         []QualityOption       `json:"quality_options,omitempty"`
-		Permissions            []string              `json:"permissions"`
-		HasMetadataProvider    bool                  `json:"has_metadata_provider"`
-		HasDownloadProvider    bool                  `json:"has_download_provider"`
-		SkipMetadataEnrichment bool                  `json:"skip_metadata_enrichment"`
-		SearchBehavior         *SearchBehaviorConfig `json:"search_behavior,omitempty"`
-		TrackMatching          *TrackMatchingConfig  `json:"track_matching,omitempty"`
-		PostProcessing         *PostProcessingConfig `json:"post_processing,omitempty"`
+		ID                     string                 `json:"id"`
+		Name                   string                 `json:"name"`
+		DisplayName            string                 `json:"display_name"`
+		Version                string                 `json:"version"`
+		Author                 string                 `json:"author"`
+		Description            string                 `json:"description"`
+		Homepage               string                 `json:"homepage,omitempty"`
+		IconPath               string                 `json:"icon_path,omitempty"`
+		Types                  []ExtensionType        `json:"types"`
+		Enabled                bool                   `json:"enabled"`
+		Status                 string                 `json:"status"`
+		Error                  string                 `json:"error_message,omitempty"`
+		Settings               []ExtensionSetting     `json:"settings,omitempty"`
+		QualityOptions         []QualityOption        `json:"quality_options,omitempty"`
+		Permissions            []string               `json:"permissions"`
+		HasMetadataProvider    bool                   `json:"has_metadata_provider"`
+		HasDownloadProvider    bool                   `json:"has_download_provider"`
+		SkipMetadataEnrichment bool                   `json:"skip_metadata_enrichment"`
+		SearchBehavior         *SearchBehaviorConfig  `json:"search_behavior,omitempty"`
+		TrackMatching          *TrackMatchingConfig   `json:"track_matching,omitempty"`
+		PostProcessing         *PostProcessingConfig  `json:"post_processing,omitempty"`
+		Capabilities           map[string]interface{} `json:"capabilities,omitempty"`
 	}
 
 	infos := make([]ExtensionInfo, len(extensions))
@@ -796,6 +797,7 @@ func (m *ExtensionManager) GetInstalledExtensionsJSON() (string, error) {
 			SearchBehavior:         ext.Manifest.SearchBehavior,
 			TrackMatching:          ext.Manifest.TrackMatching,
 			PostProcessing:         ext.Manifest.PostProcessing,
+			Capabilities:           ext.Manifest.Capabilities,
 		}
 	}
 

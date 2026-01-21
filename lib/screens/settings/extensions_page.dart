@@ -19,6 +19,14 @@ class ExtensionsPage extends ConsumerStatefulWidget {
 }
 
 class _ExtensionsPageState extends ConsumerState<ExtensionsPage> {
+  static final RegExp _platformExceptionPattern =
+      RegExp(r'PlatformException\([^,]+,\s*([^,]+(?:,[^,]+)?),');
+  static final RegExp _platformExceptionSimplePattern =
+      RegExp(r'PlatformException\([^,]+,\s*(.+?),\s*null');
+  static final RegExp _trailingNullsPattern =
+      RegExp(r',\s*null\s*,\s*null\)?$');
+  static final RegExp _leadingCommaPattern = RegExp(r'^\s*,\s*');
+
   @override
   void initState() {
     super.initState();
@@ -296,19 +304,19 @@ class _ExtensionsPageState extends ConsumerState<ExtensionsPage> {
     String message = error;
     
     if (message.contains('PlatformException')) {
-      final match = RegExp(r'PlatformException\([^,]+,\s*([^,]+(?:,[^,]+)?),').firstMatch(message);
+      final match = _platformExceptionPattern.firstMatch(message);
       if (match != null) {
         message = match.group(1)?.trim() ?? message;
       } else {
-        final simpleMatch = RegExp(r'PlatformException\([^,]+,\s*(.+?),\s*null').firstMatch(message);
+        final simpleMatch = _platformExceptionSimplePattern.firstMatch(message);
         if (simpleMatch != null) {
           message = simpleMatch.group(1)?.trim() ?? message;
         }
       }
     }
     
-    message = message.replaceAll(RegExp(r',\s*null\s*,\s*null\)?$'), '');
-    message = message.replaceAll(RegExp(r'^\s*,\s*'), '');
+    message = message.replaceAll(_trailingNullsPattern, '');
+    message = message.replaceAll(_leadingCommaPattern, '');
     
     return message;
   }

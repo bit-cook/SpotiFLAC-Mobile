@@ -10,6 +10,8 @@ final themeProvider = NotifierProvider<ThemeNotifier, ThemeSettings>(() {
 
 /// Notifier for managing theme settings with persistence
 class ThemeNotifier extends Notifier<ThemeSettings> {
+  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
+
   @override
   ThemeSettings build() {
     // Load settings asynchronously on first access
@@ -20,7 +22,7 @@ class ThemeNotifier extends Notifier<ThemeSettings> {
   /// Load theme settings from SharedPreferences
   Future<void> _loadFromStorage() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _prefs;
       final modeString = prefs.getString(kThemeModeKey);
       final useDynamic = prefs.getBool(kUseDynamicColorKey);
       final seedColor = prefs.getInt(kSeedColorKey);
@@ -40,7 +42,7 @@ class ThemeNotifier extends Notifier<ThemeSettings> {
   /// Save current settings to SharedPreferences
   Future<void> _saveToStorage() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _prefs;
       await prefs.setString(kThemeModeKey, state.themeMode.name);
       await prefs.setBool(kUseDynamicColorKey, state.useDynamicColor);
       await prefs.setInt(kSeedColorKey, state.seedColorValue);

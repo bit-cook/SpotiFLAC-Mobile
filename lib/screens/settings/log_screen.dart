@@ -5,6 +5,9 @@ import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
 
+final RegExp _domainPattern =
+    RegExp(r'domain:\s*([^\s,]+)', caseSensitive: false);
+
 class LogScreen extends StatefulWidget {
   const LogScreen({super.key});
 
@@ -13,6 +16,7 @@ class LogScreen extends StatefulWidget {
 }
 
 class _LogScreenState extends State<LogScreen> {
+
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   String _selectedLevel = 'ALL';
@@ -633,7 +637,7 @@ class _LogSummaryCard extends StatelessWidget {
           combined.contains('connection refused')) {
         hasISPBlocking = true;
         
-        final domainMatch = RegExp(r'domain:\s*([^\s,]+)', caseSensitive: false).firstMatch(combined);
+        final domainMatch = _domainPattern.firstMatch(combined);
         if (domainMatch != null) {
           blockedDomains.add(domainMatch.group(1)!);
         }

@@ -139,6 +139,28 @@ class MainActivity: FlutterActivity() {
                             }
                             result.success(response)
                         }
+                        "checkDuplicatesBatch" -> {
+                            val outputDir = call.argument<String>("output_dir") ?: ""
+                            val tracksJson = call.argument<String>("tracks") ?: "[]"
+                            val response = withContext(Dispatchers.IO) {
+                                Gobackend.checkDuplicatesBatch(outputDir, tracksJson)
+                            }
+                            result.success(response)
+                        }
+                        "preBuildDuplicateIndex" -> {
+                            val outputDir = call.argument<String>("output_dir") ?: ""
+                            withContext(Dispatchers.IO) {
+                                Gobackend.preBuildDuplicateIndex(outputDir)
+                            }
+                            result.success(null)
+                        }
+                        "invalidateDuplicateIndex" -> {
+                            val outputDir = call.argument<String>("output_dir") ?: ""
+                            withContext(Dispatchers.IO) {
+                                Gobackend.invalidateDuplicateIndex(outputDir)
+                            }
+                            result.success(null)
+                        }
                         "buildFilename" -> {
                             val template = call.argument<String>("template") ?: ""
                             val metadata = call.argument<String>("metadata") ?: "{}"
@@ -306,6 +328,43 @@ class MainActivity: FlutterActivity() {
                             }
                             result.success(response)
                         }
+                        "checkAvailabilityFromDeezerID" -> {
+                            val deezerTrackId = call.argument<String>("deezer_track_id") ?: ""
+                            val response = withContext(Dispatchers.IO) {
+                                Gobackend.checkAvailabilityFromDeezerID(deezerTrackId)
+                            }
+                            result.success(response)
+                        }
+                        "checkAvailabilityByPlatformID" -> {
+                            val platform = call.argument<String>("platform") ?: ""
+                            val entityType = call.argument<String>("entity_type") ?: ""
+                            val entityId = call.argument<String>("entity_id") ?: ""
+                            val response = withContext(Dispatchers.IO) {
+                                Gobackend.checkAvailabilityByPlatformID(platform, entityType, entityId)
+                            }
+                            result.success(response)
+                        }
+                        "getSpotifyIDFromDeezerTrack" -> {
+                            val deezerTrackId = call.argument<String>("deezer_track_id") ?: ""
+                            val response = withContext(Dispatchers.IO) {
+                                Gobackend.getSpotifyIDFromDeezerTrack(deezerTrackId)
+                            }
+                            result.success(response)
+                        }
+                        "getTidalURLFromDeezerTrack" -> {
+                            val deezerTrackId = call.argument<String>("deezer_track_id") ?: ""
+                            val response = withContext(Dispatchers.IO) {
+                                Gobackend.getTidalURLFromDeezerTrack(deezerTrackId)
+                            }
+                            result.success(response)
+                        }
+                        "getAmazonURLFromDeezerTrack" -> {
+                            val deezerTrackId = call.argument<String>("deezer_track_id") ?: ""
+                            val response = withContext(Dispatchers.IO) {
+                                Gobackend.getAmazonURLFromDeezerTrack(deezerTrackId)
+                            }
+                            result.success(response)
+                        }
                         // Log methods
                         "getLogs" -> {
                             val response = withContext(Dispatchers.IO) {
@@ -465,6 +524,14 @@ class MainActivity: FlutterActivity() {
                             val requestJson = call.arguments as String
                             val response = withContext(Dispatchers.IO) {
                                 Gobackend.downloadWithExtensionsJSON(requestJson)
+                            }
+                            result.success(response)
+                        }
+                        "enrichTrackWithExtension" -> {
+                            val extensionId = call.argument<String>("extension_id") ?: ""
+                            val trackJson = call.argument<String>("track") ?: "{}"
+                            val response = withContext(Dispatchers.IO) {
+                                Gobackend.enrichTrackWithExtensionJSON(extensionId, trackJson)
                             }
                             result.success(response)
                         }
@@ -677,6 +744,21 @@ class MainActivity: FlutterActivity() {
                                 Gobackend.clearStoreCacheJSON()
                             }
                             result.success(null)
+                        }
+                        // Extension Home Feed (Explore)
+                        "getExtensionHomeFeed" -> {
+                            val extensionId = call.argument<String>("extension_id") ?: ""
+                            val response = withContext(Dispatchers.IO) {
+                                Gobackend.getExtensionHomeFeedJSON(extensionId)
+                            }
+                            result.success(response)
+                        }
+                        "getExtensionBrowseCategories" -> {
+                            val extensionId = call.argument<String>("extension_id") ?: ""
+                            val response = withContext(Dispatchers.IO) {
+                                Gobackend.getExtensionBrowseCategoriesJSON(extensionId)
+                            }
+                            result.success(response)
                         }
                         else -> result.notImplemented()
                     }

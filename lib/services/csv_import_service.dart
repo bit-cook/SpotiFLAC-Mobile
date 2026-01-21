@@ -6,6 +6,7 @@ import 'package:spotiflac_android/utils/logger.dart';
 
 class CsvImportService {
   static final _log = AppLogger('CsvImportService');
+  static final RegExp _lineSplitPattern = RegExp(r'\r\n|\r|\n');
 
   static Future<List<Track>> pickAndParseCsv({
     void Function(int current, int total)? onProgress,
@@ -123,7 +124,7 @@ class CsvImportService {
 
   static List<Track> _parseCsv(String content) {
     final List<Track> tracks = [];
-    final lines = content.split(RegExp(r'\r\n|\r|\n'));
+    final lines = content.split(_lineSplitPattern);
     if (lines.isEmpty) return tracks;
 
     int startIdx = 0;

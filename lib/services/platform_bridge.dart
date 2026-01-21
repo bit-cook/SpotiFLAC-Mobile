@@ -794,6 +794,34 @@ class PlatformBridge {
     }
   }
 
+  /// Get extension home feed
+  static Future<Map<String, dynamic>?> getExtensionHomeFeed(String extensionId) async {
+    try {
+      final result = await _channel.invokeMethod('getExtensionHomeFeed', {
+        'extension_id': extensionId,
+      });
+      if (result == null || result == '') return null;
+      return jsonDecode(result as String) as Map<String, dynamic>;
+    } catch (e) {
+      _log.e('getExtensionHomeFeed failed: $e');
+      return null;
+    }
+  }
+
+  /// Get extension browse categories
+  static Future<Map<String, dynamic>?> getExtensionBrowseCategories(String extensionId) async {
+    try {
+      final result = await _channel.invokeMethod('getExtensionBrowseCategories', {
+        'extension_id': extensionId,
+      });
+      if (result == null || result == '') return null;
+      return jsonDecode(result as String) as Map<String, dynamic>;
+    } catch (e) {
+      _log.e('getExtensionBrowseCategories failed: $e');
+      return null;
+    }
+  }
+
 
   static Future<Map<String, dynamic>> runPostProcessing(
     String filePath, {

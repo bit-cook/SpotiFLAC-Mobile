@@ -112,6 +112,9 @@ class AppLocalizationsDe extends AppLocalizations {
       'Einzelne Titel-Downloads werden hier angezeigt';
 
   @override
+  String get historySearchHint => 'Search history...';
+
+  @override
   String get settingsTitle => 'Einstellungen';
 
   @override
@@ -440,6 +443,21 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get aboutFeatureRequestSubtitle =>
       'Schlage neue Funktionen für die App vor';
+
+  @override
+  String get aboutTelegramChannel => 'Telegram Channel';
+
+  @override
+  String get aboutTelegramChannelSubtitle => 'Announcements and updates';
+
+  @override
+  String get aboutTelegramChat => 'Telegram Community';
+
+  @override
+  String get aboutTelegramChatSubtitle => 'Chat with other users';
+
+  @override
+  String get aboutSocial => 'Social';
 
   @override
   String get aboutSupport => 'Support';
@@ -1614,6 +1632,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get trackLyricsLoadFailed => 'Failed to load lyrics';
 
   @override
+  String get trackEmbedLyrics => 'Embed Lyrics';
+
+  @override
+  String get trackLyricsEmbedded => 'Lyrics embedded successfully';
+
+  @override
+  String get trackInstrumental => 'Instrumental track';
+
+  @override
   String get trackCopiedToClipboard => 'Copied to clipboard';
 
   @override
@@ -2002,6 +2029,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String get albumFolderYearAlbumSubtitle => 'Albums/[2005] Album Name/';
 
   @override
+  String get albumFolderArtistAlbumSingles => 'Artist / Album + Singles';
+
+  @override
+  String get albumFolderArtistAlbumSinglesSubtitle =>
+      'Artist/Album/ and Artist/Singles/';
+
+  @override
   String get downloadedAlbumDeleteSelected => 'Delete Selected';
 
   @override
@@ -2077,4 +2111,70 @@ class AppLocalizationsDe extends AppLocalizations {
   String errorGeneric(String message) {
     return 'Error: $message';
   }
+
+  @override
+  String get discographyDownload => 'Download Discography';
+
+  @override
+  String get discographyDownloadAll => 'Download All';
+
+  @override
+  String discographyDownloadAllSubtitle(int count, int albumCount) {
+    return '$count tracks from $albumCount releases';
+  }
+
+  @override
+  String get discographyAlbumsOnly => 'Albums Only';
+
+  @override
+  String discographyAlbumsOnlySubtitle(int count, int albumCount) {
+    return '$count tracks from $albumCount albums';
+  }
+
+  @override
+  String get discographySinglesOnly => 'Singles & EPs Only';
+
+  @override
+  String discographySinglesOnlySubtitle(int count, int albumCount) {
+    return '$count tracks from $albumCount singles';
+  }
+
+  @override
+  String get discographySelectAlbums => 'Select Albums...';
+
+  @override
+  String get discographySelectAlbumsSubtitle =>
+      'Choose specific albums or singles';
+
+  @override
+  String get discographyFetchingTracks => 'Fetching tracks...';
+
+  @override
+  String discographyFetchingAlbum(int current, int total) {
+    return 'Fetching $current of $total...';
+  }
+
+  @override
+  String discographySelectedCount(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get discographyDownloadSelected => 'Download Selected';
+
+  @override
+  String discographyAddedToQueue(int count) {
+    return 'Added $count tracks to queue';
+  }
+
+  @override
+  String discographySkippedDownloaded(int added, int skipped) {
+    return '$added added, $skipped already downloaded';
+  }
+
+  @override
+  String get discographyNoAlbums => 'No albums available';
+
+  @override
+  String get discographyFailedToFetch => 'Failed to fetch some albums';
 }

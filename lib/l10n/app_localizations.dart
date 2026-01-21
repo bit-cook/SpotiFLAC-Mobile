@@ -16,6 +16,7 @@ import 'app_localizations_ko.dart';
 import 'app_localizations_nl.dart';
 import 'app_localizations_pt.dart';
 import 'app_localizations_ru.dart';
+import 'app_localizations_tr.dart';
 import 'app_localizations_zh.dart';
 
 // ignore_for_file: type=lint
@@ -117,6 +118,7 @@ abstract class AppLocalizations {
     Locale('pt'),
     Locale('pt', 'PT'),
     Locale('ru'),
+    Locale('tr'),
     Locale('zh'),
     Locale('zh', 'CN'),
     Locale('zh', 'TW'),
@@ -277,6 +279,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Single track downloads will appear here'**
   String get historyNoSinglesSubtitle;
+
+  /// Search bar placeholder in history
+  ///
+  /// In en, this message translates to:
+  /// **'Search history...'**
+  String get historySearchHint;
 
   /// Settings screen title
   ///
@@ -871,6 +879,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Suggest new features for the app'**
   String get aboutFeatureRequestSubtitle;
+
+  /// Link to Telegram channel
+  ///
+  /// In en, this message translates to:
+  /// **'Telegram Channel'**
+  String get aboutTelegramChannel;
+
+  /// Subtitle for Telegram channel
+  ///
+  /// In en, this message translates to:
+  /// **'Announcements and updates'**
+  String get aboutTelegramChannelSubtitle;
+
+  /// Link to Telegram chat group
+  ///
+  /// In en, this message translates to:
+  /// **'Telegram Community'**
+  String get aboutTelegramChat;
+
+  /// Subtitle for Telegram chat
+  ///
+  /// In en, this message translates to:
+  /// **'Chat with other users'**
+  String get aboutTelegramChatSubtitle;
+
+  /// Section for social links
+  ///
+  /// In en, this message translates to:
+  /// **'Social'**
+  String get aboutSocial;
 
   /// Section for support/donation links
   ///
@@ -2924,6 +2962,24 @@ abstract class AppLocalizations {
   /// **'Failed to load lyrics'**
   String get trackLyricsLoadFailed;
 
+  /// Action - embed lyrics into audio file
+  ///
+  /// In en, this message translates to:
+  /// **'Embed Lyrics'**
+  String get trackEmbedLyrics;
+
+  /// Snackbar - lyrics saved to file
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics embedded successfully'**
+  String get trackLyricsEmbedded;
+
+  /// Message when track is instrumental (no lyrics)
+  ///
+  /// In en, this message translates to:
+  /// **'Instrumental track'**
+  String get trackInstrumental;
+
   /// Snackbar - content copied
   ///
   /// In en, this message translates to:
@@ -3650,6 +3706,18 @@ abstract class AppLocalizations {
   /// **'Albums/[2005] Album Name/'**
   String get albumFolderYearAlbumSubtitle;
 
+  /// Album folder option with singles inside artist
+  ///
+  /// In en, this message translates to:
+  /// **'Artist / Album + Singles'**
+  String get albumFolderArtistAlbumSingles;
+
+  /// Folder structure example
+  ///
+  /// In en, this message translates to:
+  /// **'Artist/Album/ and Artist/Singles/'**
+  String get albumFolderArtistAlbumSinglesSubtitle;
+
   /// Button - delete selected tracks
   ///
   /// In en, this message translates to:
@@ -3751,6 +3819,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Error: {message}'**
   String errorGeneric(String message);
+
+  /// Button - download artist discography
+  ///
+  /// In en, this message translates to:
+  /// **'Download Discography'**
+  String get discographyDownload;
+
+  /// Option - download entire discography
+  ///
+  /// In en, this message translates to:
+  /// **'Download All'**
+  String get discographyDownloadAll;
+
+  /// Subtitle showing total tracks and albums
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tracks from {albumCount} releases'**
+  String discographyDownloadAllSubtitle(int count, int albumCount);
+
+  /// Option - download only albums
+  ///
+  /// In en, this message translates to:
+  /// **'Albums Only'**
+  String get discographyAlbumsOnly;
+
+  /// Subtitle showing album tracks count
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tracks from {albumCount} albums'**
+  String discographyAlbumsOnlySubtitle(int count, int albumCount);
+
+  /// Option - download only singles
+  ///
+  /// In en, this message translates to:
+  /// **'Singles & EPs Only'**
+  String get discographySinglesOnly;
+
+  /// Subtitle showing singles tracks count
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tracks from {albumCount} singles'**
+  String discographySinglesOnlySubtitle(int count, int albumCount);
+
+  /// Option - manually select albums to download
+  ///
+  /// In en, this message translates to:
+  /// **'Select Albums...'**
+  String get discographySelectAlbums;
+
+  /// Subtitle for select albums option
+  ///
+  /// In en, this message translates to:
+  /// **'Choose specific albums or singles'**
+  String get discographySelectAlbumsSubtitle;
+
+  /// Progress - fetching album tracks
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching tracks...'**
+  String get discographyFetchingTracks;
+
+  /// Progress - fetching specific album
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching {current} of {total}...'**
+  String discographyFetchingAlbum(int current, int total);
+
+  /// Selection count badge
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String discographySelectedCount(int count);
+
+  /// Button - download selected albums
+  ///
+  /// In en, this message translates to:
+  /// **'Download Selected'**
+  String get discographyDownloadSelected;
+
+  /// Snackbar - tracks added from discography
+  ///
+  /// In en, this message translates to:
+  /// **'Added {count} tracks to queue'**
+  String discographyAddedToQueue(int count);
+
+  /// Snackbar - with skipped tracks count
+  ///
+  /// In en, this message translates to:
+  /// **'{added} added, {skipped} already downloaded'**
+  String discographySkippedDownloaded(int added, int skipped);
+
+  /// Error - no albums found for artist
+  ///
+  /// In en, this message translates to:
+  /// **'No albums available'**
+  String get discographyNoAlbums;
+
+  /// Error - some albums failed to load
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to fetch some albums'**
+  String get discographyFailedToFetch;
 }
 
 class _AppLocalizationsDelegate
@@ -3775,6 +3945,7 @@ class _AppLocalizationsDelegate
     'nl',
     'pt',
     'ru',
+    'tr',
     'zh',
   ].contains(locale.languageCode);
 
@@ -3837,6 +4008,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
       return AppLocalizationsPt();
     case 'ru':
       return AppLocalizationsRu();
+    case 'tr':
+      return AppLocalizationsTr();
     case 'zh':
       return AppLocalizationsZh();
   }

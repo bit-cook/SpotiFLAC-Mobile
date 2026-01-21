@@ -5,12 +5,13 @@ import 'package:spotiflac_android/utils/logger.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
 
 final _log = AppLogger('StoreProvider');
+final RegExp _leadingVersionPrefix = RegExp(r'^v');
 
 /// Compare two semantic version strings
 /// Returns: -1 if v1 < v2, 0 if equal, 1 if v1 > v2
 int compareVersions(String v1, String v2) {
-  final parts1 = v1.replaceAll(RegExp(r'^v'), '').split('.');
-  final parts2 = v2.replaceAll(RegExp(r'^v'), '').split('.');
+  final parts1 = v1.replaceAll(_leadingVersionPrefix, '').split('.');
+  final parts2 = v2.replaceAll(_leadingVersionPrefix, '').split('.');
   
   final maxLen = parts1.length > parts2.length ? parts1.length : parts2.length;
   

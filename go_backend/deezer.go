@@ -325,6 +325,7 @@ func (c *DeezerClient) GetAlbum(ctx context.Context, albumID string) (*AlbumResp
 		Name:        album.Title,
 		ReleaseDate: album.ReleaseDate,
 		Artists:     artistName,
+		ArtistId:    fmt.Sprintf("deezer:%d", album.Artist.ID),
 		Images:      albumImage,
 		Genre:       genreStr,    // From Deezer album
 		Label:       album.Label, // From Deezer album
@@ -339,9 +340,15 @@ func (c *DeezerClient) GetAlbum(ctx context.Context, albumID string) (*AlbumResp
 		albumType = "compilation"
 	}
 
-	for _, track := range album.Tracks.Data {
+	for i, track := range album.Tracks.Data {
 		trackIDStr := fmt.Sprintf("%d", track.ID)
 		isrc := isrcMap[trackIDStr]
+
+		// Use track position from API, fallback to index+1 if not provided
+		trackNum := track.TrackPosition
+		if trackNum == 0 {
+			trackNum = i + 1
+		}
 
 		tracks = append(tracks, AlbumTrackMetadata{
 			SpotifyID:   fmt.Sprintf("deezer:%d", track.ID),
@@ -352,7 +359,7 @@ func (c *DeezerClient) GetAlbum(ctx context.Context, albumID string) (*AlbumResp
 			DurationMS:  track.Duration * 1000,
 			Images:      albumImage,
 			ReleaseDate: album.ReleaseDate,
-			TrackNumber: track.TrackPosition,
+			TrackNumber: trackNum,
 			TotalTracks: album.NbTracks,
 			DiscNumber:  track.DiskNumber,
 			ExternalURL: track.Link,

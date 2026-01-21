@@ -107,24 +107,25 @@ type PostProcessingConfig struct {
 
 // ExtensionManifest represents the manifest.json of an extension
 type ExtensionManifest struct {
-	Name                   string                `json:"name"`
-	DisplayName            string                `json:"displayName"`
-	Version                string                `json:"version"`
-	Author                 string                `json:"author"`
-	Description            string                `json:"description"`
-	Homepage               string                `json:"homepage,omitempty"`
-	Icon                   string                `json:"icon,omitempty"` // Icon filename (e.g., "icon.png")
-	Types                  []ExtensionType       `json:"type"`
-	Permissions            ExtensionPermissions  `json:"permissions"`
-	Settings               []ExtensionSetting    `json:"settings,omitempty"`
-	QualityOptions         []QualityOption       `json:"qualityOptions,omitempty"` // Custom quality options for download providers
-	MinAppVersion          string                `json:"minAppVersion,omitempty"`
-	SkipMetadataEnrichment bool                  `json:"skipMetadataEnrichment,omitempty"` // If true, don't enrich metadata from Deezer/Spotify
-	SkipBuiltInFallback    bool                  `json:"skipBuiltInFallback,omitempty"`    // If true, don't fallback to built-in providers (tidal/qobuz/amazon)
-	SearchBehavior         *SearchBehaviorConfig `json:"searchBehavior,omitempty"`         // Custom search behavior
-	URLHandler             *URLHandlerConfig     `json:"urlHandler,omitempty"`             // Custom URL handling
-	TrackMatching          *TrackMatchingConfig  `json:"trackMatching,omitempty"`          // Custom track matching
-	PostProcessing         *PostProcessingConfig `json:"postProcessing,omitempty"`         // Post-processing hooks
+	Name                   string                 `json:"name"`
+	DisplayName            string                 `json:"displayName"`
+	Version                string                 `json:"version"`
+	Author                 string                 `json:"author"`
+	Description            string                 `json:"description"`
+	Homepage               string                 `json:"homepage,omitempty"`
+	Icon                   string                 `json:"icon,omitempty"` // Icon filename (e.g., "icon.png")
+	Types                  []ExtensionType        `json:"type"`
+	Permissions            ExtensionPermissions   `json:"permissions"`
+	Settings               []ExtensionSetting     `json:"settings,omitempty"`
+	QualityOptions         []QualityOption        `json:"qualityOptions,omitempty"` // Custom quality options for download providers
+	MinAppVersion          string                 `json:"minAppVersion,omitempty"`
+	SkipMetadataEnrichment bool                   `json:"skipMetadataEnrichment,omitempty"` // If true, don't enrich metadata from Deezer/Spotify
+	SkipBuiltInFallback    bool                   `json:"skipBuiltInFallback,omitempty"`    // If true, don't fallback to built-in providers (tidal/qobuz/amazon)
+	SearchBehavior         *SearchBehaviorConfig  `json:"searchBehavior,omitempty"`         // Custom search behavior
+	URLHandler             *URLHandlerConfig      `json:"urlHandler,omitempty"`             // Custom URL handling
+	TrackMatching          *TrackMatchingConfig   `json:"trackMatching,omitempty"`          // Custom track matching
+	PostProcessing         *PostProcessingConfig  `json:"postProcessing,omitempty"`         // Post-processing hooks
+	Capabilities           map[string]interface{} `json:"capabilities,omitempty"`           // Extension capabilities (homeFeed, browseCategories, etc.)
 }
 
 // ManifestValidationError represents a validation error in the manifest

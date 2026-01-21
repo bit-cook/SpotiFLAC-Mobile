@@ -159,15 +159,17 @@ class LogBuffer extends ChangeNotifier {
   }
 
   List<LogEntry> filter({String? level, String? tag, String? search}) {
+    final tagLower = tag?.toLowerCase();
+    final searchLower = search?.toLowerCase();
+
     return _entries.where((entry) {
       if (level != null && level != 'ALL' && entry.level != level) {
         return false;
       }
-      if (tag != null && !entry.tag.toLowerCase().contains(tag.toLowerCase())) {
+      if (tagLower != null && !entry.tag.toLowerCase().contains(tagLower)) {
         return false;
       }
-      if (search != null && search.isNotEmpty) {
-        final searchLower = search.toLowerCase();
+      if (searchLower != null && searchLower.isNotEmpty) {
         return entry.message.toLowerCase().contains(searchLower) ||
             entry.tag.toLowerCase().contains(searchLower) ||
             (entry.error?.toLowerCase().contains(searchLower) ?? false);

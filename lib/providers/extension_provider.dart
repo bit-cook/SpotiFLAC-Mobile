@@ -26,6 +26,7 @@ class Extension {
   final URLHandler? urlHandler;
   final TrackMatching? trackMatching;
   final PostProcessing? postProcessing;
+  final Map<String, dynamic> capabilities; // Extension capabilities (homeFeed, browseCategories, etc.)
 
   const Extension({
     required this.id,
@@ -48,6 +49,7 @@ class Extension {
     this.urlHandler,
     this.trackMatching,
     this.postProcessing,
+    this.capabilities = const {},
   });
 
   factory Extension.fromJson(Map<String, dynamic> json) {
@@ -84,6 +86,7 @@ class Extension {
       postProcessing: json['post_processing'] != null
           ? PostProcessing.fromJson(json['post_processing'] as Map<String, dynamic>)
           : null,
+      capabilities: (json['capabilities'] as Map<String, dynamic>?) ?? const {},
     );
   }
 
@@ -108,6 +111,7 @@ class Extension {
     URLHandler? urlHandler,
     TrackMatching? trackMatching,
     PostProcessing? postProcessing,
+    Map<String, dynamic>? capabilities,
   }) {
     return Extension(
       id: id ?? this.id,
@@ -130,6 +134,7 @@ class Extension {
       urlHandler: urlHandler ?? this.urlHandler,
       trackMatching: trackMatching ?? this.trackMatching,
       postProcessing: postProcessing ?? this.postProcessing,
+      capabilities: capabilities ?? this.capabilities,
     );
   }
 
@@ -137,6 +142,8 @@ class Extension {
   bool get hasURLHandler => urlHandler?.enabled ?? false;
   bool get hasCustomMatching => trackMatching?.customMatching ?? false;
   bool get hasPostProcessing => postProcessing?.enabled ?? false;
+  bool get hasHomeFeed => capabilities['homeFeed'] == true;
+  bool get hasBrowseCategories => capabilities['browseCategories'] == true;
 }
 
 class SearchBehavior {

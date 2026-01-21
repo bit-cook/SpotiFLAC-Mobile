@@ -26,6 +26,15 @@ class _UpdateDialogState extends State<UpdateDialog> {
   bool _isDownloading = false;
   double _progress = 0;
   String _statusText = '';
+  static final RegExp _whatsNewPattern =
+      RegExp(r"###?\s*What'?s\s*New\s*\n", caseSensitive: false);
+  static final RegExp _cutoffPattern =
+      RegExp(r'\n---|\n###?\s*Downloads', caseSensitive: false);
+  static final RegExp _sectionPattern = RegExp(r'^#{1,3}\s*(.+)$');
+  static final RegExp _listPattern = RegExp(r'^[-*]\s+(.+)$');
+  static final RegExp _subListPattern = RegExp(r'^\s+[-*]\s+(.+)$');
+  static final RegExp _boldPattern = RegExp(r'\*\*([^*]+)\*\*');
+  static final RegExp _codePattern = RegExp(r'`([^`]+)`');
 
   Future<void> _downloadAndInstall() async {
     final apkUrl = widget.updateInfo.apkDownloadUrl;
@@ -293,12 +302,12 @@ class _UpdateDialogState extends State<UpdateDialog> {
   String _formatChangelog(String changelog) {
     var content = changelog;
     
-    final whatsNewMatch = RegExp(r"###?\s*What'?s\s*New\s*\n", caseSensitive: false).firstMatch(content);
+    final whatsNewMatch = _whatsNewPattern.firstMatch(content);
     if (whatsNewMatch != null) {
       content = content.substring(whatsNewMatch.end);
     }
     
-    final cutoffMatch = RegExp(r'\n---|\n###?\s*Downloads', caseSensitive: false).firstMatch(content);
+    final cutoffMatch = _cutoffPattern.firstMatch(content);
     if (cutoffMatch != null) {
       content = content.substring(0, cutoffMatch.start);
     }
@@ -310,7 +319,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
       line = line.trim();
       if (line.isEmpty) continue;
       
-      final sectionMatch = RegExp(r'^#{1,3}\s*(.+)$').firstMatch(line);
+      final sectionMatch = _sectionPattern.firstMatch(line);
       if (sectionMatch != null) {
         final section = sectionMatch.group(1)?.trim();
         if (section != null && section.isNotEmpty) {
@@ -320,19 +329,19 @@ class _UpdateDialogState extends State<UpdateDialog> {
         continue;
       }
       
-      final listMatch = RegExp(r'^[-*]\s+(.+)$').firstMatch(line);
+      final listMatch = _listPattern.firstMatch(line);
       if (listMatch != null) {
         var itemText = listMatch.group(1) ?? '';
-        itemText = itemText.replaceAllMapped(RegExp(r'\*\*([^*]+)\*\*'), (m) => m.group(1) ?? '');
-        itemText = itemText.replaceAllMapped(RegExp(r'`([^`]+)`'), (m) => m.group(1) ?? '');
+        itemText = itemText.replaceAllMapped(_boldPattern, (m) => m.group(1) ?? '');
+        itemText = itemText.replaceAllMapped(_codePattern, (m) => m.group(1) ?? '');
         formattedLines.add('• $itemText');
         continue;
       }
       
-      final subListMatch = RegExp(r'^\s+[-*]\s+(.+)$').firstMatch(line);
+      final subListMatch = _subListPattern.firstMatch(line);
       if (subListMatch != null) {
         var itemText = subListMatch.group(1) ?? '';
-        itemText = itemText.replaceAllMapped(RegExp(r'\*\*([^*]+)\*\*'), (m) => m.group(1) ?? '');
+        itemText = itemText.replaceAllMapped(_boldPattern, (m) => m.group(1) ?? '');
         formattedLines.add('  - $itemText');
         continue;
       }

@@ -111,6 +111,9 @@ class AppLocalizationsId extends AppLocalizations {
       'Unduhan lagu satuan akan muncul di sini';
 
   @override
+  String get historySearchHint => 'Search history...';
+
+  @override
   String get settingsTitle => 'Pengaturan';
 
   @override
@@ -433,6 +436,21 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get aboutFeatureRequestSubtitle =>
       'Sarankan fitur baru untuk aplikasi';
+
+  @override
+  String get aboutTelegramChannel => 'Telegram Channel';
+
+  @override
+  String get aboutTelegramChannelSubtitle => 'Announcements and updates';
+
+  @override
+  String get aboutTelegramChat => 'Telegram Community';
+
+  @override
+  String get aboutTelegramChatSubtitle => 'Chat with other users';
+
+  @override
+  String get aboutSocial => 'Social';
 
   @override
   String get aboutSupport => 'Dukungan';
@@ -1611,6 +1629,15 @@ class AppLocalizationsId extends AppLocalizations {
   String get trackLyricsLoadFailed => 'Gagal memuat lirik';
 
   @override
+  String get trackEmbedLyrics => 'Embed Lyrics';
+
+  @override
+  String get trackLyricsEmbedded => 'Lyrics embedded successfully';
+
+  @override
+  String get trackInstrumental => 'Instrumental track';
+
+  @override
   String get trackCopiedToClipboard => 'Disalin ke clipboard';
 
   @override
@@ -2002,6 +2029,13 @@ class AppLocalizationsId extends AppLocalizations {
   String get albumFolderYearAlbumSubtitle => 'Albums/[2005] Nama Album/';
 
   @override
+  String get albumFolderArtistAlbumSingles => 'Artist / Album + Singles';
+
+  @override
+  String get albumFolderArtistAlbumSinglesSubtitle =>
+      'Artist/Album/ and Artist/Singles/';
+
+  @override
   String get downloadedAlbumDeleteSelected => 'Hapus yang Dipilih';
 
   @override
@@ -2077,4 +2111,70 @@ class AppLocalizationsId extends AppLocalizations {
   String errorGeneric(String message) {
     return 'Error: $message';
   }
+
+  @override
+  String get discographyDownload => 'Unduh Diskografi';
+
+  @override
+  String get discographyDownloadAll => 'Unduh Semua';
+
+  @override
+  String discographyDownloadAllSubtitle(int count, int albumCount) {
+    return '$count lagu dari $albumCount rilis';
+  }
+
+  @override
+  String get discographyAlbumsOnly => 'Album Saja';
+
+  @override
+  String discographyAlbumsOnlySubtitle(int count, int albumCount) {
+    return '$count lagu dari $albumCount album';
+  }
+
+  @override
+  String get discographySinglesOnly => 'Single & EP Saja';
+
+  @override
+  String discographySinglesOnlySubtitle(int count, int albumCount) {
+    return '$count lagu dari $albumCount single';
+  }
+
+  @override
+  String get discographySelectAlbums => 'Pilih Album...';
+
+  @override
+  String get discographySelectAlbumsSubtitle =>
+      'Pilih album atau single tertentu';
+
+  @override
+  String get discographyFetchingTracks => 'Mengambil lagu...';
+
+  @override
+  String discographyFetchingAlbum(int current, int total) {
+    return 'Mengambil $current dari $total...';
+  }
+
+  @override
+  String discographySelectedCount(int count) {
+    return '$count dipilih';
+  }
+
+  @override
+  String get discographyDownloadSelected => 'Unduh yang Dipilih';
+
+  @override
+  String discographyAddedToQueue(int count) {
+    return 'Menambahkan $count lagu ke antrian';
+  }
+
+  @override
+  String discographySkippedDownloaded(int added, int skipped) {
+    return '$added ditambahkan, $skipped sudah diunduh';
+  }
+
+  @override
+  String get discographyNoAlbums => 'Tidak ada album tersedia';
+
+  @override
+  String get discographyFailedToFetch => 'Gagal mengambil beberapa album';
 }

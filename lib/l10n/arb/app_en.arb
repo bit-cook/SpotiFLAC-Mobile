@@ -75,8 +75,10 @@
   "@historyNoAlbumsSubtitle": {"description": "Empty state subtitle for albums filter"},
   "historyNoSingles": "No single downloads",
   "@historyNoSingles": {"description": "Empty state when filtering singles"},
-  "historyNoSinglesSubtitle": "Single track downloads will appear here",
+"historyNoSinglesSubtitle": "Single track downloads will appear here",
   "@historyNoSinglesSubtitle": {"description": "Empty state subtitle for singles filter"},
+  "historySearchHint": "Search history...",
+  "@historySearchHint": {"description": "Search bar placeholder in history"},
 
   "settingsTitle": "Settings",
   "@settingsTitle": {"description": "Settings screen title"},
@@ -304,10 +306,20 @@
   "@aboutReportIssue": {"description": "Link to report bugs"},
   "aboutReportIssueSubtitle": "Report any problems you encounter",
   "@aboutReportIssueSubtitle": {"description": "Subtitle for report issue"},
-  "aboutFeatureRequest": "Feature request",
+"aboutFeatureRequest": "Feature request",
   "@aboutFeatureRequest": {"description": "Link to suggest features"},
   "aboutFeatureRequestSubtitle": "Suggest new features for the app",
   "@aboutFeatureRequestSubtitle": {"description": "Subtitle for feature request"},
+  "aboutTelegramChannel": "Telegram Channel",
+  "@aboutTelegramChannel": {"description": "Link to Telegram channel"},
+  "aboutTelegramChannelSubtitle": "Announcements and updates",
+  "@aboutTelegramChannelSubtitle": {"description": "Subtitle for Telegram channel"},
+  "aboutTelegramChat": "Telegram Community",
+  "@aboutTelegramChat": {"description": "Link to Telegram chat group"},
+  "aboutTelegramChatSubtitle": "Chat with other users",
+  "@aboutTelegramChatSubtitle": {"description": "Subtitle for Telegram chat"},
+  "aboutSocial": "Social",
+  "@aboutSocial": {"description": "Section for social links"},
   "aboutSupport": "Support",
   "@aboutSupport": {"description": "Section for support/donation links"},
   "aboutBuyMeCoffee": "Buy me a coffee",
@@ -1176,6 +1188,12 @@
   "@trackLyricsTimeout": {"description": "Message when lyrics request times out"},
   "trackLyricsLoadFailed": "Failed to load lyrics",
   "@trackLyricsLoadFailed": {"description": "Message when lyrics loading fails"},
+  "trackEmbedLyrics": "Embed Lyrics",
+  "@trackEmbedLyrics": {"description": "Action - embed lyrics into audio file"},
+  "trackLyricsEmbedded": "Lyrics embedded successfully",
+  "@trackLyricsEmbedded": {"description": "Snackbar - lyrics saved to file"},
+  "trackInstrumental": "Instrumental track",
+  "@trackInstrumental": {"description": "Message when track is instrumental (no lyrics)"},
   "trackCopiedToClipboard": "Copied to clipboard",
   "@trackCopiedToClipboard": {"description": "Snackbar - content copied"},
   "trackDeleteConfirmTitle": "Remove from device?",
@@ -1465,6 +1483,10 @@
   "@albumFolderYearAlbum": {"description": "Album folder option with year"},
   "albumFolderYearAlbumSubtitle": "Albums/[2005] Album Name/",
   "@albumFolderYearAlbumSubtitle": {"description": "Folder structure example"},
+  "albumFolderArtistAlbumSingles": "Artist / Album + Singles",
+  "@albumFolderArtistAlbumSingles": {"description": "Album folder option with singles inside artist"},
+  "albumFolderArtistAlbumSinglesSubtitle": "Artist/Album/ and Artist/Singles/",
+  "@albumFolderArtistAlbumSinglesSubtitle": {"description": "Folder structure example"},
 
   "downloadedAlbumDeleteSelected": "Delete Selected",
   "@downloadedAlbumDeleteSelected": {"description": "Button - delete selected tracks"},
@@ -1537,5 +1559,80 @@
     "placeholders": {
       "message": {"type": "String", "description": "Error message"}
     }
-  }
+  },
+
+  "discographyDownload": "Download Discography",
+  "@discographyDownload": {"description": "Button - download artist discography"},
+  "discographyDownloadAll": "Download All",
+  "@discographyDownloadAll": {"description": "Option - download entire discography"},
+  "discographyDownloadAllSubtitle": "{count} tracks from {albumCount} releases",
+  "@discographyDownloadAllSubtitle": {
+    "description": "Subtitle showing total tracks and albums",
+    "placeholders": {
+      "count": {"type": "int"},
+      "albumCount": {"type": "int"}
+    }
+  },
+  "discographyAlbumsOnly": "Albums Only",
+  "@discographyAlbumsOnly": {"description": "Option - download only albums"},
+  "discographyAlbumsOnlySubtitle": "{count} tracks from {albumCount} albums",
+  "@discographyAlbumsOnlySubtitle": {
+    "description": "Subtitle showing album tracks count",
+    "placeholders": {
+      "count": {"type": "int"},
+      "albumCount": {"type": "int"}
+    }
+  },
+  "discographySinglesOnly": "Singles & EPs Only",
+  "@discographySinglesOnly": {"description": "Option - download only singles"},
+  "discographySinglesOnlySubtitle": "{count} tracks from {albumCount} singles",
+  "@discographySinglesOnlySubtitle": {
+    "description": "Subtitle showing singles tracks count",
+    "placeholders": {
+      "count": {"type": "int"},
+      "albumCount": {"type": "int"}
+    }
+  },
+  "discographySelectAlbums": "Select Albums...",
+  "@discographySelectAlbums": {"description": "Option - manually select albums to download"},
+  "discographySelectAlbumsSubtitle": "Choose specific albums or singles",
+  "@discographySelectAlbumsSubtitle": {"description": "Subtitle for select albums option"},
+  "discographyFetchingTracks": "Fetching tracks...",
+  "@discographyFetchingTracks": {"description": "Progress - fetching album tracks"},
+  "discographyFetchingAlbum": "Fetching {current} of {total}...",
+  "@discographyFetchingAlbum": {
+    "description": "Progress - fetching specific album",
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "discographySelectedCount": "{count} selected",
+  "@discographySelectedCount": {
+    "description": "Selection count badge",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "discographyDownloadSelected": "Download Selected",
+  "@discographyDownloadSelected": {"description": "Button - download selected albums"},
+  "discographyAddedToQueue": "Added {count} tracks to queue",
+  "@discographyAddedToQueue": {
+    "description": "Snackbar - tracks added from discography",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "discographySkippedDownloaded": "{added} added, {skipped} already downloaded",
+  "@discographySkippedDownloaded": {
+    "description": "Snackbar - with skipped tracks count",
+    "placeholders": {
+      "added": {"type": "int"},
+      "skipped": {"type": "int"}
+    }
+  },
+  "discographyNoAlbums": "No albums available",
+  "@discographyNoAlbums": {"description": "Error - no albums found for artist"},
+  "discographyFailedToFetch": "Failed to fetch some albums",
+  "@discographyFailedToFetch": {"description": "Error - some albums failed to load"}
 }

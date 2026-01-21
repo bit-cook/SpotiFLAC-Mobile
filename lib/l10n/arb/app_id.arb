@@ -683,5 +683,23 @@
   "recentTypePlaylist": "Playlist",
 
   "recentPlaylistInfo": "Playlist: {name}",
-  "errorGeneric": "Error: {message}"
+  "errorGeneric": "Error: {message}",
+
+  "discographyDownload": "Unduh Diskografi",
+  "discographyDownloadAll": "Unduh Semua",
+  "discographyDownloadAllSubtitle": "{count} lagu dari {albumCount} rilis",
+  "discographyAlbumsOnly": "Album Saja",
+  "discographyAlbumsOnlySubtitle": "{count} lagu dari {albumCount} album",
+  "discographySinglesOnly": "Single & EP Saja",
+  "discographySinglesOnlySubtitle": "{count} lagu dari {albumCount} single",
+  "discographySelectAlbums": "Pilih Album...",
+  "discographySelectAlbumsSubtitle": "Pilih album atau single tertentu",
+  "discographyFetchingTracks": "Mengambil lagu...",
+  "discographyFetchingAlbum": "Mengambil {current} dari {total}...",
+  "discographySelectedCount": "{count} dipilih",
+  "discographyDownloadSelected": "Unduh yang Dipilih",
+  "discographyAddedToQueue": "Menambahkan {count} lagu ke antrian",
+  "discographySkippedDownloaded": "{added} ditambahkan, {skipped} sudah diunduh",
+  "discographyNoAlbums": "Tidak ada album tersedia",
+  "discographyFailedToFetch": "Gagal mengambil beberapa album"
 }

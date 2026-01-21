@@ -9,6 +9,12 @@ class ShareIntentService {
   factory ShareIntentService() => _instance;
   ShareIntentService._internal();
 
+  static final RegExp _spotifyUriPattern =
+      RegExp(r'spotify:(track|album|playlist|artist):[a-zA-Z0-9]+');
+  static final RegExp _spotifyUrlPattern = RegExp(
+    r'https?://open\.spotify\.com/(track|album|playlist|artist)/[a-zA-Z0-9]+(\?[^\s]*)?',
+  );
+
   final _sharedUrlController = StreamController<String>.broadcast();
   StreamSubscription<List<SharedMediaFile>>? _mediaSubscription;
   bool _initialized = false;
@@ -57,14 +63,12 @@ class ShareIntentService {
   String? _extractSpotifyUrl(String text) {
     if (text.isEmpty) return null;
 
-    final uriMatch = RegExp(r'spotify:(track|album|playlist|artist):[a-zA-Z0-9]+').firstMatch(text);
+    final uriMatch = _spotifyUriPattern.firstMatch(text);
     if (uriMatch != null) {
       return uriMatch.group(0);
     }
 
-    final urlMatch = RegExp(
-      r'https?://open\.spotify\.com/(track|album|playlist|artist)/[a-zA-Z0-9]+(\?[^\s]*)?',
-    ).firstMatch(text);
+    final urlMatch = _spotifyUrlPattern.firstMatch(text);
     if (urlMatch != null) {
       final fullUrl = urlMatch.group(0)!;
       final queryIndex = fullUrl.indexOf('?');

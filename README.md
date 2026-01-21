@@ -11,16 +11,6 @@ Download music in true lossless FLAC from Tidal, Qobuz & Amazon Music — no acc
 ![Android](https://img.shields.io/badge/Android-7.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)
 ![iOS](https://img.shields.io/badge/iOS-14.0%2B-000000?style=for-the-badge&logo=apple&logoColor=white)
 
-<p align="center">
-  <a href="https://t.me/spotiflac">
-    <img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel">
-  </a>
-
-  <a href="https://t.me/spotiflacchat">
-    <img src="https://img.shields.io/badge/Telegram-Community-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Community">
-  </a>
-</p>
-
 </div>
 
 ### [Download](https://github.com/zarzet/SpotiFLAC-Mobile/releases)
@@ -64,6 +54,18 @@ Download music in true lossless FLAC from Tidal, Qobuz & Amazon Music for Window
 
 > **Note:** Currently unavailable because the GitHub account is suspended. Alternatively, use [SpotiFLAC-Next](https://github.com/spotiverse/SpotiFLAC-Next) until the original is restored.
 
+## Telegram
+
+<p align="center">
+  <a href="https://t.me/spotiflac">
+    <img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel">
+  </a>
+
+  <a href="https://t.me/spotiflacchat">
+    <img src="https://img.shields.io/badge/Telegram-Community-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Community">
+  </a>
+</p>
+
 ## FAQ
 
 **Q: Why is my download failing with "Song not found"?**  
@@ -78,11 +80,11 @@ A: Yes! Just paste the playlist URL in the search bar. The app will fetch all tr
 **Q: Why do I need to grant storage permission?**  
 A: The app needs permission to save downloaded files to your device. On Android 13+, you may need to grant "All files access" in Settings > Apps > SpotiFLAC > Permissions.
 
-**Q: Why is the mobile app so large (~50MB) compared to the PC version (~3MB)?**  
-A: The mobile app includes FFmpeg libraries for audio processing and format conversion, which adds significant size. The PC version relies on system-installed FFmpeg, keeping the download smaller. We bundle FFmpeg to ensure compatibility across all Android devices without requiring users to install additional software.
-
 **Q: Is this app safe?**  
 A: Yes, the app is open source and you can verify the code yourself. Each release is scanned with VirusTotal (see badge at top of README).
+
+**Q: Why is download not working in my country?**  
+A: Some countries have restricted access to certain streaming service APIs. If downloads are failing, try using a VPN to connect through a different region.
 
 ## Disclaimer
 
