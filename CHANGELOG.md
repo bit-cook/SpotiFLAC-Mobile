@@ -31,6 +31,19 @@
   - Uses Go's `time.Now()` for accurate device timezone detection
   - Solves Goja JS engine's `getTimezoneOffset()` returning 0 issue
 
+- **SQLite Database for Download History**: Migrated from SharedPreferences to SQLite
+  - New `HistoryDatabase` service with proper schema and indexes
+  - O(1) lookups by `spotify_id` and `isrc` (was O(n) linear search)
+  - Non-blocking writes - UI stays responsive during saves
+  - Automatic one-time migration from SharedPreferences on first launch
+  - No storage size limits (was ~1MB with SharedPreferences)
+  - Database schema with indexes: `idx_spotify_id`, `idx_isrc`, `idx_downloaded_at`, `idx_album`
+
+- **Track Duration in Home Feed Items**: Home feed tracks now include duration
+  - Added `duration_ms` field to `ExploreItem` model
+  - Parsed from spotify-web and ytmusic home feed responses
+  - Fixes track duration showing "0:00" in metadata screen after download from home feed
+
 ### Fixed
 
 - **YT Music Greeting Time**: Fixed "Good night" showing in the morning
@@ -42,16 +55,24 @@
   - Now uses `gobackend.getLocalTime().timezone` or offset mapping
   - Ensures personalized content is based on correct user timezone
 
+- **Home Feed Track Duration**: Fixed duration showing 0:00 when downloading from home feed
+  - spotify-web and ytmusic extensions now include `duration_ms` in home feed items
+  - `ExploreItem` model now has `durationMs` field
+  - `_downloadExploreTrack()` uses `item.durationMs` instead of hardcoded 0
+- **Explore Item Navigation**: Prevents fallthrough so tapping a track/album/playlist/artist only triggers its intended action
+
 ### Extensions
 
 - **spotify-web Extension**: Updated to v1.8.0
   - Added `capabilities: { homeFeed: true, browseCategories: true }` to manifest
   - `fetchHomeFeed()` now uses `gobackend.getLocalTime()` for timezone detection
+  - Added `duration_ms` to home feed track items
   - Removed reliance on Goja's broken `getTimezoneOffset()` and `Intl.DateTimeFormat()`
 
 - **ytmusic-spotiflac Extension**: Updated to v1.6.0
   - Added `capabilities: { homeFeed: true }` to manifest
   - `getTimeBasedGreeting()` now uses `gobackend.getLocalTime().hour` directly
+  - Added `duration_ms` parsing from subtitle runs in home feed items
   - Simplified greeting logic - no more manual UTC offset calculations
 
 ### Technical
@@ -65,12 +86,30 @@
   - File: `lib/providers/explore_provider.dart`
   - Finds extensions with `hasHomeFeed` capability
   - Prefers spotify-web if available, falls back to first available
+  - Added `durationMs` field to `ExploreItem` model
+- **Explore Provider**: Single-pass home feed extension selection (prefers spotify-web) and guard against parallel fetches
+- **Go Backend Extensions**: Consolidates `getHomeFeed`/`getBrowseCategories` execution into a shared helper
 
 - **Flutter Home Tab**: Refactored explore sections rendering
   - File: `lib/screens/home_tab.dart`
   - Added `RefreshIndicator` wrapper with `notificationPredicate` for conditional refresh
   - Added `_buildYTMusicQuickPicksSection()` for special YT Music format
   - Added `_QuickPicksPageView` StatefulWidget for swipeable track pages
+  - `_downloadExploreTrack()` now uses `item.durationMs`
+  - Uses a single `SliverList` for Explore sections to reduce sliver count
+  - Moves provider listeners to `initState` with `listenManual`
+  - Early-exit loop for YT Music Quick Picks detection
+  - Removes redundant provider watches and reuses `MediaQuery` values
+
+### Performance
+
+- **Download History Database**: Migrated from JSON/SharedPreferences to SQLite
+  - File: `lib/services/history_database.dart`
+  - Load time: O(query) instead of O(parse entire JSON)
+  - Lookup by spotify_id/isrc: O(1) with index instead of O(n) linear search
+  - Save single item: O(1) INSERT instead of O(n) serialize entire list
+  - Delete single item: O(1) DELETE instead of O(n) serialize entire list
+  - Memory: Only loaded items in memory, not entire JSON string
 
 ## [3.1.3] - 2026-01-19
 

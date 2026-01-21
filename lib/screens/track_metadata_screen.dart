@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:palette_generator/palette_generator.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:spotiflac_android/services/cover_cache_manager.dart';
+import 'package:spotiflac_android/services/palette_service.dart';
 import 'package:spotiflac_android/utils/mime_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
@@ -61,7 +61,10 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
     super.initState();
     _scrollController.addListener(_onScroll);
     _checkFile();
-    _extractDominantColor();
+    // Delay palette extraction to avoid jitter during initial build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _extractDominantColor();
+    });
   }
 
   @override
@@ -80,25 +83,20 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
 
   Future<void> _extractDominantColor() async {
     final coverUrl = widget.item.coverUrl;
-    if (coverUrl == null || coverUrl.isEmpty) return;
-    if (!coverUrl.startsWith('http://') && !coverUrl.startsWith('https://')) {
+    
+    // Check cache first
+    final cachedColor = PaletteService.instance.getCached(coverUrl);
+    if (cachedColor != null) {
+      if (mounted && cachedColor != _dominantColor) {
+        setState(() => _dominantColor = cachedColor);
+      }
       return;
     }
-    try {
-      final paletteGenerator = await PaletteGenerator.fromImageProvider(
-        CachedNetworkImageProvider(coverUrl),
-        size: const Size(128, 128),
-        maximumColorCount: 12,
-      );
-      final nextColor = paletteGenerator.dominantColor?.color ??
-          paletteGenerator.vibrantColor?.color ??
-          paletteGenerator.mutedColor?.color;
-      if (mounted && nextColor != _dominantColor) {
-        setState(() {
-          _dominantColor = nextColor;
-        });
-      }
-    } catch (_) {
+    
+    // Extract using PaletteService (runs in isolate)
+    final color = await PaletteService.instance.extractDominantColor(coverUrl);
+    if (mounted && color != null && color != _dominantColor) {
+      setState(() => _dominantColor = color);
     }
   }
 

@@ -13,6 +13,7 @@ import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/services/ffmpeg_service.dart';
 import 'package:spotiflac_android/services/notification_service.dart';
+import 'package:spotiflac_android/services/history_database.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 
 final _log = AppLogger('DownloadQueue');
@@ -130,15 +131,36 @@ class DownloadHistoryItem {
 class DownloadHistoryState {
   final List<DownloadHistoryItem> items;
   final Set<String> _downloadedSpotifyIds;
+  final Map<String, DownloadHistoryItem> _bySpotifyId;
+  final Map<String, DownloadHistoryItem> _byIsrc;
 
   DownloadHistoryState({this.items = const []})
     : _downloadedSpotifyIds = items
           .where((item) => item.spotifyId != null && item.spotifyId!.isNotEmpty)
           .map((item) => item.spotifyId!)
-          .toSet();
+          .toSet(),
+      _bySpotifyId = Map.fromEntries(
+        items
+          .where((item) => item.spotifyId != null && item.spotifyId!.isNotEmpty)
+          .map((item) => MapEntry(item.spotifyId!, item)),
+      ),
+      _byIsrc = Map.fromEntries(
+        items
+          .where((item) => item.isrc != null && item.isrc!.isNotEmpty)
+          .map((item) => MapEntry(item.isrc!, item)),
+      );
 
+  /// O(1) check if spotify_id exists
   bool isDownloaded(String spotifyId) =>
       _downloadedSpotifyIds.contains(spotifyId);
+  
+  /// O(1) lookup by spotify_id
+  DownloadHistoryItem? getBySpotifyId(String spotifyId) =>
+      _bySpotifyId[spotifyId];
+  
+  /// O(1) lookup by ISRC
+  DownloadHistoryItem? getByIsrc(String isrc) =>
+      _byIsrc[isrc];
 
   DownloadHistoryState copyWith({List<DownloadHistoryItem>? items}) {
     return DownloadHistoryState(items: items ?? this.items);
@@ -146,130 +168,58 @@ class DownloadHistoryState {
 }
 
 class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
-  static const _storageKey = 'download_history';
-  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
+  final HistoryDatabase _db = HistoryDatabase.instance;
   bool _isLoaded = false;
 
   @override
   DownloadHistoryState build() {
-    _loadFromStorageSync();
+    _loadFromDatabaseSync();
     return DownloadHistoryState();
   }
 
   /// Synchronously schedule load - ensures it runs before any UI renders
-  void _loadFromStorageSync() {
+  void _loadFromDatabaseSync() {
     if (_isLoaded) return;
     Future.microtask(() async {
-      await _loadFromStorage();
+      await _loadFromDatabase();
       _isLoaded = true;
     });
   }
 
-  Future<void> _loadFromStorage() async {
+  Future<void> _loadFromDatabase() async {
     try {
-      final prefs = await _prefs;
-      final jsonStr = prefs.getString(_storageKey);
-      if (jsonStr != null && jsonStr.isNotEmpty) {
-        final List<dynamic> jsonList = jsonDecode(jsonStr);
-        final items = jsonList
-            .map((e) => DownloadHistoryItem.fromJson(e as Map<String, dynamic>))
-            .toList();
-        
-        final deduplicatedItems = _deduplicateHistory(items);
-        
-        state = state.copyWith(items: deduplicatedItems);
-        _historyLog.i('Loaded ${deduplicatedItems.length} items from storage (original: ${items.length})');
-        
-        if (deduplicatedItems.length < items.length) {
-          _historyLog.i('Removed ${items.length - deduplicatedItems.length} duplicate entries');
-          await _saveToStorage();
-        }
-      } else {
-        _historyLog.d('No history found in storage');
-      }
-    } catch (e) {
-      _historyLog.e('Failed to load history: $e');
-    }
-  }
-
-  /// Keeps the most recent entry (first occurrence since list is sorted by date desc)
-  List<DownloadHistoryItem> _deduplicateHistory(List<DownloadHistoryItem> items) {
-    final seen = <String, int>{}; // key -> index of first occurrence
-    final result = <DownloadHistoryItem>[];
-    
-    for (int i = 0; i < items.length; i++) {
-      final item = items[i];
-      String? key;
-      
-      if (item.spotifyId != null && item.spotifyId!.isNotEmpty) {
-        if (item.spotifyId!.startsWith('deezer:')) {
-          key = 'deezer:${item.spotifyId!.substring(7)}';
-        } else {
-          key = 'spotify:${item.spotifyId}';
-        }
-      } else if (item.isrc != null && item.isrc!.isNotEmpty) {
-        key = 'isrc:${item.isrc}';
+      final migrated = await _db.migrateFromSharedPreferences();
+      if (migrated) {
+        _historyLog.i('Migrated history from SharedPreferences to SQLite');
       }
       
-      if (key != null) {
-        if (!seen.containsKey(key)) {
-          seen[key] = result.length;
-          result.add(item);
-        } else {
-          _historyLog.d('Skipping duplicate: ${item.trackName} (key: $key)');
-        }
-      } else {
-        result.add(item);
-      }
-    }
-    
-    return result;
-  }
-
-  Future<void> _saveToStorage() async {
-    try {
-      final prefs = await _prefs;
-      final jsonList = state.items.map((e) => e.toJson()).toList();
-      await prefs.setString(_storageKey, jsonEncode(jsonList));
-      _historyLog.d('Saved ${state.items.length} items to storage');
-    } catch (e) {
-      _historyLog.e('Failed to save history: $e');
+      final jsonList = await _db.getAll();
+      final items = jsonList
+          .map((e) => DownloadHistoryItem.fromJson(e))
+          .toList();
+      
+      state = state.copyWith(items: items);
+      _historyLog.i('Loaded ${items.length} items from SQLite database');
+    } catch (e, stack) {
+      _historyLog.e('Failed to load history from database: $e', e, stack);
     }
   }
 
   Future<void> reloadFromStorage() async {
-    await _loadFromStorage();
+    await _loadFromDatabase();
   }
 
   void addToHistory(DownloadHistoryItem item) {
-    final existingIndex = state.items.indexWhere((existing) {
-      if (item.spotifyId != null && 
-          item.spotifyId!.isNotEmpty && 
-          existing.spotifyId == item.spotifyId) {
-        return true;
-      }
-      
-      if (item.spotifyId != null && item.spotifyId!.startsWith('deezer:') &&
-          existing.spotifyId != null && existing.spotifyId!.startsWith('deezer:')) {
-        final itemDeezerId = item.spotifyId!.substring(7);
-        final existingDeezerId = existing.spotifyId!.substring(7);
-        if (itemDeezerId == existingDeezerId) {
-          return true;
-        }
-      }
-      
-      if (item.isrc != null && 
-          item.isrc!.isNotEmpty && 
-          existing.isrc == item.isrc) {
-        return true;
-      }
-      return false;
-    });
+    DownloadHistoryItem? existing;
+    if (item.spotifyId != null && item.spotifyId!.isNotEmpty) {
+      existing = state.getBySpotifyId(item.spotifyId!);
+    }
+    if (existing == null && item.isrc != null && item.isrc!.isNotEmpty) {
+      existing = state.getByIsrc(item.isrc!);
+    }
 
-    if (existingIndex >= 0) {
-      final updatedItems = [...state.items];
-      updatedItems[existingIndex] = item;
-      updatedItems.removeAt(existingIndex);
+    if (existing != null) {
+      final updatedItems = state.items.where((i) => i.id != existing!.id).toList();
       updatedItems.insert(0, item);
       state = state.copyWith(items: updatedItems);
       _historyLog.d('Updated existing history entry: ${item.trackName}');
@@ -277,31 +227,60 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
       state = state.copyWith(items: [item, ...state.items]);
       _historyLog.d('Added new history entry: ${item.trackName}');
     }
-    _saveToStorage();
+    
+    _db.upsert(item.toJson()).catchError((e) {
+      _historyLog.e('Failed to save to database: $e');
+    });
   }
 
   void removeFromHistory(String id) {
     state = state.copyWith(
       items: state.items.where((item) => item.id != id).toList(),
     );
-    _saveToStorage();
+    _db.deleteById(id).catchError((e) {
+      _historyLog.e('Failed to delete from database: $e');
+    });
   }
 
   void removeBySpotifyId(String spotifyId) {
     state = state.copyWith(
       items: state.items.where((item) => item.spotifyId != spotifyId).toList(),
     );
-    _saveToStorage();
+    _db.deleteBySpotifyId(spotifyId).catchError((e) {
+      _historyLog.e('Failed to delete from database: $e');
+    });
     _historyLog.d('Removed item with spotifyId: $spotifyId');
   }
 
   DownloadHistoryItem? getBySpotifyId(String spotifyId) {
-    return state.items.where((item) => item.spotifyId == spotifyId).firstOrNull;
+    return state.getBySpotifyId(spotifyId);
+  }
+  
+  /// O(1) lookup by ISRC
+  DownloadHistoryItem? getByIsrc(String isrc) {
+    return state.getByIsrc(isrc);
+  }
+  
+  /// Async version with database lookup (for cases where in-memory might be stale)
+  Future<DownloadHistoryItem?> getBySpotifyIdAsync(String spotifyId) async {
+    final inMemory = state.getBySpotifyId(spotifyId);
+    if (inMemory != null) return inMemory;
+    
+    final json = await _db.getBySpotifyId(spotifyId);
+    if (json == null) return null;
+    return DownloadHistoryItem.fromJson(json);
   }
 
   void clearHistory() {
     state = DownloadHistoryState();
-    _saveToStorage();
+    _db.clearAll().catchError((e) {
+      _historyLog.e('Failed to clear database: $e');
+    });
+  }
+  
+  /// Get database stats for debugging
+  Future<int> getDatabaseCount() async {
+    return await _db.getCount();
   }
 }
 
@@ -790,7 +769,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   String _sanitizeFolderName(String name) {
     return name
         .replaceAll(_invalidFolderChars, '_')
-        .replaceAll(_trailingDotsRegex, '') // Remove trailing dots
+        .replaceAll(_trailingDotsRegex, '')
         .trim();
   }
 
@@ -1067,8 +1046,8 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
   /// Same logic as Go backend cover.go
   String _upgradeToMaxQualityCover(String coverUrl) {
-    const spotifySize300 = 'ab67616d00001e02'; // 300x300 (small)
-    const spotifySize640 = 'ab67616d0000b273'; // 640x640 (medium)
+    const spotifySize300 = 'ab67616d00001e02';
+    const spotifySize640 = 'ab67616d0000b273';
     const spotifySizeMax = 'ab67616d000082c1';
     
     var result = coverUrl;
@@ -1667,7 +1646,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         deezerTrackId = trackToDownload.availability!.deezerId;
       }
       
-      // If no deezerTrackId but we have ISRC, try to find track via ISRC
       if (deezerTrackId == null && trackToDownload.isrc != null && trackToDownload.isrc!.isNotEmpty) {
         try {
           _log.d('No Deezer ID, searching by ISRC: ${trackToDownload.isrc}');
@@ -1772,9 +1750,8 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           trackNumber: trackToDownload.trackNumber ?? 1,
           discNumber: trackToDownload.discNumber ?? 1,
           releaseDate: trackToDownload.releaseDate,
-          itemId: item.id, // Pass item ID for progress tracking
-          durationMs:
-              trackToDownload.duration, // Duration in ms for verification
+          itemId: item.id,
+          durationMs: trackToDownload.duration,
         );
       }
 
@@ -1814,7 +1791,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
         final actualBitDepth = result['actual_bit_depth'] as int?;
         final actualSampleRate = result['actual_sample_rate'] as int?;
-        String actualQuality = quality; // Default to requested quality
+        String actualQuality = quality;
 
         if (actualBitDepth != null && actualBitDepth > 0) {
           // Format: "24-bit/96kHz" or "16-bit/44.1kHz"

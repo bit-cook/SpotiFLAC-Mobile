@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:palette_generator/palette_generator.dart';
+import 'package:spotiflac_android/services/palette_service.dart';
 import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/models/track.dart';
@@ -105,19 +105,9 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
 
   Future<void> _extractDominantColor() async {
     if (widget.coverUrl == null) return;
-    try {
-      final paletteGenerator = await PaletteGenerator.fromImageProvider(
-        CachedNetworkImageProvider(widget.coverUrl!),
-        maximumColorCount: 16,
-      );
-      if (mounted) {
-        setState(() {
-          _dominantColor = paletteGenerator.dominantColor?.color ??
-              paletteGenerator.vibrantColor?.color ??
-              paletteGenerator.mutedColor?.color;
-        });
-      }
-    } catch (_) {
+    final color = await PaletteService.instance.extractDominantColor(widget.coverUrl);
+    if (mounted && color != null) {
+      setState(() => _dominantColor = color);
     }
   }
 
