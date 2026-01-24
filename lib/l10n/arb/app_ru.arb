@@ -127,7 +127,7 @@
   "@historyNoSinglesSubtitle": {
     "description": "Empty state subtitle for singles filter"
   },
-  "historySearchHint": "Search history...",
+  "historySearchHint": "Поиск в истории...",
   "@historySearchHint": {
     "description": "Search bar placeholder in history"
   },
@@ -552,23 +552,23 @@
   "@aboutFeatureRequestSubtitle": {
     "description": "Subtitle for feature request"
   },
-  "aboutTelegramChannel": "Telegram Channel",
+  "aboutTelegramChannel": "Telegram канал",
   "@aboutTelegramChannel": {
     "description": "Link to Telegram channel"
   },
-  "aboutTelegramChannelSubtitle": "Announcements and updates",
+  "aboutTelegramChannelSubtitle": "Объявления и обновления",
   "@aboutTelegramChannelSubtitle": {
     "description": "Subtitle for Telegram channel"
   },
-  "aboutTelegramChat": "Telegram Community",
+  "aboutTelegramChat": "Сообщество в Telegram",
   "@aboutTelegramChat": {
     "description": "Link to Telegram chat group"
   },
-  "aboutTelegramChatSubtitle": "Chat with other users",
+  "aboutTelegramChatSubtitle": "Чат с другими пользователями",
   "@aboutTelegramChatSubtitle": {
     "description": "Subtitle for Telegram chat"
   },
-  "aboutSocial": "Social",
+  "aboutSocial": "Соцсети",
   "@aboutSocial": {
     "description": "Section for social links"
   },
@@ -1150,7 +1150,7 @@
     "description": "Dialog title - import CSV playlist"
   },
   "dialogImportPlaylistMessage": "Найдено {count} треков в CSV. Добавить их в очередь загрузки?",
-  "csvImportTracks": "{count} tracks from CSV",
+  "csvImportTracks": "{count} треков из CSV",
   "@csvImportTracks": {
     "description": "Label shown in quality picker for CSV import",
     "placeholders": {
@@ -1888,39 +1888,39 @@
   "@sectionFileSettings": {
     "description": "Settings section header"
   },
-  "sectionLyrics": "Lyrics",
+  "sectionLyrics": "Тексты песен",
   "@sectionLyrics": {
     "description": "Settings section header"
   },
-  "lyricsMode": "Lyrics Mode",
+  "lyricsMode": "Режим текстов песен",
   "@lyricsMode": {
     "description": "Setting - how to save lyrics"
   },
-  "lyricsModeDescription": "Choose how lyrics are saved with your downloads",
+  "lyricsModeDescription": "Выберите как сохранить тексты песен при скачивании",
   "@lyricsModeDescription": {
     "description": "Lyrics mode picker description"
   },
-  "lyricsModeEmbed": "Embed in file",
+  "lyricsModeEmbed": "Вставить в файл",
   "@lyricsModeEmbed": {
     "description": "Lyrics mode option - embed in audio file"
   },
-  "lyricsModeEmbedSubtitle": "Lyrics stored inside FLAC metadata",
+  "lyricsModeEmbedSubtitle": "Встроить текст в метаданные FLAC",
   "@lyricsModeEmbedSubtitle": {
     "description": "Subtitle for embed option"
   },
-  "lyricsModeExternal": "External .lrc file",
+  "lyricsModeExternal": "Внешний файл .lrc",
   "@lyricsModeExternal": {
     "description": "Lyrics mode option - separate LRC file"
   },
-  "lyricsModeExternalSubtitle": "Separate .lrc file for players like Samsung Music",
+  "lyricsModeExternalSubtitle": "Отдельный файл .lrc для плееров, таких, как Samsung Music",
   "@lyricsModeExternalSubtitle": {
     "description": "Subtitle for external option"
   },
-  "lyricsModeBoth": "Both",
+  "lyricsModeBoth": "Оба варианта",
   "@lyricsModeBoth": {
     "description": "Lyrics mode option - embed and external"
   },
-  "lyricsModeBothSubtitle": "Embed and save .lrc file",
+  "lyricsModeBothSubtitle": "Вставить и сохранить файл .lrc",
   "@lyricsModeBothSubtitle": {
     "description": "Subtitle for both option"
   },
@@ -2070,15 +2070,15 @@
   "@trackReleaseDate": {
     "description": "Metadata label - release date"
   },
-  "trackGenre": "Genre",
+  "trackGenre": "Жанр",
   "@trackGenre": {
     "description": "Metadata label - music genre"
   },
-  "trackLabel": "Label",
+  "trackLabel": "Заголовок",
   "@trackLabel": {
     "description": "Metadata label - record label"
   },
-  "trackCopyright": "Copyright",
+  "trackCopyright": "Авторские права",
   "@trackCopyright": {
     "description": "Metadata label - copyright information"
   },
@@ -2102,15 +2102,15 @@
   "@trackLyricsLoadFailed": {
     "description": "Message when lyrics loading fails"
   },
-  "trackEmbedLyrics": "Embed Lyrics",
+  "trackEmbedLyrics": "Вставить текст песни",
   "@trackEmbedLyrics": {
     "description": "Action - embed lyrics into audio file"
   },
-  "trackLyricsEmbedded": "Lyrics embedded successfully",
+  "trackLyricsEmbedded": "Текст успешно добавлен",
   "@trackLyricsEmbedded": {
     "description": "Snackbar - lyrics saved to file"
   },
-  "trackInstrumental": "Instrumental track",
+  "trackInstrumental": "Инструментальный трек",
   "@trackInstrumental": {
     "description": "Message when track is instrumental (no lyrics)"
   },
@@ -2433,15 +2433,15 @@
   "@qualityMp3Subtitle": {
     "description": "Technical spec for MP3"
   },
-  "enableMp3Option": "Скачивать в MP3",
+  "enableMp3Option": "Скачивние в MP3",
   "@enableMp3Option": {
     "description": "Setting - enable MP3 quality option"
   },
-  "enableMp3OptionSubtitleOn": "Доступно MP3 качество",
+  "enableMp3OptionSubtitleOn": "MP3 качество доступно",
   "@enableMp3OptionSubtitleOn": {
     "description": "Subtitle when MP3 is enabled"
   },
-  "enableMp3OptionSubtitleOff": "Скачивает FLAC и конвертирует в MP3 320 кбит/с",
+  "enableMp3OptionSubtitleOff": "Скачивать FLAC и конвертировать в MP3 320 кбит/с",
   "@enableMp3OptionSubtitleOff": {
     "description": "Subtitle when MP3 is disabled"
   },
@@ -2633,11 +2633,11 @@
   "@albumFolderYearAlbumSubtitle": {
     "description": "Folder structure example"
   },
-  "albumFolderArtistAlbumSingles": "Artist / Album + Singles",
+  "albumFolderArtistAlbumSingles": "Исполнитель / Альбом + Синглы",
   "@albumFolderArtistAlbumSingles": {
     "description": "Album folder option with singles inside artist"
   },
-  "albumFolderArtistAlbumSinglesSubtitle": "Artist/Album/ and Artist/Singles/",
+  "albumFolderArtistAlbumSinglesSubtitle": "Исполнитель/Альбом и Исполнитель/Сингл/",
   "@albumFolderArtistAlbumSinglesSubtitle": {
     "description": "Folder structure example"
   },
@@ -2747,15 +2747,15 @@
       }
     }
   },
-  "discographyDownload": "Download Discography",
+  "discographyDownload": "Скачать дискографию",
   "@discographyDownload": {
     "description": "Button - download artist discography"
   },
-  "discographyDownloadAll": "Download All",
+  "discographyDownloadAll": "Скачать всё",
   "@discographyDownloadAll": {
     "description": "Option - download entire discography"
   },
-  "discographyDownloadAllSubtitle": "{count} tracks from {albumCount} releases",
+  "discographyDownloadAllSubtitle": "{count} треков из {albumCount} релизов",
   "@discographyDownloadAllSubtitle": {
     "description": "Subtitle showing total tracks and albums",
     "placeholders": {
@@ -2767,11 +2767,11 @@
       }
     }
   },
-  "discographyAlbumsOnly": "Albums Only",
+  "discographyAlbumsOnly": "Только альбомы",
   "@discographyAlbumsOnly": {
     "description": "Option - download only albums"
   },
-  "discographyAlbumsOnlySubtitle": "{count} tracks from {albumCount} albums",
+  "discographyAlbumsOnlySubtitle": "{count} треков из {albumCount} альбомов",
   "@discographyAlbumsOnlySubtitle": {
     "description": "Subtitle showing album tracks count",
     "placeholders": {
@@ -2783,11 +2783,11 @@
       }
     }
   },
-  "discographySinglesOnly": "Singles & EPs Only",
+  "discographySinglesOnly": "Только синглы и EP",
   "@discographySinglesOnly": {
     "description": "Option - download only singles"
   },
-  "discographySinglesOnlySubtitle": "{count} tracks from {albumCount} singles",
+  "discographySinglesOnlySubtitle": "{count} треков из {albumCount} синглов",
   "@discographySinglesOnlySubtitle": {
     "description": "Subtitle showing singles tracks count",
     "placeholders": {
@@ -2799,19 +2799,19 @@
       }
     }
   },
-  "discographySelectAlbums": "Select Albums...",
+  "discographySelectAlbums": "Выбрать альбомы...",
   "@discographySelectAlbums": {
     "description": "Option - manually select albums to download"
   },
-  "discographySelectAlbumsSubtitle": "Choose specific albums or singles",
+  "discographySelectAlbumsSubtitle": "Выберите конкретные альбомы или синглы",
   "@discographySelectAlbumsSubtitle": {
     "description": "Subtitle for select albums option"
   },
-  "discographyFetchingTracks": "Fetching tracks...",
+  "discographyFetchingTracks": "Получение треков...",
   "@discographyFetchingTracks": {
     "description": "Progress - fetching album tracks"
   },
-  "discographyFetchingAlbum": "Fetching {current} of {total}...",
+  "discographyFetchingAlbum": "Получение {current} из {total}...",
   "@discographyFetchingAlbum": {
     "description": "Progress - fetching specific album",
     "placeholders": {
@@ -2823,7 +2823,7 @@
       }
     }
   },
-  "discographySelectedCount": "{count} selected",
+  "discographySelectedCount": "{count} выбрано",
   "@discographySelectedCount": {
     "description": "Selection count badge",
     "placeholders": {
@@ -2832,11 +2832,11 @@
       }
     }
   },
-  "discographyDownloadSelected": "Download Selected",
+  "discographyDownloadSelected": "Скачать выбранное",
   "@discographyDownloadSelected": {
     "description": "Button - download selected albums"
   },
-  "discographyAddedToQueue": "Added {count} tracks to queue",
+  "discographyAddedToQueue": "Добавлено {count} треков в очередь",
   "@discographyAddedToQueue": {
     "description": "Snackbar - tracks added from discography",
     "placeholders": {
@@ -2845,7 +2845,7 @@
       }
     }
   },
-  "discographySkippedDownloaded": "{added} added, {skipped} already downloaded",
+  "discographySkippedDownloaded": "{added} добавлено, {skipped} уже скачано",
   "@discographySkippedDownloaded": {
     "description": "Snackbar - with skipped tracks count",
     "placeholders": {
@@ -2857,11 +2857,11 @@
       }
     }
   },
-  "discographyNoAlbums": "No albums available",
+  "discographyNoAlbums": "Нет доступных альбомов",
   "@discographyNoAlbums": {
     "description": "Error - no albums found for artist"
   },
-  "discographyFailedToFetch": "Failed to fetch some albums",
+  "discographyFailedToFetch": "Не удалось получить некоторые альбомы",
   "@discographyFailedToFetch": {
     "description": "Error - some albums failed to load"
   }
