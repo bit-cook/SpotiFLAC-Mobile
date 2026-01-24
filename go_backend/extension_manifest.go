@@ -66,15 +66,23 @@ type QualitySpecificSetting struct {
 	Options     []string    `json:"options,omitempty"` // For select type
 }
 
+// SearchFilter defines a filter option for search
+type SearchFilter struct {
+	ID    string `json:"id"`              // Filter identifier (e.g., "track", "album", "artist", "playlist")
+	Label string `json:"label,omitempty"` // Display label (e.g., "Songs", "Albums", "Artists", "Playlists")
+	Icon  string `json:"icon,omitempty"`  // Optional icon name
+}
+
 // SearchBehaviorConfig defines custom search behavior for an extension
 type SearchBehaviorConfig struct {
-	Enabled         bool   `json:"enabled"`                   // Whether extension provides custom search
-	Placeholder     string `json:"placeholder,omitempty"`     // Placeholder text for search box
-	Primary         bool   `json:"primary,omitempty"`         // If true, show as primary search tab
-	Icon            string `json:"icon,omitempty"`            // Icon for search tab
-	ThumbnailRatio  string `json:"thumbnailRatio,omitempty"`  // Thumbnail aspect ratio: "square" (1:1), "wide" (16:9), "portrait" (2:3)
-	ThumbnailWidth  int    `json:"thumbnailWidth,omitempty"`  // Custom thumbnail width in pixels
-	ThumbnailHeight int    `json:"thumbnailHeight,omitempty"` // Custom thumbnail height in pixels
+	Enabled         bool           `json:"enabled"`                   // Whether extension provides custom search
+	Placeholder     string         `json:"placeholder,omitempty"`     // Placeholder text for search box
+	Primary         bool           `json:"primary,omitempty"`         // If true, show as primary search tab
+	Icon            string         `json:"icon,omitempty"`            // Icon for search tab
+	ThumbnailRatio  string         `json:"thumbnailRatio,omitempty"`  // Thumbnail aspect ratio: "square" (1:1), "wide" (16:9), "portrait" (2:3)
+	ThumbnailWidth  int            `json:"thumbnailWidth,omitempty"`  // Custom thumbnail width in pixels
+	ThumbnailHeight int            `json:"thumbnailHeight,omitempty"` // Custom thumbnail height in pixels
+	Filters         []SearchFilter `json:"filters,omitempty"`         // Available search filters (e.g., track, album, artist, playlist)
 }
 
 // URLHandlerConfig defines custom URL handling for an extension

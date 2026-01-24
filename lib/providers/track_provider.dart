@@ -25,6 +25,7 @@ class TrackState {
   final bool hasSearchText; // For back button handling
   final bool isShowingRecentAccess; // For recent access mode
   final String? searchExtensionId; // Extension ID used for current search results
+  final String? selectedSearchFilter; // Currently selected search filter (e.g., "track", "album", "artist", "playlist")
 
   const TrackState({
     this.tracks = const [],
@@ -44,6 +45,7 @@ class TrackState {
     this.hasSearchText = false,
     this.isShowingRecentAccess = false,
     this.searchExtensionId,
+    this.selectedSearchFilter,
   });
 
   bool get hasContent => tracks.isNotEmpty || artistAlbums != null || (searchArtists != null && searchArtists!.isNotEmpty);
@@ -66,6 +68,8 @@ class TrackState {
     bool? hasSearchText,
     bool? isShowingRecentAccess,
     String? searchExtensionId,
+    String? selectedSearchFilter,
+    bool clearSelectedSearchFilter = false,
   }) {
     return TrackState(
       tracks: tracks ?? this.tracks,
@@ -85,6 +89,7 @@ class TrackState {
       hasSearchText: hasSearchText ?? this.hasSearchText,
       isShowingRecentAccess: isShowingRecentAccess ?? this.isShowingRecentAccess,
       searchExtensionId: searchExtensionId,
+      selectedSearchFilter: clearSelectedSearchFilter ? null : (selectedSearchFilter ?? this.selectedSearchFilter),
     );
   }
 }
@@ -391,7 +396,11 @@ class TrackNotifier extends Notifier<TrackState> {
   Future<void> customSearch(String extensionId, String query, {Map<String, dynamic>? options}) async {
     final requestId = ++_currentRequestId;
 
-    state = TrackState(isLoading: true, hasSearchText: state.hasSearchText);
+    state = TrackState(
+      isLoading: true,
+      hasSearchText: state.hasSearchText,
+      selectedSearchFilter: state.selectedSearchFilter, // Preserve filter during loading
+    );
 
     try {
       _log.i('Custom search started: extension=$extensionId, query="$query"');
@@ -423,6 +432,7 @@ class TrackNotifier extends Notifier<TrackState> {
         isLoading: false,
         hasSearchText: state.hasSearchText,
         searchExtensionId: extensionId, // Store which extension was used
+        selectedSearchFilter: state.selectedSearchFilter, // Preserve selected filter
       );
     } catch (e, stackTrace) {
       if (!_isRequestValid(requestId)) return;
@@ -472,6 +482,15 @@ class TrackNotifier extends Notifier<TrackState> {
 
   void clear() {
     state = const TrackState();
+  }
+
+  /// Set selected search filter for extension search
+  void setSearchFilter(String? filter) {
+    if (state.selectedSearchFilter == filter) return;
+    state = state.copyWith(
+      selectedSearchFilter: filter,
+      clearSelectedSearchFilter: filter == null,
+    );
   }
 
   /// Set search text state for back button handling

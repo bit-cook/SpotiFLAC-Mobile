@@ -208,8 +208,9 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
     final settings = ref.read(settingsProvider);
     final extState = ref.read(extensionProvider);
     final searchProvider = settings.searchProvider;
+    final selectedFilter = ref.read(trackProvider).selectedSearchFilter;
     
-    final searchKey = '${searchProvider ?? 'default'}:$query';
+    final searchKey = '${searchProvider ?? 'default'}:$query:${selectedFilter ?? 'all'}';
     if (_lastSearchQuery == searchKey) return;
     _lastSearchQuery = searchKey;
     
@@ -218,7 +219,12 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
         extState.extensions.any((e) => e.id == searchProvider && e.enabled);
     
     if (isExtensionEnabled) {
-      await ref.read(trackProvider.notifier).customSearch(searchProvider, query);
+      // Build options with filter if selected
+      Map<String, dynamic>? options;
+      if (selectedFilter != null) {
+        options = {'filter': selectedFilter};
+      }
+      await ref.read(trackProvider.notifier).customSearch(searchProvider, query, options: options);
     } else {
       if (searchProvider != null && searchProvider.isNotEmpty && !isExtensionEnabled) {
         ref.read(settingsProvider.notifier).setSearchProvider(null);
@@ -495,6 +501,20 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
     final hasExploreContent = exploreSections.isNotEmpty;
     final showExplore = !hasActualResults && !isLoading && !showRecentAccess && hasHomeFeedExtension && hasExploreContent;
     
+    // Get current search extension and its filters
+    final settings = ref.watch(settingsProvider);
+    final extState = ref.watch(extensionProvider);
+    final currentSearchProvider = settings.searchProvider;
+    final selectedSearchFilter = ref.watch(trackProvider.select((s) => s.selectedSearchFilter));
+    Extension? currentSearchExtension;
+    List<SearchFilter> searchFilters = [];
+    if (currentSearchProvider != null && currentSearchProvider.isNotEmpty) {
+      currentSearchExtension = extState.extensions.where((e) => e.id == currentSearchProvider && e.enabled).firstOrNull;
+      if (currentSearchExtension?.searchBehavior?.filters.isNotEmpty == true) {
+        searchFilters = currentSearchExtension!.searchBehavior!.filters;
+      }
+    }
+    
     if (hasActualResults && isShowingRecentAccess) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) ref.read(trackProvider.notifier).setShowingRecentAccess(false);
@@ -602,6 +622,16 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
               child: _buildSearchBar(colorScheme),
             ),
           ),
+          
+          // Search filter bar (only shown when has search results or loading search)
+          if (searchFilters.isNotEmpty && (hasActualResults || isLoading))
+            SliverToBoxAdapter(
+              child: _buildSearchFilterBar(
+                searchFilters,
+                selectedSearchFilter,
+                colorScheme,
+              ),
+            ),
           
           if (showRecentAccess)
             SliverToBoxAdapter(
@@ -1912,6 +1942,106 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
     return 'Paste Spotify URL or search...';
   }
 
+  Widget _buildSearchFilterBar(
+    List<SearchFilter> filters,
+    String? selectedFilter,
+    ColorScheme colorScheme,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            // "All" chip (no filter)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                label: const Text('All'),
+                selected: selectedFilter == null,
+                onSelected: (_) {
+                  ref.read(trackProvider.notifier).setSearchFilter(null);
+                  _triggerSearchWithFilter(null);
+                },
+                showCheckmark: false,
+                selectedColor: colorScheme.primaryContainer,
+                backgroundColor: colorScheme.surfaceContainerHighest,
+                labelStyle: TextStyle(
+                  color: selectedFilter == null
+                      ? colorScheme.onPrimaryContainer
+                      : colorScheme.onSurfaceVariant,
+                  fontWeight: selectedFilter == null ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ),
+            // Filter chips from extension
+            ...filters.map((filter) {
+              final isSelected = selectedFilter == filter.id;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  label: Text(filter.label ?? filter.id),
+                  selected: isSelected,
+                  onSelected: (_) {
+                    ref.read(trackProvider.notifier).setSearchFilter(filter.id);
+                    _triggerSearchWithFilter(filter.id);
+                  },
+                  showCheckmark: false,
+                  selectedColor: colorScheme.primaryContainer,
+                  backgroundColor: colorScheme.surfaceContainerHighest,
+                  labelStyle: TextStyle(
+                    color: isSelected
+                        ? colorScheme.onPrimaryContainer
+                        : colorScheme.onSurfaceVariant,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  avatar: filter.icon != null ? Icon(
+                    _getFilterIcon(filter.icon!),
+                    size: 18,
+                    color: isSelected
+                        ? colorScheme.onPrimaryContainer
+                        : colorScheme.onSurfaceVariant,
+                  ) : null,
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _getFilterIcon(String iconName) {
+    switch (iconName.toLowerCase()) {
+      case 'music':
+      case 'track':
+      case 'song':
+        return Icons.music_note;
+      case 'album':
+        return Icons.album;
+      case 'artist':
+        return Icons.person;
+      case 'playlist':
+        return Icons.playlist_play;
+      case 'video':
+        return Icons.video_library;
+      case 'podcast':
+        return Icons.podcasts;
+      default:
+        return Icons.search;
+    }
+  }
+
+  void _triggerSearchWithFilter(String? filter) {
+    final text = _urlController.text.trim();
+    if (text.isEmpty || text.length < _minLiveSearchChars) return;
+    if (text.startsWith('http') || text.startsWith('spotify:')) return;
+    
+    // Reset last search query to force new search
+    _lastSearchQuery = null;
+    _performSearch(text);
+  }
+
   Widget _buildSearchBar(ColorScheme colorScheme) {
     final hasText = _urlController.text.isNotEmpty;
     
@@ -1938,6 +2068,8 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
         prefixIcon: _SearchProviderDropdown(
           onProviderChanged: () {
             _lastSearchQuery = null;
+            // Reset filter when provider changes
+            ref.read(trackProvider.notifier).setSearchFilter(null);
             setState(() {});
             final text = _urlController.text.trim();
             if (text.isNotEmpty && text.length >= _minLiveSearchChars) {

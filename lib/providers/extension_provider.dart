@@ -146,6 +146,26 @@ class Extension {
   bool get hasBrowseCategories => capabilities['browseCategories'] == true;
 }
 
+class SearchFilter {
+  final String id;
+  final String? label;
+  final String? icon;
+
+  const SearchFilter({
+    required this.id,
+    this.label,
+    this.icon,
+  });
+
+  factory SearchFilter.fromJson(Map<String, dynamic> json) {
+    return SearchFilter(
+      id: json['id'] as String? ?? '',
+      label: json['label'] as String?,
+      icon: json['icon'] as String?,
+    );
+  }
+}
+
 class SearchBehavior {
   final bool enabled;
   final String? placeholder;
@@ -154,6 +174,7 @@ class SearchBehavior {
   final String? thumbnailRatio; // "square" (1:1), "wide" (16:9), "portrait" (2:3)
   final int? thumbnailWidth;
   final int? thumbnailHeight;
+  final List<SearchFilter> filters; // Available search filters (e.g., track, album, artist, playlist)
 
   const SearchBehavior({
     required this.enabled,
@@ -163,6 +184,7 @@ class SearchBehavior {
     this.thumbnailRatio,
     this.thumbnailWidth,
     this.thumbnailHeight,
+    this.filters = const [],
   });
 
   factory SearchBehavior.fromJson(Map<String, dynamic> json) {
@@ -174,6 +196,9 @@ class SearchBehavior {
       thumbnailRatio: json['thumbnailRatio'] as String?,
       thumbnailWidth: json['thumbnailWidth'] as int?,
       thumbnailHeight: json['thumbnailHeight'] as int?,
+      filters: (json['filters'] as List<dynamic>?)
+          ?.map((f) => SearchFilter.fromJson(f as Map<String, dynamic>))
+          .toList() ?? [],
     );
   }
 
