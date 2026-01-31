@@ -10,6 +10,7 @@
 - **Search Filters**: Filter results by type (Tracks, Artists, Albums, Playlists)
 - **Album/Playlist Search**: Deezer search now includes albums and playlists
 - **New Languages**: Turkish (Kaan, BedirhanGltkn), Japanese (Re*Index.(ot_inc))
+- **Optional All Files Access**: Android 13+ no longer requires full storage access; enable in Settings if needed
 
 ### Changed
 
