@@ -703,6 +703,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'Ограничение iOS: пустые папки не могут быть выбраны. Выберите папку, содержащую хотя бы один файл.';
 
   @override
+  String get setupIcloudNotSupported =>
+      'iCloud Drive is not supported. Please use the app Documents folder.';
+
+  @override
   String get setupDownloadInFlac => 'Скачать Spotify треки во FLAC';
 
   @override

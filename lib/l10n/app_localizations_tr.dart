@@ -692,6 +692,10 @@ class AppLocalizationsTr extends AppLocalizations {
       'iOS\'un sınırlaması: Boş klasörler seçilemiyor. İçinde en az bir dosya bulunan bir klasör seçin.';
 
   @override
+  String get setupIcloudNotSupported =>
+      'iCloud Drive is not supported. Please use the app Documents folder.';
+
+  @override
   String get setupDownloadInFlac => 'Spotify şarkılarını FLAC olarak indirin';
 
   @override

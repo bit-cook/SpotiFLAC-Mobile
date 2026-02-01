@@ -699,6 +699,10 @@ class AppLocalizationsDe extends AppLocalizations {
       'iOS-Einschränkung: Leere Ordner können nicht ausgewählt werden. Wählen Sie einen Ordner mit mindestens einer Datei.';
 
   @override
+  String get setupIcloudNotSupported =>
+      'iCloud Drive is not supported. Please use the app Documents folder.';
+
+  @override
   String get setupDownloadInFlac => 'Spotify Titel in FLAC herunterladen';
 
   @override

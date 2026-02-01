@@ -8,6 +8,7 @@ Same as 3.3.1 but fixes crash issues caused by FFmpeg.
 
 - **FFmpeg Crash**: Fixed crash issues during M4A to MP3/Opus conversion
 - **Service Selection Ignored**: Fixed bug where selecting Qobuz/Amazon from service picker was ignored and always used Tidal instead
+- **iOS iCloud Drive Permission Error**: Block iCloud Drive folder selection on iOS (Go backend cannot access iCloud due to sandboxing)
 
 ### Changed
 

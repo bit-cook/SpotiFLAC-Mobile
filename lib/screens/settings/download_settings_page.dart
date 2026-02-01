@@ -702,7 +702,7 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
                 if (ctx.mounted) Navigator.pop(ctx);
               },
             ),
-            ListTile(
+ListTile(
               leading: Icon(Icons.cloud, color: colorScheme.onSurfaceVariant),
               title: Text(context.l10n.setupChooseFromFiles),
               subtitle: Text(context.l10n.setupChooseFromFilesSubtitle),
@@ -711,6 +711,24 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
                 // Note: iOS requires folder to have at least one file to be selectable
                 final result = await FilePicker.platform.getDirectoryPath();
                 if (result != null) {
+                  // iOS: Check if user selected iCloud Drive (not accessible by Go backend)
+                  if (Platform.isIOS) {
+                    final isICloudPath = result.contains('Mobile Documents') ||
+                        result.contains('CloudDocs') ||
+                        result.contains('com~apple~CloudDocs');
+                    if (isICloudPath) {
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          SnackBar(
+                            content: Text(context.l10n.setupIcloudNotSupported),
+                            backgroundColor: Theme.of(ctx).colorScheme.error,
+                            duration: const Duration(seconds: 4),
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                  }
                   ref
                       .read(settingsProvider.notifier)
                       .setDownloadDirectory(result);

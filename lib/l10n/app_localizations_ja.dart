@@ -680,6 +680,10 @@ class AppLocalizationsJa extends AppLocalizations {
       'iOS limitation: Empty folders cannot be selected. Choose a folder with at least one file.';
 
   @override
+  String get setupIcloudNotSupported =>
+      'iCloud Drive is not supported. Please use the app Documents folder.';
+
+  @override
   String get setupDownloadInFlac => 'Spotify のトラックを FLAC でダウンロード';
 
   @override

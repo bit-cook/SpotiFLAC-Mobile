@@ -690,6 +690,10 @@ class AppLocalizationsId extends AppLocalizations {
       'Batasan iOS: Folder kosong tidak dapat dipilih. Pilih folder dengan minimal satu file.';
 
   @override
+  String get setupIcloudNotSupported =>
+      'iCloud Drive is not supported. Please use the app Documents folder.';
+
+  @override
   String get setupDownloadInFlac => 'Unduh lagu Spotify dalam format FLAC';
 
   @override

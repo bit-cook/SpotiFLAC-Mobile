@@ -1564,9 +1564,26 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       }
     }
 
-    if (state.outputDir.isEmpty) {
+if (state.outputDir.isEmpty) {
       _log.d('Output dir empty, initializing...');
       await _initOutputDir();
+    }
+
+    // iOS: Validate that outputDir is writable (not iCloud Drive which Go can't access)
+    if (Platform.isIOS && state.outputDir.isNotEmpty) {
+      final isICloudPath = state.outputDir.contains('Mobile Documents') ||
+          state.outputDir.contains('CloudDocs') ||
+          state.outputDir.contains('com~apple~CloudDocs');
+      if (isICloudPath) {
+        _log.w('iOS: iCloud Drive path detected, falling back to app Documents folder');
+        _log.w('Go backend cannot write to iCloud Drive due to iOS sandboxing');
+        final dir = await getApplicationDocumentsDirectory();
+        final musicDir = Directory('${dir.path}/SpotiFLAC');
+        if (!await musicDir.exists()) {
+          await musicDir.create(recursive: true);
+        }
+        state = state.copyWith(outputDir: musicDir.path);
+      }
     }
 
     if (state.outputDir.isEmpty) {

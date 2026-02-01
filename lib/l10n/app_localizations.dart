@@ -1312,6 +1312,12 @@ abstract class AppLocalizations {
   /// **'iOS limitation: Empty folders cannot be selected. Choose a folder with at least one file.'**
   String get setupIosEmptyFolderWarning;
 
+  /// Error when user selects iCloud Drive on iOS
+  ///
+  /// In en, this message translates to:
+  /// **'iCloud Drive is not supported. Please use the app Documents folder.'**
+  String get setupIcloudNotSupported;
+
   /// App tagline in setup
   ///
   /// In en, this message translates to:
