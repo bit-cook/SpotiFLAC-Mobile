@@ -148,17 +148,16 @@ type DownloadRequest struct {
 	LyricsMode           string `json:"lyrics_mode,omitempty"`
 }
 
-// DownloadResponse represents the result of a download
 type DownloadResponse struct {
 	Success                bool   `json:"success"`
 	Message                string `json:"message"`
 	FilePath               string `json:"file_path,omitempty"`
 	Error                  string `json:"error,omitempty"`
-	ErrorType              string `json:"error_type,omitempty"` // "not_found", "rate_limit", "network", "unknown"
+	ErrorType              string `json:"error_type,omitempty"`
 	AlreadyExists          bool   `json:"already_exists,omitempty"`
 	ActualBitDepth         int    `json:"actual_bit_depth,omitempty"`
 	ActualSampleRate       int    `json:"actual_sample_rate,omitempty"`
-	Service                string `json:"service,omitempty"` // Actual service used (for fallback)
+	Service                string `json:"service,omitempty"`
 	Title                  string `json:"title,omitempty"`
 	Artist                 string `json:"artist,omitempty"`
 	Album                  string `json:"album,omitempty"`
@@ -172,6 +171,7 @@ type DownloadResponse struct {
 	Label                  string `json:"label,omitempty"`
 	Copyright              string `json:"copyright,omitempty"`
 	SkipMetadataEnrichment bool   `json:"skip_metadata_enrichment,omitempty"`
+	LyricsLRC              string `json:"lyrics_lrc,omitempty"`
 }
 
 type DownloadResult struct {
@@ -185,6 +185,7 @@ type DownloadResult struct {
 	TrackNumber int
 	DiscNumber  int
 	ISRC        string
+	LyricsLRC   string
 }
 
 func DownloadTrack(requestJSON string) (string, error) {
@@ -222,6 +223,7 @@ func DownloadTrack(requestJSON string) (string, error) {
 				TrackNumber: tidalResult.TrackNumber,
 				DiscNumber:  tidalResult.DiscNumber,
 				ISRC:        tidalResult.ISRC,
+				LyricsLRC:   tidalResult.LyricsLRC,
 			}
 		}
 		err = tidalErr
@@ -317,6 +319,7 @@ func DownloadTrack(requestJSON string) (string, error) {
 		TrackNumber:      result.TrackNumber,
 		DiscNumber:       result.DiscNumber,
 		ISRC:             result.ISRC,
+		LyricsLRC:        result.LyricsLRC,
 	}
 
 	jsonBytes, _ := json.Marshal(resp)
@@ -380,6 +383,7 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 					TrackNumber: tidalResult.TrackNumber,
 					DiscNumber:  tidalResult.DiscNumber,
 					ISRC:        tidalResult.ISRC,
+					LyricsLRC:   tidalResult.LyricsLRC,
 				}
 			} else if !errors.Is(tidalErr, ErrDownloadCancelled) {
 				GoLog("[DownloadWithFallback] Tidal error: %v\n", tidalErr)
@@ -452,6 +456,7 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 					TrackNumber:      result.TrackNumber,
 					DiscNumber:       result.DiscNumber,
 					ISRC:             result.ISRC,
+					LyricsLRC:        result.LyricsLRC,
 				}
 				jsonBytes, _ := json.Marshal(resp)
 				return string(jsonBytes), nil
@@ -480,6 +485,7 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 				TrackNumber:      result.TrackNumber,
 				DiscNumber:       result.DiscNumber,
 				ISRC:             result.ISRC,
+				LyricsLRC:        result.LyricsLRC,
 			}
 			jsonBytes, _ := json.Marshal(resp)
 			return string(jsonBytes), nil
@@ -631,14 +637,11 @@ func FetchLyrics(spotifyID, trackName, artistName string, durationMs int64) (str
 }
 
 func GetLyricsLRC(spotifyID, trackName, artistName string, filePath string, durationMs int64) (string, error) {
-	// If filePath is provided, ONLY check file - don't fallback to online
-	// This allows Flutter to distinguish between "from file" vs "from online"
 	if filePath != "" {
 		lyrics, err := ExtractLyrics(filePath)
 		if err == nil && lyrics != "" {
 			return lyrics, nil
 		}
-		// File has no lyrics - return empty, let Flutter call again without filePath
 		return "", nil
 	}
 
@@ -649,7 +652,6 @@ func GetLyricsLRC(spotifyID, trackName, artistName string, filePath string, dura
 		return "", err
 	}
 
-	// Return special marker for instrumental tracks
 	if lyricsData.Instrumental {
 		return "[instrumental:true]", nil
 	}
@@ -735,8 +737,6 @@ func SearchDeezerAll(query string, trackLimit, artistLimit int, filter string) (
 }
 
 // GetDeezerMetadata fetches metadata from Deezer URL or ID
-// resourceType: track, album, artist, playlist
-// resourceID: Deezer ID
 func GetDeezerMetadata(resourceType, resourceID string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -770,7 +770,6 @@ func GetDeezerMetadata(resourceType, resourceID string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// ParseDeezerURLExport parses a Deezer URL and returns type and ID
 func ParseDeezerURLExport(url string) (string, error) {
 	resourceType, resourceID, err := parseDeezerURL(url)
 	if err != nil {
@@ -790,9 +789,6 @@ func ParseDeezerURLExport(url string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// GetDeezerExtendedMetadata fetches genre and label from Deezer album
-// trackID: Deezer track ID (will look up album ID from track)
-// Returns JSON with genre, label fields
 func GetDeezerExtendedMetadata(trackID string) (string, error) {
 	if trackID == "" {
 		return "", fmt.Errorf("empty track ID")
@@ -821,7 +817,6 @@ func GetDeezerExtendedMetadata(trackID string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// SearchDeezerByISRC searches for a track by ISRC on Deezer
 func SearchDeezerByISRC(isrc string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -949,9 +944,6 @@ func CheckAvailabilityFromDeezerID(deezerTrackID string) (string, error) {
 }
 
 // CheckAvailabilityByPlatformID checks track availability using any platform as source
-// platform: "spotify", "deezer", "tidal", "amazonMusic", "appleMusic", "youtube"
-// entityType: "song" or "album"
-// entityID: the ID on that platform
 func CheckAvailabilityByPlatformID(platform, entityType, entityID string) (string, error) {
 	client := NewSongLinkClient()
 	availability, err := client.CheckAvailabilityByPlatform(platform, entityType, entityID)
@@ -967,19 +959,16 @@ func CheckAvailabilityByPlatformID(platform, entityType, entityID string) (strin
 	return string(jsonBytes), nil
 }
 
-// GetSpotifyIDFromDeezerTrack converts a Deezer track ID to Spotify track ID
 func GetSpotifyIDFromDeezerTrack(deezerTrackID string) (string, error) {
 	client := NewSongLinkClient()
 	return client.GetSpotifyIDFromDeezer(deezerTrackID)
 }
 
-// GetTidalURLFromDeezerTrack converts a Deezer track ID to Tidal URL
 func GetTidalURLFromDeezerTrack(deezerTrackID string) (string, error) {
 	client := NewSongLinkClient()
 	return client.GetTidalURLFromDeezer(deezerTrackID)
 }
 
-// GetAmazonURLFromDeezerTrack converts a Deezer track ID to Amazon Music URL
 func GetAmazonURLFromDeezerTrack(deezerTrackID string) (string, error) {
 	client := NewSongLinkClient()
 	return client.GetAmazonURLFromDeezer(deezerTrackID)
@@ -1029,7 +1018,6 @@ func errorResponse(msg string) (string, error) {
 
 // ==================== EXTENSION SYSTEM ====================
 
-// InitExtensionSystem initializes the extension system with directories
 func InitExtensionSystem(extensionsDir, dataDir string) error {
 	manager := GetExtensionManager()
 	if err := manager.SetDirectories(extensionsDir, dataDir); err != nil {
@@ -1044,7 +1032,6 @@ func InitExtensionSystem(extensionsDir, dataDir string) error {
 	return nil
 }
 
-// LoadExtensionsFromDir loads all extensions from a directory
 func LoadExtensionsFromDir(dirPath string) (string, error) {
 	manager := GetExtensionManager()
 	loaded, errors := manager.LoadExtensionsFromDirectory(dirPath)
@@ -1066,7 +1053,6 @@ func LoadExtensionsFromDir(dirPath string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// LoadExtensionFromPath loads a single extension from a .spotiflac-ext file
 func LoadExtensionFromPath(filePath string) (string, error) {
 	manager := GetExtensionManager()
 	ext, err := manager.LoadExtensionFromFile(filePath)
@@ -1096,19 +1082,16 @@ func LoadExtensionFromPath(filePath string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// UnloadExtensionByID unloads an extension
 func UnloadExtensionByID(extensionID string) error {
 	manager := GetExtensionManager()
 	return manager.UnloadExtension(extensionID)
 }
 
-// RemoveExtensionByID completely removes an extension (unload + delete files)
 func RemoveExtensionByID(extensionID string) error {
 	manager := GetExtensionManager()
 	return manager.RemoveExtension(extensionID)
 }
 
-// UpgradeExtensionFromPath upgrades an existing extension from a new package file
 func UpgradeExtensionFromPath(filePath string) (string, error) {
 	manager := GetExtensionManager()
 	ext, err := manager.UpgradeExtension(filePath)
@@ -1137,25 +1120,21 @@ func UpgradeExtensionFromPath(filePath string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// CheckExtensionUpgradeFromPath checks if a package file is an upgrade for an existing extension
 func CheckExtensionUpgradeFromPath(filePath string) (string, error) {
 	manager := GetExtensionManager()
 	return manager.CheckExtensionUpgradeJSON(filePath)
 }
 
-// GetInstalledExtensions returns all installed extensions as JSON
 func GetInstalledExtensions() (string, error) {
 	manager := GetExtensionManager()
 	return manager.GetInstalledExtensionsJSON()
 }
 
-// SetExtensionEnabledByID enables or disables an extension
 func SetExtensionEnabledByID(extensionID string, enabled bool) error {
 	manager := GetExtensionManager()
 	return manager.SetExtensionEnabled(extensionID, enabled)
 }
 
-// SetProviderPriorityJSON sets the provider priority order from JSON array
 func SetProviderPriorityJSON(priorityJSON string) error {
 	var priority []string
 	if err := json.Unmarshal([]byte(priorityJSON), &priority); err != nil {
@@ -1166,7 +1145,6 @@ func SetProviderPriorityJSON(priorityJSON string) error {
 	return nil
 }
 
-// GetProviderPriorityJSON returns the provider priority order as JSON
 func GetProviderPriorityJSON() (string, error) {
 	priority := GetProviderPriority()
 	jsonBytes, err := json.Marshal(priority)
@@ -1176,7 +1154,6 @@ func GetProviderPriorityJSON() (string, error) {
 	return string(jsonBytes), nil
 }
 
-// SetMetadataProviderPriorityJSON sets the metadata provider priority order from JSON array
 func SetMetadataProviderPriorityJSON(priorityJSON string) error {
 	var priority []string
 	if err := json.Unmarshal([]byte(priorityJSON), &priority); err != nil {
@@ -1187,7 +1164,6 @@ func SetMetadataProviderPriorityJSON(priorityJSON string) error {
 	return nil
 }
 
-// GetMetadataProviderPriorityJSON returns the metadata provider priority order as JSON
 func GetMetadataProviderPriorityJSON() (string, error) {
 	priority := GetMetadataProviderPriority()
 	jsonBytes, err := json.Marshal(priority)
@@ -1197,7 +1173,6 @@ func GetMetadataProviderPriorityJSON() (string, error) {
 	return string(jsonBytes), nil
 }
 
-// GetExtensionSettingsJSON returns settings for an extension as JSON
 func GetExtensionSettingsJSON(extensionID string) (string, error) {
 	store := GetExtensionSettingsStore()
 	settings := store.GetAll(extensionID)
@@ -1210,7 +1185,6 @@ func GetExtensionSettingsJSON(extensionID string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// SetExtensionSettingsJSON sets settings for an extension from JSON
 func SetExtensionSettingsJSON(extensionID, settingsJSON string) error {
 	var settings map[string]interface{}
 	if err := json.Unmarshal([]byte(settingsJSON), &settings); err != nil {
@@ -1226,7 +1200,6 @@ func SetExtensionSettingsJSON(extensionID, settingsJSON string) error {
 	return manager.InitializeExtension(extensionID, settings)
 }
 
-// SearchTracksWithExtensionsJSON searches all extension metadata providers
 func SearchTracksWithExtensionsJSON(query string, limit int) (string, error) {
 	manager := GetExtensionManager()
 	tracks, err := manager.SearchTracksWithExtensions(query, limit)
@@ -1242,7 +1215,6 @@ func SearchTracksWithExtensionsJSON(query string, limit int) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// DownloadWithExtensionsJSON downloads using extension providers with fallback
 func DownloadWithExtensionsJSON(requestJSON string) (string, error) {
 	var req DownloadRequest
 	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
@@ -1262,14 +1234,11 @@ func DownloadWithExtensionsJSON(requestJSON string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// CleanupExtensions unloads all extensions gracefully
 func CleanupExtensions() {
 	manager := GetExtensionManager()
 	manager.UnloadAllExtensions()
 }
 
-// InvokeExtensionActionJSON invokes a custom action on an extension (e.g., button click handler)
-// actionName is the JS function name to call (e.g., "startLogin", "authenticate", etc.)
 func InvokeExtensionActionJSON(extensionID, actionName string) (string, error) {
 	manager := GetExtensionManager()
 	result, err := manager.InvokeAction(extensionID, actionName)
@@ -1285,7 +1254,6 @@ func InvokeExtensionActionJSON(extensionID, actionName string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// GetExtensionPendingAuthJSON returns pending auth request for an extension
 func GetExtensionPendingAuthJSON(extensionID string) (string, error) {
 	req := GetPendingAuthRequest(extensionID)
 	if req == nil {
@@ -1306,12 +1274,10 @@ func GetExtensionPendingAuthJSON(extensionID string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// SetExtensionAuthCodeByID sets auth code for an extension (called from Flutter after OAuth callback)
 func SetExtensionAuthCodeByID(extensionID, authCode string) {
 	SetExtensionAuthCode(extensionID, authCode)
 }
 
-// SetExtensionTokensByID sets tokens for an extension
 func SetExtensionTokensByID(extensionID, accessToken, refreshToken string, expiresIn int) {
 	var expiresAt time.Time
 	if expiresIn > 0 {
@@ -1320,12 +1286,10 @@ func SetExtensionTokensByID(extensionID, accessToken, refreshToken string, expir
 	SetExtensionTokens(extensionID, accessToken, refreshToken, expiresAt)
 }
 
-// ClearExtensionPendingAuthByID clears pending auth request for an extension
 func ClearExtensionPendingAuthByID(extensionID string) {
 	ClearPendingAuthRequest(extensionID)
 }
 
-// IsExtensionAuthenticatedByID checks if an extension is authenticated
 func IsExtensionAuthenticatedByID(extensionID string) bool {
 	extensionAuthStateMu.RLock()
 	defer extensionAuthStateMu.RUnlock()
@@ -1342,7 +1306,6 @@ func IsExtensionAuthenticatedByID(extensionID string) bool {
 	return state.IsAuthenticated
 }
 
-// GetAllPendingAuthRequestsJSON returns all pending auth requests
 func GetAllPendingAuthRequestsJSON() (string, error) {
 	pendingAuthRequestsMu.RLock()
 	defer pendingAuthRequestsMu.RUnlock()
@@ -1386,12 +1349,10 @@ func GetPendingFFmpegCommandJSON(commandID string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// SetFFmpegCommandResultByID sets the result of an FFmpeg command
 func SetFFmpegCommandResultByID(commandID string, success bool, output, errorMsg string) {
 	SetFFmpegCommandResult(commandID, success, output, errorMsg)
 }
 
-// GetAllPendingFFmpegCommandsJSON returns all pending FFmpeg commands
 func GetAllPendingFFmpegCommandsJSON() (string, error) {
 	ffmpegCommandsMu.RLock()
 	defer ffmpegCommandsMu.RUnlock()
@@ -1417,8 +1378,6 @@ func GetAllPendingFFmpegCommandsJSON() (string, error) {
 
 // ==================== EXTENSION CUSTOM SEARCH ====================
 
-// EnrichTrackWithExtensionJSON enriches track metadata using the source extension
-// This is called lazily before download starts, allowing extension to fetch real ISRC etc.
 func EnrichTrackWithExtensionJSON(extensionID, trackJSON string) (string, error) {
 	manager := GetExtensionManager()
 	ext, err := manager.GetExtension(extensionID)
@@ -1449,7 +1408,6 @@ func EnrichTrackWithExtensionJSON(extensionID, trackJSON string) (string, error)
 	return string(jsonBytes), nil
 }
 
-// CustomSearchWithExtensionJSON performs custom search using an extension
 func CustomSearchWithExtensionJSON(extensionID, query string, optionsJSON string) (string, error) {
 	manager := GetExtensionManager()
 	ext, err := manager.GetExtension(extensionID)
@@ -1502,7 +1460,6 @@ func CustomSearchWithExtensionJSON(extensionID, query string, optionsJSON string
 	return string(jsonBytes), nil
 }
 
-// GetSearchProvidersJSON returns all extensions that provide custom search
 func GetSearchProvidersJSON() (string, error) {
 	manager := GetExtensionManager()
 	providers := manager.GetSearchProviders()
@@ -1666,8 +1623,6 @@ func HandleURLWithExtensionJSON(url string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// FindURLHandlerJSON finds an extension that can handle the given URL
-// Returns extension ID or empty string if none found
 func FindURLHandlerJSON(url string) string {
 	manager := GetExtensionManager()
 	handler := manager.FindURLHandler(url)
@@ -1677,7 +1632,6 @@ func FindURLHandlerJSON(url string) string {
 	return handler.extension.ID
 }
 
-// GetAlbumWithExtensionJSON gets album tracks using an extension
 func GetAlbumWithExtensionJSON(extensionID, albumID string) (string, error) {
 	manager := GetExtensionManager()
 	ext, err := manager.GetExtension(extensionID)
@@ -1752,7 +1706,6 @@ func GetAlbumWithExtensionJSON(extensionID, albumID string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// GetPlaylistWithExtensionJSON gets playlist tracks using an extension
 func GetPlaylistWithExtensionJSON(extensionID, playlistID string) (string, error) {
 	manager := GetExtensionManager()
 	ext, err := manager.GetExtension(extensionID)
@@ -1844,7 +1797,6 @@ func GetPlaylistWithExtensionJSON(extensionID, playlistID string) (string, error
 	return string(jsonBytes), nil
 }
 
-// GetArtistWithExtensionJSON gets artist info and albums using an extension
 func GetArtistWithExtensionJSON(extensionID, artistID string) (string, error) {
 	manager := GetExtensionManager()
 	ext, err := manager.GetExtension(extensionID)
@@ -1928,7 +1880,6 @@ func GetArtistWithExtensionJSON(extensionID, artistID string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// GetURLHandlersJSON returns all extensions that handle custom URLs
 func GetURLHandlersJSON() (string, error) {
 	manager := GetExtensionManager()
 	handlers := manager.GetURLHandlers()
@@ -1972,7 +1923,6 @@ func RunPostProcessingJSON(filePath, metadataJSON string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// GetPostProcessingProvidersJSON returns all extensions that provide post-processing
 func GetPostProcessingProvidersJSON() (string, error) {
 	manager := GetExtensionManager()
 	providers := manager.GetPostProcessingProviders()
@@ -2005,13 +1955,11 @@ func GetPostProcessingProvidersJSON() (string, error) {
 	return string(jsonBytes), nil
 }
 
-// InitExtensionStoreJSON initializes the extension store with cache directory
 func InitExtensionStoreJSON(cacheDir string) error {
 	InitExtensionStore(cacheDir)
 	return nil
 }
 
-// GetStoreExtensionsJSON returns all extensions from the store with installation status
 func GetStoreExtensionsJSON(forceRefresh bool) (string, error) {
 	store := GetExtensionStore()
 	if store == nil {
@@ -2035,7 +1983,6 @@ func GetStoreExtensionsJSON(forceRefresh bool) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// SearchStoreExtensionsJSON searches extensions in the store
 func SearchStoreExtensionsJSON(query, category string) (string, error) {
 	store := GetExtensionStore()
 	if store == nil {
@@ -2055,7 +2002,6 @@ func SearchStoreExtensionsJSON(query, category string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// GetStoreCategoriesJSON returns all available categories
 func GetStoreCategoriesJSON() (string, error) {
 	store := GetExtensionStore()
 	if store == nil {
@@ -2071,8 +2017,6 @@ func GetStoreCategoriesJSON() (string, error) {
 	return string(jsonBytes), nil
 }
 
-// DownloadStoreExtensionJSON downloads an extension from the store
-// Returns the path to the downloaded file
 func DownloadStoreExtensionJSON(extensionID, destDir string) (string, error) {
 	store := GetExtensionStore()
 	if store == nil {
@@ -2088,7 +2032,6 @@ func DownloadStoreExtensionJSON(extensionID, destDir string) (string, error) {
 	return destPath, nil
 }
 
-// ClearStoreCacheJSON clears the store cache
 func ClearStoreCacheJSON() error {
 	store := GetExtensionStore()
 	if store == nil {
@@ -2139,12 +2082,10 @@ func callExtensionFunctionJSON(extensionID, functionName string, timeout time.Du
 	return string(jsonBytes), nil
 }
 
-// GetExtensionHomeFeedJSON calls getHomeFeed on any extension that supports it
 func GetExtensionHomeFeedJSON(extensionID string) (string, error) {
 	return callExtensionFunctionJSON(extensionID, "getHomeFeed", 60*time.Second)
 }
 
-// GetExtensionBrowseCategoriesJSON calls getBrowseCategories on any extension that supports it
 func GetExtensionBrowseCategoriesJSON(extensionID string) (string, error) {
 	return callExtensionFunctionJSON(extensionID, "getBrowseCategories", 30*time.Second)
 }

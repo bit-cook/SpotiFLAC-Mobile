@@ -14,10 +14,9 @@ type TrackIDCacheEntry struct {
 }
 
 type TrackIDCache struct {
-	cache map[string]*TrackIDCacheEntry
-	mu    sync.RWMutex
-	ttl   time.Duration
-	// Cleanup is triggered on writes at a fixed interval to avoid unbounded growth.
+	cache           map[string]*TrackIDCacheEntry
+	mu              sync.RWMutex
+	ttl             time.Duration
 	lastCleanup     time.Time
 	cleanupInterval time.Duration
 }
@@ -52,7 +51,6 @@ func (c *TrackIDCache) Get(isrc string) *TrackIDCacheEntry {
 		return entry
 	}
 
-	// Lazily delete expired entry.
 	c.mu.Lock()
 	entry, exists = c.cache[isrc]
 	if exists && time.Now().After(entry.ExpiresAt) {
@@ -139,7 +137,6 @@ func (c *TrackIDCache) Size() int {
 	return len(c.cache)
 }
 
-// ParallelDownloadResult holds results from parallel operations
 type ParallelDownloadResult struct {
 	CoverData  []byte
 	LyricsData *LyricsResponse
@@ -164,14 +161,11 @@ func FetchCoverAndLyricsParallel(
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			fmt.Println("[Parallel] Starting cover download...")
 			data, err := downloadCoverToMemory(coverURL, maxQualityCover)
 			if err != nil {
 				result.CoverErr = err
-				fmt.Printf("[Parallel] Cover download failed: %v\n", err)
 			} else {
 				result.CoverData = data
-				fmt.Printf("[Parallel] Cover downloaded: %d bytes\n", len(data))
 			}
 		}()
 	}
@@ -180,20 +174,16 @@ func FetchCoverAndLyricsParallel(
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			fmt.Println("[Parallel] Starting lyrics fetch...")
 			client := NewLyricsClient()
 			durationSec := float64(durationMs) / 1000.0
 			lyrics, err := client.FetchLyricsAllSources(spotifyID, trackName, artistName, durationSec)
 			if err != nil {
 				result.LyricsErr = err
-				fmt.Printf("[Parallel] Lyrics fetch failed: %v\n", err)
 			} else if lyrics != nil && len(lyrics.Lines) > 0 {
 				result.LyricsData = lyrics
 				result.LyricsLRC = convertToLRCWithMetadata(lyrics, trackName, artistName)
-				fmt.Printf("[Parallel] Lyrics fetched: %d lines\n", len(lyrics.Lines))
 			} else {
 				result.LyricsErr = fmt.Errorf("no lyrics found")
-				fmt.Println("[Parallel] No lyrics found")
 			}
 		}()
 	}
@@ -206,8 +196,8 @@ type PreWarmCacheRequest struct {
 	ISRC       string
 	TrackName  string
 	ArtistName string
-	SpotifyID  string // Needed for Amazon (SongLink lookup)
-	Service    string // "tidal", "qobuz", "amazon"
+	SpotifyID  string
+	Service    string
 }
 
 func PreWarmTrackCache(requests []PreWarmCacheRequest) {
@@ -215,7 +205,6 @@ func PreWarmTrackCache(requests []PreWarmCacheRequest) {
 		return
 	}
 
-	fmt.Printf("[Cache] Pre-warming cache for %d tracks...\n", len(requests))
 	cache := GetTrackIDCache()
 
 	semaphore := make(chan struct{}, 3)
@@ -244,7 +233,6 @@ func PreWarmTrackCache(requests []PreWarmCacheRequest) {
 	}
 
 	wg.Wait()
-	fmt.Printf("[Cache] Pre-warm complete. Cache size: %d\n", cache.Size())
 }
 
 func preWarmTidalCache(isrc, _, _ string) {
@@ -252,7 +240,6 @@ func preWarmTidalCache(isrc, _, _ string) {
 	track, err := downloader.SearchTrackByISRC(isrc)
 	if err == nil && track != nil {
 		GetTrackIDCache().SetTidal(isrc, track.ID)
-		fmt.Printf("[Cache] Cached Tidal ID for ISRC %s: %d\n", isrc, track.ID)
 	}
 }
 
@@ -261,7 +248,6 @@ func preWarmQobuzCache(isrc string) {
 	track, err := downloader.SearchTrackByISRC(isrc)
 	if err == nil && track != nil {
 		GetTrackIDCache().SetQobuz(isrc, track.ID)
-		fmt.Printf("[Cache] Cached Qobuz ID for ISRC %s: %d\n", isrc, track.ID)
 	}
 }
 
@@ -270,7 +256,6 @@ func preWarmAmazonCache(isrc, spotifyID string) {
 	availability, err := client.CheckTrackAvailability(spotifyID, isrc)
 	if err == nil && availability != nil && availability.Amazon {
 		GetTrackIDCache().SetAmazon(isrc, availability.AmazonURL)
-		fmt.Printf("[Cache] Cached Amazon URL for ISRC %s\n", isrc)
 	}
 }
 
@@ -283,7 +268,6 @@ func PreWarmCache(tracksJSON string) error {
 
 func ClearTrackCache() {
 	GetTrackIDCache().Clear()
-	fmt.Println("[Cache] Track ID cache cleared")
 }
 
 func GetCacheSize() int {

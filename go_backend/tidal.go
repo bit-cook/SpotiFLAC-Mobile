@@ -119,7 +119,6 @@ func NewTidalDownloader() *TidalDownloader {
 	return globalTidalDownloader
 }
 
-// GetAvailableAPIs returns list of available Tidal APIs
 func (t *TidalDownloader) GetAvailableAPIs() []string {
 	encodedAPIs := []string{
 		"dGlkYWwtYXBpLmJpbmltdW0ub3Jn",     // tidal-api.binimum.org (priority)
@@ -251,7 +250,6 @@ func (t *TidalDownloader) GetTrackIDFromURL(tidalURL string) (int64, error) {
 	return trackID, nil
 }
 
-// GetTrackInfoByID gets track info by Tidal track ID
 func (t *TidalDownloader) GetTrackInfoByID(trackID int64) (*TidalTrack, error) {
 	token, err := t.GetAccessToken()
 	if err != nil {
@@ -797,7 +795,6 @@ func parseManifest(manifestB64 string) (directURL string, initURL string, mediaU
 	return "", initURL, mediaURLs, nil
 }
 
-// DownloadFile downloads a file from URL with progress tracking
 func (t *TidalDownloader) DownloadFile(downloadURL, outputPath, itemID string) error {
 	ctx := context.Background()
 
@@ -1104,6 +1101,7 @@ type TidalDownloadResult struct {
 	TrackNumber int
 	DiscNumber  int
 	ISRC        string
+	LyricsLRC   string // LRC content for embedding in converted files
 }
 
 func artistsMatch(spotifyArtist, tidalArtist string) bool {
@@ -1683,14 +1681,24 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 		if quality == "HIGH" {
 			GoLog("[Tidal] HIGH quality M4A - skipping metadata embedding (file from server is already valid)\n")
 
-			// Only save external LRC file for lyrics
+			// Handle lyrics based on lyricsMode setting
 			if req.EmbedLyrics && parallelResult != nil && parallelResult.LyricsLRC != "" {
-				GoLog("[Tidal] Saving external LRC file for M4A...\n")
-				if lrcPath, lrcErr := SaveLRCFile(actualOutputPath, parallelResult.LyricsLRC); lrcErr != nil {
-					GoLog("[Tidal] Warning: failed to save LRC file: %v\n", lrcErr)
-				} else {
-					GoLog("[Tidal] LRC file saved: %s\n", lrcPath)
+				lyricsMode := req.LyricsMode
+				if lyricsMode == "" {
+					lyricsMode = "embed" // default
 				}
+
+				// Save external LRC file if mode is "external" or "both"
+				if lyricsMode == "external" || lyricsMode == "both" {
+					GoLog("[Tidal] Saving external LRC file for M4A (mode: %s)...\n", lyricsMode)
+					if lrcPath, lrcErr := SaveLRCFile(actualOutputPath, parallelResult.LyricsLRC); lrcErr != nil {
+						GoLog("[Tidal] Warning: failed to save LRC file: %v\n", lrcErr)
+					} else {
+						GoLog("[Tidal] LRC file saved: %s\n", lrcPath)
+					}
+				}
+				// Note: For "embed" or "both" modes, LyricsLRC will be returned to Flutter
+				// for embedding into the converted MP3/Opus file
 			}
 		} else {
 			fmt.Println("[Tidal] Skipping metadata embedding for M4A file (will be handled after FFmpeg conversion)")
@@ -1702,10 +1710,21 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 	// For HIGH quality (AAC), set appropriate values
 	bitDepth := downloadInfo.BitDepth
 	sampleRate := downloadInfo.SampleRate
+	lyricsLRC := ""
 	if quality == "HIGH" {
 		// AAC 320kbps doesn't have traditional bit depth
 		bitDepth = 0
 		sampleRate = 44100
+		// Return lyrics for Flutter to embed in converted MP3/Opus
+		if parallelResult != nil && parallelResult.LyricsLRC != "" {
+			lyricsMode := req.LyricsMode
+			if lyricsMode == "" {
+				lyricsMode = "embed"
+			}
+			if lyricsMode == "embed" || lyricsMode == "both" {
+				lyricsLRC = parallelResult.LyricsLRC
+			}
+		}
 	}
 
 	return TidalDownloadResult{
@@ -1719,5 +1738,6 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 		TrackNumber: actualTrackNumber,
 		DiscNumber:  actualDiscNumber,
 		ISRC:        track.ISRC,
+		LyricsLRC:   lyricsLRC,
 	}, nil
 }

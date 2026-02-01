@@ -218,8 +218,13 @@ class _DownloadServicePickerState extends ConsumerState<DownloadServicePicker> {
                 subtitle: quality.description ?? '',
                 icon: _getQualityIcon(quality.id),
                 onTap: () {
-                  Navigator.pop(context);
-                  widget.onSelect(quality.id, _selectedService);
+                  // For Tidal HIGH quality, show format picker first
+                  if (_selectedService == 'tidal' && quality.id == 'HIGH') {
+                    _showLossyFormatPicker(context);
+                  } else {
+                    Navigator.pop(context);
+                    widget.onSelect(quality.id, _selectedService);
+                  }
                 },
               ),
 
@@ -249,6 +254,102 @@ class _DownloadServicePickerState extends ConsumerState<DownloadServicePicker> {
       default:
         return Icons.music_note;
     }
+  }
+
+  void _showLossyFormatPicker(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final settings = ref.read(settingsProvider);
+    final currentFormat = settings.tidalHighFormat;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colorScheme.surfaceContainerHigh,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (modalContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+              child: Text(
+                'Select Lossy Format',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+              child: Text(
+                'Choose output format for 320kbps lossy download',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.audiotrack, color: colorScheme.onPrimaryContainer, size: 20),
+              ),
+              title: const Text('MP3 320kbps'),
+              subtitle: const Text('Best compatibility, ~10MB per track'),
+              trailing: currentFormat == 'mp3_320'
+                  ? Icon(Icons.check_circle, color: colorScheme.primary)
+                  : null,
+              onTap: () {
+                ref.read(settingsProvider.notifier).setTidalHighFormat('mp3_320');
+                Navigator.pop(modalContext); // Close format picker
+                Navigator.pop(context); // Close service picker
+                widget.onSelect('HIGH', _selectedService);
+              },
+            ),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.graphic_eq, color: colorScheme.onPrimaryContainer, size: 20),
+              ),
+              title: const Text('Opus 128kbps'),
+              subtitle: const Text('Modern codec, ~4MB per track'),
+              trailing: currentFormat == 'opus_128'
+                  ? Icon(Icons.check_circle, color: colorScheme.primary)
+                  : null,
+              onTap: () {
+                ref.read(settingsProvider.notifier).setTidalHighFormat('opus_128');
+                Navigator.pop(modalContext); // Close format picker
+                Navigator.pop(context); // Close service picker
+                widget.onSelect('HIGH', _selectedService);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
   }
 }
 

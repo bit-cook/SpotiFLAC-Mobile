@@ -15,9 +15,6 @@ import (
 	"time"
 )
 
-// getRandomUserAgent generates a random Windows Chrome User-Agent string
-// Uses modern Chrome format with build and patch numbers
-// Windows 11 still reports as "Windows NT 10.0" for compatibility
 func getRandomUserAgent() string {
 	// Chrome version 120-145 (modern range)
 	chromeVersion := rand.Intn(26) + 120
@@ -38,10 +35,9 @@ const (
 	SongLinkTimeout   = 30 * time.Second
 	DefaultMaxRetries = 3
 	DefaultRetryDelay = 1 * time.Second
-	Second            = time.Second // Exported for use in other files
+	Second            = time.Second
 )
 
-// Shared transport with connection pooling to prevent TCP exhaustion
 var sharedTransport = &http.Transport{
 	DialContext: (&net.Dialer{
 		Timeout:   30 * time.Second,
@@ -85,7 +81,6 @@ func GetDownloadClient() *http.Client {
 	return downloadClient
 }
 
-// CloseIdleConnections closes idle connections in the shared transport
 func CloseIdleConnections() {
 	sharedTransport.CloseIdleConnections()
 }
@@ -117,9 +112,6 @@ func DefaultRetryConfig() RetryConfig {
 	}
 }
 
-// DoRequestWithRetry executes an HTTP request with retry logic and exponential backoff
-// Handles 429 (Too Many Requests) responses with Retry-After header
-// Also detects and logs ISP blocking
 func DoRequestWithRetry(client *http.Client, req *http.Request, config RetryConfig) (*http.Response, error) {
 	var lastErr error
 	delay := config.InitialDelay
@@ -149,12 +141,10 @@ func DoRequestWithRetry(client *http.Client, req *http.Request, config RetryConf
 			continue
 		}
 
-		// Success
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			return resp, nil
 		}
 
-		// Handle rate limiting (429)
 		if resp.StatusCode == 429 {
 			resp.Body.Close()
 			retryAfter := getRetryAfterDuration(resp)
@@ -194,7 +184,6 @@ func DoRequestWithRetry(client *http.Client, req *http.Request, config RetryConf
 			}
 		}
 
-		// Server errors (5xx) - retry
 		if resp.StatusCode >= 500 {
 			resp.Body.Close()
 			lastErr = fmt.Errorf("server error: HTTP %d", resp.StatusCode)
@@ -206,7 +195,6 @@ func DoRequestWithRetry(client *http.Client, req *http.Request, config RetryConf
 			continue
 		}
 
-		// Client errors (4xx except 429) - don't retry
 		return resp, nil
 	}
 
@@ -225,12 +213,10 @@ func getRetryAfterDuration(resp *http.Response) time.Duration {
 		return 60 * time.Second // Default wait time
 	}
 
-	// Try parsing as seconds
 	if seconds, err := strconv.Atoi(retryAfter); err == nil {
 		return time.Duration(seconds) * time.Second
 	}
 
-	// Try parsing as HTTP date
 	if t, err := http.ParseTime(retryAfter); err == nil {
 		duration := time.Until(t)
 		if duration > 0 {
@@ -241,8 +227,6 @@ func getRetryAfterDuration(resp *http.Response) time.Duration {
 	return 60 * time.Second // Default
 }
 
-// ReadResponseBody reads and returns the response body
-// Returns error if body is empty
 func ReadResponseBody(resp *http.Response) ([]byte, error) {
 	if resp == nil {
 		return nil, fmt.Errorf("response is nil")
@@ -272,14 +256,12 @@ func ValidateResponse(resp *http.Response) error {
 	return nil
 }
 
-// BuildErrorMessage creates a detailed error message for API failures
 func BuildErrorMessage(apiURL string, statusCode int, responsePreview string) string {
 	msg := fmt.Sprintf("API %s failed", apiURL)
 	if statusCode > 0 {
 		msg += fmt.Sprintf(" (HTTP %d)", statusCode)
 	}
 	if responsePreview != "" {
-		// Truncate preview if too long
 		if len(responsePreview) > 100 {
 			responsePreview = responsePreview[:100] + "..."
 		}
@@ -298,18 +280,14 @@ func (e *ISPBlockingError) Error() string {
 	return fmt.Sprintf("ISP blocking detected for %s: %s", e.Domain, e.Reason)
 }
 
-// IsISPBlocking checks if an error is likely caused by ISP blocking
-// Returns the ISPBlockingError if detected, nil otherwise
 func IsISPBlocking(err error, requestURL string) *ISPBlockingError {
 	if err == nil {
 		return nil
 	}
 
-	// Extract domain from URL
 	domain := extractDomain(requestURL)
 	errStr := strings.ToLower(err.Error())
 
-	// Check for DNS resolution failure (common ISP blocking method)
 	var dnsErr *net.DNSError
 	if errors.As(err, &dnsErr) {
 		if dnsErr.IsNotFound || dnsErr.IsTemporary {
@@ -321,11 +299,9 @@ func IsISPBlocking(err error, requestURL string) *ISPBlockingError {
 		}
 	}
 
-	// Check for connection refused (ISP firewall blocking)
 	var opErr *net.OpError
 	if errors.As(err, &opErr) {
 		if opErr.Op == "dial" {
-			// Check for specific syscall errors
 			var syscallErr syscall.Errno
 			if errors.As(opErr.Err, &syscallErr) {
 				switch syscallErr {
@@ -364,7 +340,6 @@ func IsISPBlocking(err error, requestURL string) *ISPBlockingError {
 		}
 	}
 
-	// Check for TLS handshake failure (ISP MITM or blocking HTTPS)
 	var tlsErr *tls.RecordHeaderError
 	if errors.As(err, &tlsErr) {
 		return &ISPBlockingError{
@@ -425,7 +400,6 @@ func extractDomain(rawURL string) string {
 
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
-		// Try to extract domain manually
 		rawURL = strings.TrimPrefix(rawURL, "https://")
 		rawURL = strings.TrimPrefix(rawURL, "http://")
 		if idx := strings.Index(rawURL, "/"); idx > 0 {

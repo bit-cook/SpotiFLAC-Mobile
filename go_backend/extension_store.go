@@ -20,28 +20,26 @@ const (
 	CategoryIntegration = "integration"
 )
 
-// StoreExtension represents an extension in the store
 type StoreExtension struct {
-	ID            string   `json:"id"`
-	Name          string   `json:"name"`
-	DisplayName   string   `json:"display_name,omitempty"`
-	Version       string   `json:"version"`
-	Author        string   `json:"author"`
-	Description   string   `json:"description"`
-	DownloadURL   string   `json:"download_url,omitempty"`
-	IconURL       string   `json:"icon_url,omitempty"`
-	Category      string   `json:"category"`
-	Tags          []string `json:"tags,omitempty"`
-	Downloads     int      `json:"downloads"`
-	UpdatedAt     string   `json:"updated_at"`
-	MinAppVersion string   `json:"min_app_version,omitempty"`
-	DisplayNameAlt   string `json:"displayName,omitempty"`
-	DownloadURLAlt   string `json:"downloadUrl,omitempty"`
-	IconURLAlt       string `json:"iconUrl,omitempty"`
-	MinAppVersionAlt string `json:"minAppVersion,omitempty"`
+	ID               string   `json:"id"`
+	Name             string   `json:"name"`
+	DisplayName      string   `json:"display_name,omitempty"`
+	Version          string   `json:"version"`
+	Author           string   `json:"author"`
+	Description      string   `json:"description"`
+	DownloadURL      string   `json:"download_url,omitempty"`
+	IconURL          string   `json:"icon_url,omitempty"`
+	Category         string   `json:"category"`
+	Tags             []string `json:"tags,omitempty"`
+	Downloads        int      `json:"downloads"`
+	UpdatedAt        string   `json:"updated_at"`
+	MinAppVersion    string   `json:"min_app_version,omitempty"`
+	DisplayNameAlt   string   `json:"displayName,omitempty"`
+	DownloadURLAlt   string   `json:"downloadUrl,omitempty"`
+	IconURLAlt       string   `json:"iconUrl,omitempty"`
+	MinAppVersionAlt string   `json:"minAppVersion,omitempty"`
 }
 
-// getDisplayName returns display name, falling back to name (private to avoid gomobile conflict)
 func (e *StoreExtension) getDisplayName() string {
 	if e.DisplayName != "" {
 		return e.DisplayName
@@ -52,7 +50,6 @@ func (e *StoreExtension) getDisplayName() string {
 	return e.Name
 }
 
-// getDownloadURL returns download URL from either field (private to avoid gomobile conflict)
 func (e *StoreExtension) getDownloadURL() string {
 	if e.DownloadURL != "" {
 		return e.DownloadURL
@@ -60,7 +57,6 @@ func (e *StoreExtension) getDownloadURL() string {
 	return e.DownloadURLAlt
 }
 
-// getIconURL returns icon URL from either field (private to avoid gomobile conflict)
 func (e *StoreExtension) getIconURL() string {
 	if e.IconURL != "" {
 		return e.IconURL
@@ -68,7 +64,6 @@ func (e *StoreExtension) getIconURL() string {
 	return e.IconURLAlt
 }
 
-// getMinAppVersion returns min app version from either field (private to avoid gomobile conflict)
 func (e *StoreExtension) getMinAppVersion() string {
 	if e.MinAppVersion != "" {
 		return e.MinAppVersion
@@ -76,7 +71,6 @@ func (e *StoreExtension) getMinAppVersion() string {
 	return e.MinAppVersionAlt
 }
 
-// StoreRegistry represents the extension registry
 type StoreRegistry struct {
 	Version    int              `json:"version"`
 	UpdatedAt  string           `json:"updated_at"`
@@ -103,7 +97,6 @@ type StoreExtensionResponse struct {
 	HasUpdate        bool     `json:"has_update"`
 }
 
-// ToResponse converts StoreExtension to normalized response
 func (e *StoreExtension) ToResponse() StoreExtensionResponse {
 	return StoreExtensionResponse{
 		ID:            e.ID,
@@ -122,7 +115,6 @@ func (e *StoreExtension) ToResponse() StoreExtensionResponse {
 	}
 }
 
-// ExtensionStore manages the extension store
 type ExtensionStore struct {
 	registryURL string
 	cacheDir    string
@@ -143,7 +135,6 @@ const (
 	cacheFileName      = "store_cache.json"
 )
 
-// InitExtensionStore initializes the extension store
 func InitExtensionStore(cacheDir string) *ExtensionStore {
 	extensionStoreMu.Lock()
 	defer extensionStoreMu.Unlock()
@@ -160,14 +151,12 @@ func InitExtensionStore(cacheDir string) *ExtensionStore {
 	return extensionStore
 }
 
-// GetExtensionStore returns the singleton store instance
 func GetExtensionStore() *ExtensionStore {
 	extensionStoreMu.Lock()
 	defer extensionStoreMu.Unlock()
 	return extensionStore
 }
 
-// loadDiskCache loads cached registry from disk
 func (s *ExtensionStore) loadDiskCache() {
 	if s.cacheDir == "" {
 		return
@@ -193,7 +182,6 @@ func (s *ExtensionStore) loadDiskCache() {
 	LogDebug("ExtensionStore", "Loaded %d extensions from disk cache", len(s.cache.Extensions))
 }
 
-// saveDiskCache saves registry to disk cache
 func (s *ExtensionStore) saveDiskCache() {
 	if s.cacheDir == "" || s.cache == nil {
 		return
@@ -216,7 +204,6 @@ func (s *ExtensionStore) saveDiskCache() {
 	os.WriteFile(cachePath, data, 0644)
 }
 
-// FetchRegistry fetches the extension registry from GitHub
 func (s *ExtensionStore) FetchRegistry(forceRefresh bool) (*StoreRegistry, error) {
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()
@@ -267,7 +254,6 @@ func (s *ExtensionStore) FetchRegistry(forceRefresh bool) (*StoreRegistry, error
 	return &registry, nil
 }
 
-// GetExtensionsWithStatus returns extensions with installation status
 func (s *ExtensionStore) GetExtensionsWithStatus() ([]StoreExtensionResponse, error) {
 	registry, err := s.FetchRegistry(false)
 	if err != nil {
@@ -299,7 +285,6 @@ func (s *ExtensionStore) GetExtensionsWithStatus() ([]StoreExtensionResponse, er
 	return result, nil
 }
 
-// DownloadExtension downloads an extension package to the specified path
 func (s *ExtensionStore) DownloadExtension(extensionID string, destPath string) error {
 	registry, err := s.FetchRegistry(false)
 	if err != nil {
@@ -347,7 +332,6 @@ func (s *ExtensionStore) DownloadExtension(extensionID string, destPath string) 
 	return nil
 }
 
-// GetCategories returns all available categories
 func (s *ExtensionStore) GetCategories() []string {
 	return []string{
 		CategoryMetadata,
@@ -358,7 +342,6 @@ func (s *ExtensionStore) GetCategories() []string {
 	}
 }
 
-// SearchExtensions searches extensions by query
 func (s *ExtensionStore) SearchExtensions(query string, category string) ([]StoreExtensionResponse, error) {
 	extensions, err := s.GetExtensionsWithStatus()
 	if err != nil {
@@ -404,7 +387,6 @@ func (s *ExtensionStore) SearchExtensions(query string, category string) ([]Stor
 	return result, nil
 }
 
-// ClearCache clears the in-memory and disk cache
 func (s *ExtensionStore) ClearCache() {
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()

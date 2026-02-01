@@ -78,7 +78,6 @@ func GetItemProgress(itemID string) string {
 	return "{}"
 }
 
-// StartItemProgress initializes progress tracking for an item
 func StartItemProgress(itemID string) {
 	multiMu.Lock()
 	defer multiMu.Unlock()
@@ -93,7 +92,6 @@ func StartItemProgress(itemID string) {
 	}
 }
 
-// SetItemBytesTotal sets total bytes for an item
 func SetItemBytesTotal(itemID string, total int64) {
 	multiMu.Lock()
 	defer multiMu.Unlock()
@@ -103,7 +101,6 @@ func SetItemBytesTotal(itemID string, total int64) {
 	}
 }
 
-// SetItemBytesReceived sets bytes received for an item
 func SetItemBytesReceived(itemID string, received int64) {
 	multiMu.Lock()
 	defer multiMu.Unlock()
@@ -116,7 +113,6 @@ func SetItemBytesReceived(itemID string, received int64) {
 	}
 }
 
-// SetItemBytesReceivedWithSpeed sets bytes received and speed for an item
 func SetItemBytesReceivedWithSpeed(itemID string, received int64, speedMBps float64) {
 	multiMu.Lock()
 	defer multiMu.Unlock()
@@ -130,7 +126,6 @@ func SetItemBytesReceivedWithSpeed(itemID string, received int64, speedMBps floa
 	}
 }
 
-// CompleteItemProgress marks an item as complete
 func CompleteItemProgress(itemID string) {
 	multiMu.Lock()
 	defer multiMu.Unlock()
@@ -142,7 +137,6 @@ func CompleteItemProgress(itemID string) {
 	}
 }
 
-// SetItemProgress sets progress for an item directly
 func SetItemProgress(itemID string, progress float64, bytesReceived, bytesTotal int64) {
 	multiMu.Lock()
 	defer multiMu.Unlock()
@@ -158,7 +152,6 @@ func SetItemProgress(itemID string, progress float64, bytesReceived, bytesTotal 
 	}
 }
 
-// SetItemFinalizing marks an item as finalizing (embedding metadata)
 func SetItemFinalizing(itemID string) {
 	multiMu.Lock()
 	defer multiMu.Unlock()
@@ -169,7 +162,6 @@ func SetItemFinalizing(itemID string) {
 	}
 }
 
-// RemoveItemProgress removes progress tracking for an item
 func RemoveItemProgress(itemID string) {
 	multiMu.Lock()
 	defer multiMu.Unlock()
@@ -177,7 +169,6 @@ func RemoveItemProgress(itemID string) {
 	delete(multiProgress.Items, itemID)
 }
 
-// ClearAllItemProgress clears all item progress
 func ClearAllItemProgress() {
 	multiMu.Lock()
 	defer multiMu.Unlock()
@@ -185,7 +176,6 @@ func ClearAllItemProgress() {
 	multiProgress.Items = make(map[string]*ItemProgress)
 }
 
-// setDownloadDir sets the default download directory
 func setDownloadDir(path string) error {
 	downloadDirMu.Lock()
 	defer downloadDirMu.Unlock()
@@ -193,7 +183,6 @@ func setDownloadDir(path string) error {
 	return nil
 }
 
-// ItemProgressWriter wraps io.Writer to track download progress for a specific item
 type ItemProgressWriter struct {
 	writer       interface{ Write([]byte) (int, error) }
 	itemID       string
@@ -206,7 +195,6 @@ type ItemProgressWriter struct {
 
 const progressUpdateThreshold = 64 * 1024 // Update progress every 64KB
 
-// NewItemProgressWriter creates a new progress writer for a specific item
 func NewItemProgressWriter(w interface{ Write([]byte) (int, error) }, itemID string) *ItemProgressWriter {
 	now := time.Now()
 	return &ItemProgressWriter{
@@ -220,7 +208,6 @@ func NewItemProgressWriter(w interface{ Write([]byte) (int, error) }, itemID str
 	}
 }
 
-// Write implements io.Writer with threshold-based progress updates and speed tracking
 func (pw *ItemProgressWriter) Write(p []byte) (int, error) {
 	if pw.itemID != "" && isDownloadCancelled(pw.itemID) {
 		return 0, ErrDownloadCancelled

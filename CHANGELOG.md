@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.3.5] - 2026-02-01
+
+Same as 3.3.1 but fixes crash issues caused by FFmpeg.
+
+### Fixed
+
+- **FFmpeg Crash**: Fixed crash issues during M4A to MP3/Opus conversion
+
+---
+
 ## [3.3.1] - 2026-02-01
 
 ### Added

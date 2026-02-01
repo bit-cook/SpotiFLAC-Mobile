@@ -39,7 +39,6 @@ var (
 	pendingAuthRequestsMu sync.RWMutex
 )
 
-// GetPendingAuthRequest returns pending auth request for an extension (called from Flutter)
 func GetPendingAuthRequest(extensionID string) *PendingAuthRequest {
 	pendingAuthRequestsMu.RLock()
 	defer pendingAuthRequestsMu.RUnlock()
@@ -201,7 +200,6 @@ func (r *ExtensionRuntime) SetSettings(settings map[string]interface{}) {
 	r.settings = settings
 }
 
-// RegisterAPIs registers all sandboxed APIs to the Goja VM
 func (r *ExtensionRuntime) RegisterAPIs(vm *goja.Runtime) {
 	r.vm = vm
 

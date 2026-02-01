@@ -54,8 +54,6 @@ func NewAmazonDownloader() *AmazonDownloader {
 	return globalAmazonDownloader
 }
 
-// downloadFromAfkarXYZ downloads a track using AfkarXYZ API
-// Returns: downloadURL, fileName, error
 func (a *AmazonDownloader) downloadFromAfkarXYZ(amazonURL string) (string, string, error) {
 	// AfkarXYZ API endpoint
 	apiURL := "https://amazon.afkarxyz.fun/convert?url=" + url.QueryEscape(amazonURL)
@@ -206,7 +204,6 @@ type AmazonDownloadResult struct {
 	ISRC        string
 }
 
-// downloadFromAmazon uses AfkarXYZ API to download from Amazon Music
 func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 	downloader := NewAmazonDownloader()
 

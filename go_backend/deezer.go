@@ -425,7 +425,6 @@ func (c *DeezerClient) SearchAll(ctx context.Context, query string, trackLimit, 
 	return result, nil
 }
 
-// GetTrack fetches a single track by Deezer ID
 func (c *DeezerClient) GetTrack(ctx context.Context, trackID string) (*TrackResponse, error) {
 	trackURL := fmt.Sprintf(deezerTrackURL, trackID)
 
@@ -975,7 +974,6 @@ func (c *DeezerClient) GetAlbumExtendedMetadata(ctx context.Context, albumID str
 	return result, nil
 }
 
-// GetTrackAlbumID fetches the album ID for a Deezer track
 func (c *DeezerClient) GetTrackAlbumID(ctx context.Context, trackID string) (string, error) {
 	trackURL := fmt.Sprintf(deezerTrackURL, trackID)
 
@@ -1046,7 +1044,6 @@ func (c *DeezerClient) getJSON(ctx context.Context, endpoint string, dst interfa
 	return json.Unmarshal(body, dst)
 }
 
-// parseDeezerURL is internal function, returns type and ID
 func parseDeezerURL(input string) (string, string, error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" {

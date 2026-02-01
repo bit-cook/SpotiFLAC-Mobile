@@ -14,14 +14,12 @@ import (
 
 // ==================== HTTP API (Sandboxed) ====================
 
-// HTTPResponse represents the response from an HTTP request
 type HTTPResponse struct {
 	StatusCode int               `json:"statusCode"`
 	Body       string            `json:"body"`
 	Headers    map[string]string `json:"headers"`
 }
 
-// validateDomain checks if the domain is allowed by the extension's permissions
 func (r *ExtensionRuntime) validateDomain(urlStr string) error {
 	parsed, err := url.Parse(urlStr)
 	if err != nil {
@@ -42,7 +40,6 @@ func (r *ExtensionRuntime) validateDomain(urlStr string) error {
 	return nil
 }
 
-// httpGet performs a GET request (sandboxed)
 func (r *ExtensionRuntime) httpGet(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
 		return r.vm.ToValue(map[string]interface{}{
@@ -120,7 +117,6 @@ func (r *ExtensionRuntime) httpGet(call goja.FunctionCall) goja.Value {
 	})
 }
 
-// httpPost performs a POST request (sandboxed)
 func (r *ExtensionRuntime) httpPost(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
 		return r.vm.ToValue(map[string]interface{}{
@@ -347,7 +343,6 @@ func (r *ExtensionRuntime) httpPut(call goja.FunctionCall) goja.Value {
 	return r.httpMethodShortcut("PUT", call)
 }
 
-// httpDelete performs a DELETE request (shortcut for http.request with method: "DELETE")
 func (r *ExtensionRuntime) httpDelete(call goja.FunctionCall) goja.Value {
 	return r.httpMethodShortcut("DELETE", call)
 }
@@ -356,8 +351,6 @@ func (r *ExtensionRuntime) httpPatch(call goja.FunctionCall) goja.Value {
 	return r.httpMethodShortcut("PATCH", call)
 }
 
-// httpMethodShortcut is a helper for PUT/DELETE/PATCH shortcuts
-// Signature: http.put(url, body, headers) / http.delete(url, headers) / http.patch(url, body, headers)
 func (r *ExtensionRuntime) httpMethodShortcut(method string, call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
 		return r.vm.ToValue(map[string]interface{}{

@@ -7,7 +7,6 @@ import (
 	"strings"
 )
 
-// ExtensionType represents the type of extension
 type ExtensionType string
 
 const (
@@ -15,7 +14,6 @@ const (
 	ExtensionTypeDownloadProvider ExtensionType = "download_provider"
 )
 
-// SettingType represents the type of a setting field
 type SettingType string
 
 const (
@@ -26,14 +24,12 @@ const (
 	SettingTypeButton SettingType = "button" // Action button that calls a JS function
 )
 
-// ExtensionPermissions defines what resources an extension can access
 type ExtensionPermissions struct {
 	Network []string `json:"network"` // List of allowed domains
 	Storage bool     `json:"storage"` // Whether extension can use storage API
 	File    bool     `json:"file"`    // Whether extension can use file API
 }
 
-// ExtensionSetting defines a configurable setting for an extension
 type ExtensionSetting struct {
 	Key         string      `json:"key"`
 	Type        SettingType `json:"type"`
@@ -46,7 +42,6 @@ type ExtensionSetting struct {
 	Action      string      `json:"action,omitempty"`  // For button type: JS function name to call (e.g., "startLogin")
 }
 
-// QualityOption represents a quality option for download providers
 type QualityOption struct {
 	ID          string                   `json:"id"`                 // Unique identifier (e.g., "mp3_320", "opus_128")
 	Label       string                   `json:"label"`              // Display name (e.g., "MP3 320kbps")
@@ -54,7 +49,6 @@ type QualityOption struct {
 	Settings    []QualitySpecificSetting `json:"settings,omitempty"` // Quality-specific settings
 }
 
-// QualitySpecificSetting represents a setting that's specific to a quality option
 type QualitySpecificSetting struct {
 	Key         string      `json:"key"`
 	Type        SettingType `json:"type"`
@@ -66,14 +60,12 @@ type QualitySpecificSetting struct {
 	Options     []string    `json:"options,omitempty"` // For select type
 }
 
-// SearchFilter defines a filter option for search
 type SearchFilter struct {
 	ID    string `json:"id"`              // Filter identifier (e.g., "track", "album", "artist", "playlist")
 	Label string `json:"label,omitempty"` // Display label (e.g., "Songs", "Albums", "Artists", "Playlists")
 	Icon  string `json:"icon,omitempty"`  // Optional icon name
 }
 
-// SearchBehaviorConfig defines custom search behavior for an extension
 type SearchBehaviorConfig struct {
 	Enabled         bool           `json:"enabled"`                   // Whether extension provides custom search
 	Placeholder     string         `json:"placeholder,omitempty"`     // Placeholder text for search box
@@ -85,20 +77,17 @@ type SearchBehaviorConfig struct {
 	Filters         []SearchFilter `json:"filters,omitempty"`         // Available search filters (e.g., track, album, artist, playlist)
 }
 
-// URLHandlerConfig defines custom URL handling for an extension
 type URLHandlerConfig struct {
 	Enabled  bool     `json:"enabled"`            // Whether extension handles URLs
 	Patterns []string `json:"patterns,omitempty"` // URL patterns to match (e.g., "music.youtube.com", "soundcloud.com")
 }
 
-// TrackMatchingConfig defines custom track matching behavior
 type TrackMatchingConfig struct {
 	CustomMatching    bool   `json:"customMatching"`              // Whether extension handles matching
 	Strategy          string `json:"strategy,omitempty"`          // "isrc", "name", "duration", "custom"
 	DurationTolerance int    `json:"durationTolerance,omitempty"` // Tolerance in seconds for duration matching
 }
 
-// PostProcessingHook defines a post-processing hook
 type PostProcessingHook struct {
 	ID               string   `json:"id"`                         // Unique identifier
 	Name             string   `json:"name"`                       // Display name
@@ -107,13 +96,11 @@ type PostProcessingHook struct {
 	SupportedFormats []string `json:"supportedFormats,omitempty"` // Supported file formats (e.g., ["flac", "mp3"])
 }
 
-// PostProcessingConfig defines post-processing capabilities
 type PostProcessingConfig struct {
 	Enabled bool                 `json:"enabled"`         // Whether extension provides post-processing
 	Hooks   []PostProcessingHook `json:"hooks,omitempty"` // Available hooks
 }
 
-// ExtensionManifest represents the manifest.json of an extension
 type ExtensionManifest struct {
 	Name                   string                 `json:"name"`
 	DisplayName            string                 `json:"displayName"`
@@ -136,7 +123,6 @@ type ExtensionManifest struct {
 	Capabilities           map[string]interface{} `json:"capabilities,omitempty"`           // Extension capabilities (homeFeed, browseCategories, etc.)
 }
 
-// ManifestValidationError represents a validation error in the manifest
 type ManifestValidationError struct {
 	Field   string
 	Message string
@@ -146,7 +132,6 @@ func (e *ManifestValidationError) Error() string {
 	return fmt.Sprintf("manifest validation error: %s - %s", e.Field, e.Message)
 }
 
-// ParseManifest parses and validates a manifest from JSON bytes
 func ParseManifest(data []byte) (*ExtensionManifest, error) {
 	var manifest ExtensionManifest
 	if err := json.Unmarshal(data, &manifest); err != nil {
@@ -225,7 +210,6 @@ func (m *ExtensionManifest) Validate() error {
 	return nil
 }
 
-// HasType checks if the extension has a specific type
 func (m *ExtensionManifest) HasType(t ExtensionType) bool {
 	for _, et := range m.Types {
 		if et == t {
@@ -235,17 +219,14 @@ func (m *ExtensionManifest) HasType(t ExtensionType) bool {
 	return false
 }
 
-// IsMetadataProvider returns true if extension provides metadata
 func (m *ExtensionManifest) IsMetadataProvider() bool {
 	return m.HasType(ExtensionTypeMetadataProvider)
 }
 
-// IsDownloadProvider returns true if extension provides downloads
 func (m *ExtensionManifest) IsDownloadProvider() bool {
 	return m.HasType(ExtensionTypeDownloadProvider)
 }
 
-// IsDomainAllowed checks if a domain is in the allowed network permissions
 func (m *ExtensionManifest) IsDomainAllowed(domain string) bool {
 	domain = strings.ToLower(strings.TrimSpace(domain))
 	for _, allowed := range m.Permissions.Network {
@@ -264,27 +245,22 @@ func (m *ExtensionManifest) IsDomainAllowed(domain string) bool {
 	return false
 }
 
-// HasCustomSearch returns true if extension provides custom search
 func (m *ExtensionManifest) HasCustomSearch() bool {
 	return m.SearchBehavior != nil && m.SearchBehavior.Enabled
 }
 
-// HasCustomMatching returns true if extension provides custom track matching
 func (m *ExtensionManifest) HasCustomMatching() bool {
 	return m.TrackMatching != nil && m.TrackMatching.CustomMatching
 }
 
-// HasPostProcessing returns true if extension provides post-processing
 func (m *ExtensionManifest) HasPostProcessing() bool {
 	return m.PostProcessing != nil && m.PostProcessing.Enabled
 }
 
-// HasURLHandler returns true if extension handles custom URLs
 func (m *ExtensionManifest) HasURLHandler() bool {
 	return m.URLHandler != nil && m.URLHandler.Enabled && len(m.URLHandler.Patterns) > 0
 }
 
-// MatchesURL checks if a URL matches any of the extension's URL patterns
 func (m *ExtensionManifest) MatchesURL(urlStr string) bool {
 	if !m.HasURLHandler() {
 		return false
@@ -301,7 +277,6 @@ func (m *ExtensionManifest) MatchesURL(urlStr string) bool {
 	return false
 }
 
-// GetPostProcessingHooks returns all post-processing hooks
 func (m *ExtensionManifest) GetPostProcessingHooks() []PostProcessingHook {
 	if m.PostProcessing == nil {
 		return nil
@@ -309,7 +284,6 @@ func (m *ExtensionManifest) GetPostProcessingHooks() []PostProcessingHook {
 	return m.PostProcessing.Hooks
 }
 
-// ToJSON serializes the manifest to JSON
 func (m *ExtensionManifest) ToJSON() ([]byte, error) {
 	return json.Marshal(m)
 }

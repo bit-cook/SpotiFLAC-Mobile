@@ -150,15 +150,12 @@ class DownloadHistoryState {
           .map((item) => MapEntry(item.isrc!, item)),
       );
 
-  /// O(1) check if spotify_id exists
   bool isDownloaded(String spotifyId) =>
       _downloadedSpotifyIds.contains(spotifyId);
-  
-  /// O(1) lookup by spotify_id
+
   DownloadHistoryItem? getBySpotifyId(String spotifyId) =>
       _bySpotifyId[spotifyId];
-  
-  /// O(1) lookup by ISRC
+
   DownloadHistoryItem? getByIsrc(String isrc) =>
       _byIsrc[isrc];
 
@@ -177,7 +174,6 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     return DownloadHistoryState();
   }
 
-  /// Synchronously schedule load - ensures it runs before any UI renders
   void _loadFromDatabaseSync() {
     if (_isLoaded) return;
     _isLoaded = true;
@@ -193,7 +189,6 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
         _historyLog.i('Migrated history from SharedPreferences to SQLite');
       }
       
-      // Migrate iOS paths if container UUID changed after app update
       if (Platform.isIOS) {
         final pathsMigrated = await _db.migrateIosContainerPaths();
         if (pathsMigrated) {
@@ -264,12 +259,10 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     return state.getBySpotifyId(spotifyId);
   }
   
-  /// O(1) lookup by ISRC
   DownloadHistoryItem? getByIsrc(String isrc) {
     return state.getByIsrc(isrc);
   }
   
-  /// Async version with database lookup (for cases where in-memory might be stale)
   Future<DownloadHistoryItem?> getBySpotifyIdAsync(String spotifyId) async {
     final inMemory = state.getBySpotifyId(spotifyId);
     if (inMemory != null) return inMemory;
@@ -286,7 +279,6 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     });
   }
   
-  /// Get database stats for debugging
   Future<int> getDatabaseCount() async {
     return await _db.getCount();
   }
@@ -722,7 +714,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       final isSingle = track.isSingle;
       final artistName = _sanitizeFolderName(albumArtist);
       
-      // New option: Singles folder inside Artist folder
       if (albumFolderStructure == 'artist_album_singles') {
         if (isSingle) {
           final singlesPath = '$baseDir${Platform.pathSeparator}$artistName${Platform.pathSeparator}Singles';
@@ -736,7 +727,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         }
       }
       
-      // Existing behavior: Separate Albums/ and Singles/ at root
       if (isSingle) {
         final singlesPath = '$baseDir${Platform.pathSeparator}Singles';
         await _ensureDirExists(singlesPath, label: 'Singles folder');
@@ -804,7 +794,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         .trim();
   }
 
-  /// Extract year from release date (format: "2005-06-13" or "2005")
   String? _extractYear(String? releaseDate) {
     if (releaseDate == null || releaseDate.isEmpty) return null;
     final match = _yearRegex.firstMatch(releaseDate);
@@ -1075,7 +1064,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
-  /// Same logic as Go backend cover.go
   String _upgradeToMaxQualityCover(String coverUrl) {
     const spotifySize300 = 'ab67616d00001e02';
     const spotifySize640 = 'ab67616d0000b273';
@@ -1192,7 +1180,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           durationMs: durationMs,
         );
 
-        // Skip instrumental tracks (no lyrics to embed)
         if (lrcContent.isNotEmpty && lrcContent != '[instrumental:true]') {
           metadata['LYRICS'] = lrcContent;
           metadata['UNSYNCEDLYRICS'] = lrcContent;
@@ -1323,7 +1310,11 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
       _log.d('MP3 Metadata map content: $metadata');
 
-      if (settings.embedLyrics) {
+      final lyricsMode = settings.lyricsMode;
+      final shouldEmbed = lyricsMode == 'embed' || lyricsMode == 'both';
+      final shouldSaveExternal = lyricsMode == 'external' || lyricsMode == 'both';
+      
+      if (settings.embedLyrics && (shouldEmbed || shouldSaveExternal)) {
         try {
           final durationMs = track.duration * 1000;
           
@@ -1336,12 +1327,24 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           );
 
           if (lrcContent.isNotEmpty) {
-            metadata['LYRICS'] = lrcContent;
-            metadata['UNSYNCEDLYRICS'] = lrcContent;
-            _log.d('Lyrics fetched for MP3 embedding (${lrcContent.length} chars)');
+            if (shouldEmbed) {
+              metadata['LYRICS'] = lrcContent;
+              metadata['UNSYNCEDLYRICS'] = lrcContent;
+              _log.d('Lyrics fetched for MP3 embedding (${lrcContent.length} chars)');
+            }
+            
+            if (shouldSaveExternal) {
+              try {
+                final lrcPath = mp3Path.replaceAll(RegExp(r'\.mp3$', caseSensitive: false), '.lrc');
+                await File(lrcPath).writeAsString(lrcContent);
+                _log.d('External LRC file saved: $lrcPath');
+              } catch (e) {
+                _log.w('Failed to save external LRC file: $e');
+              }
+            }
           }
         } catch (e) {
-          _log.w('Failed to fetch lyrics for MP3 embedding: $e');
+          _log.w('Failed to fetch lyrics for MP3: $e');
         }
       }
 
@@ -1461,7 +1464,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
       _log.d('Opus Metadata map content: $metadata');
 
-      if (settings.embedLyrics) {
+      // Handle lyrics based on lyricsMode setting
+      final lyricsMode = settings.lyricsMode;
+      final shouldEmbed = lyricsMode == 'embed' || lyricsMode == 'both';
+      final shouldSaveExternal = lyricsMode == 'external' || lyricsMode == 'both';
+      
+      if (settings.embedLyrics && (shouldEmbed || shouldSaveExternal)) {
         try {
           final durationMs = track.duration * 1000;
           
@@ -1474,11 +1482,25 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           );
 
           if (lrcContent.isNotEmpty) {
-            metadata['LYRICS'] = lrcContent;
-            _log.d('Lyrics fetched for Opus embedding (${lrcContent.length} chars)');
+            // Embed lyrics in file metadata if mode is 'embed' or 'both'
+            if (shouldEmbed) {
+              metadata['LYRICS'] = lrcContent;
+              _log.d('Lyrics fetched for Opus embedding (${lrcContent.length} chars)');
+            }
+            
+            // Save external LRC file if mode is 'external' or 'both'
+            if (shouldSaveExternal) {
+              try {
+                final lrcPath = opusPath.replaceAll(RegExp(r'\.opus$', caseSensitive: false), '.lrc');
+                await File(lrcPath).writeAsString(lrcContent);
+                _log.d('External LRC file saved: $lrcPath');
+              } catch (e) {
+                _log.w('Failed to save external LRC file: $e');
+              }
+            }
           }
         } catch (e) {
-          _log.w('Failed to fetch lyrics for Opus embedding: $e');
+          _log.w('Failed to fetch lyrics for Opus: $e');
         }
       }
 
@@ -1805,7 +1827,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
       final quality = item.qualityOverride ?? state.audioQuality;
 
-// Fetch extended metadata (genre, label) from Deezer if available
       String? genre;
       String? label;
       
@@ -2148,7 +2169,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           } catch (e) {
             _log.w('FFmpeg conversion process failed: $e, keeping M4A file');
           }
-          } // end else (not HIGH quality)
+          }
         }
 
         final itemAfterDownload = state.items.firstWhere(

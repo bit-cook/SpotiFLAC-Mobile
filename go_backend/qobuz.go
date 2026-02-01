@@ -112,8 +112,6 @@ func qobuzSplitArtists(artists string) []string {
 	return result
 }
 
-// qobuzSameWordsUnordered checks if two strings have the same words regardless of order
-// Useful for Japanese names: "Sawano Hiroyuki" vs "Hiroyuki Sawano"
 func qobuzSameWordsUnordered(a, b string) bool {
 	wordsA := strings.Fields(a)
 	wordsB := strings.Fields(b)
@@ -194,7 +192,6 @@ func qobuzTitlesMatch(expectedTitle, foundTitle string) bool {
 	return false
 }
 
-// qobuzExtractCoreTitle extracts the main title before any parentheses or brackets
 func qobuzExtractCoreTitle(title string) string {
 	// Find first occurrence of ( or [
 	parenIdx := strings.Index(title, "(")
@@ -281,9 +278,6 @@ func qobuzCleanTitle(title string) string {
 	return strings.TrimSpace(cleaned)
 }
 
-// qobuzIsLatinScript checks if a string is primarily Latin script
-// Returns true for ASCII and Latin Extended characters (European languages)
-// Returns false for CJK, Arabic, Cyrillic, etc.
 func qobuzIsLatinScript(s string) bool {
 	for _, r := range s {
 		// Skip common punctuation and numbers
@@ -312,18 +306,6 @@ func qobuzIsLatinScript(s string) bool {
 	return true
 }
 
-// qobuzIsASCIIString checks if a string contains only ASCII characters
-// Kept for potential future use
-// func qobuzIsASCIIString(s string) bool {
-// 	for _, r := range s {
-// 		if r > 127 {
-// 			return false
-// 		}
-// 	}
-// 	return true
-// }
-
-// containsQueryQobuz checks if a query already exists in the list
 func containsQueryQobuz(queries []string, query string) bool {
 	for _, q := range queries {
 		if q == query {
@@ -371,8 +353,6 @@ func (q *QobuzDownloader) GetTrackByID(trackID int64) (*QobuzTrack, error) {
 	return &track, nil
 }
 
-// GetAvailableAPIs returns list of available Qobuz APIs
-// Uses same APIs as PC version for compatibility
 func (q *QobuzDownloader) GetAvailableAPIs() []string {
 	// Same APIs as PC version (referensi/backend/qobuz.go)
 	// Primary: dab.yeet.su, Fallback: dabmusic.xyz, qobuz.squid.wtf
@@ -394,7 +374,6 @@ func (q *QobuzDownloader) GetAvailableAPIs() []string {
 	return apis
 }
 
-// mapJumoQuality maps Qobuz quality codes to Jumo format
 func mapJumoQuality(quality string) int {
 	switch quality {
 	case "6":
@@ -408,7 +387,6 @@ func mapJumoQuality(quality string) int {
 	}
 }
 
-// decodeXOR decodes XOR-encoded response from Jumo API
 func decodeXOR(data []byte) string {
 	text := string(data)
 	runes := []rune(text)
@@ -420,7 +398,6 @@ func decodeXOR(data []byte) string {
 	return string(result)
 }
 
-// downloadFromJumo gets download URL from Jumo API (fallback)
 func (q *QobuzDownloader) downloadFromJumo(trackID int64, quality string) (string, error) {
 	formatID := mapJumoQuality(quality)
 	region := "US"
@@ -933,7 +910,6 @@ func (q *QobuzDownloader) GetDownloadURL(trackID int64, quality string) (string,
 	return "", fmt.Errorf("all Qobuz APIs and Jumo fallback failed: %w", err)
 }
 
-// DownloadFile downloads a file from URL with User-Agent and progress tracking
 func (q *QobuzDownloader) DownloadFile(downloadURL, outputPath, itemID string) error {
 	ctx := context.Background()
 

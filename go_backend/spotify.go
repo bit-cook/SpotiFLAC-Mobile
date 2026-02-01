@@ -66,7 +66,6 @@ var (
 // ErrNoSpotifyCredentials is returned when Spotify credentials are not configured
 var ErrNoSpotifyCredentials = errors.New("Spotify credentials not configured. Please set your own Client ID and Secret in Settings, or use Deezer as metadata source (free, no credentials required)")
 
-// SetSpotifyCredentials sets custom Spotify API credentials
 func SetSpotifyCredentials(clientID, clientSecret string) {
 	credentialsMu.Lock()
 	defer credentialsMu.Unlock()
@@ -89,7 +88,6 @@ func HasSpotifyCredentials() bool {
 	return false
 }
 
-// getCredentials returns the current credentials or error if not configured
 func getCredentials() (string, string, error) {
 	credentialsMu.RLock()
 	defer credentialsMu.RUnlock()

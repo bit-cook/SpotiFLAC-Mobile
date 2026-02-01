@@ -92,10 +92,15 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
 );
     });
     
-    _tracks = widget.tracks ?? _AlbumCache.get(widget.albumId);
+    // Use provided tracks if not empty, otherwise try cache
+    if (widget.tracks != null && widget.tracks!.isNotEmpty) {
+      _tracks = widget.tracks;
+    } else {
+      _tracks = _AlbumCache.get(widget.albumId);
+    }
     _artistId = widget.artistId; // Use provided artist ID if available
     
-    if (_tracks == null) {
+    if (_tracks == null || _tracks!.isEmpty) {
       _fetchTracks();
     }
     

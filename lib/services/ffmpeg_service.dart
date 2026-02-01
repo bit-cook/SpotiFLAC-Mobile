@@ -9,8 +9,6 @@ import 'package:spotiflac_android/utils/logger.dart';
 
 final _log = AppLogger('FFmpeg');
 
-/// FFmpeg service for audio conversion and remuxing
-/// Uses ffmpeg_kit_flutter_new_audio plugin
 class FFmpegService {
   static Future<FFmpegResult> _execute(String command) async {
     try {
@@ -48,16 +46,12 @@ class FFmpegService {
     return null;
   }
 
-  /// Convert M4A (AAC) to lossy format (MP3 or Opus)
-  /// format: 'mp3' or 'opus'
-  /// bitrate: e.g., 'mp3_320', 'opus_128' - extracts the kbps value
   static Future<String?> convertM4aToLossy(
     String inputPath, {
     required String format,
     String? bitrate,
     bool deleteOriginal = true,
   }) async {
-    // Extract bitrate value from format like 'mp3_320' -> '320k'
     String bitrateValue = format == 'opus' ? '128k' : '320k';
     if (bitrate != null && bitrate.contains('_')) {
       final parts = bitrate.split('_');
@@ -71,11 +65,9 @@ class FFmpegService {
     
     String command;
     if (format == 'opus') {
-      // M4A -> Opus conversion
       command =
           '-i "$inputPath" -codec:a libopus -b:a $bitrateValue -vbr on -compression_level 10 -map 0:a "$outputPath" -y';
     } else {
-      // M4A -> MP3 conversion
       command =
           '-i "$inputPath" -codec:a libmp3lame -b:a $bitrateValue -map 0:a -id3v2_version 3 "$outputPath" -y';
     }
@@ -127,7 +119,6 @@ class FFmpegService {
   }) async {
     final outputPath = inputPath.replaceAll('.flac', '.opus');
 
-    // Opus in OGG container with VBR
     final command =
         '-i "$inputPath" -codec:a libopus -b:a $bitrate -vbr on -compression_level 10 -map 0:a -map_metadata 0 "$outputPath" -y';
 
@@ -146,17 +137,13 @@ class FFmpegService {
     return null;
   }
 
-  /// Convert FLAC to lossy format based on format parameter
-  /// format: 'mp3' or 'opus'
-  /// bitrate: e.g., 'mp3_320', 'opus_128' - extracts the kbps value
   static Future<String?> convertFlacToLossy(
     String inputPath, {
     required String format,
     String? bitrate,
     bool deleteOriginal = true,
   }) async {
-    // Extract bitrate value from format like 'mp3_320' -> '320k'
-    String bitrateValue = '320k'; // default for mp3
+    String bitrateValue = '320k';
     if (bitrate != null && bitrate.contains('_')) {
       final parts = bitrate.split('_');
       if (parts.length == 2) {
@@ -385,8 +372,6 @@ class FFmpegService {
     return null;
   }
 
-  /// Embed metadata to Opus file
-  /// Uses METADATA_BLOCK_PICTURE tag for cover art (OGG/Vorbis standard)
   static Future<String?> embedMetadataToOpus({
     required String opusPath,
     String? coverPath,
@@ -401,7 +386,6 @@ class FFmpegService {
     cmdBuffer.write('-map 0:a ');
     cmdBuffer.write('-c:a copy ');
     
-    // Embed metadata tags (Vorbis comments)
     if (metadata != null) {
       metadata.forEach((key, value) {
         final sanitizedValue = value.replaceAll('"', '\\"');
@@ -409,12 +393,10 @@ class FFmpegService {
       });
     }
     
-    // Embed cover art using METADATA_BLOCK_PICTURE
     if (coverPath != null) {
       try {
         final pictureBlock = await _createMetadataBlockPicture(coverPath);
         if (pictureBlock != null) {
-          // Escape special characters for shell
           final escapedBlock = pictureBlock.replaceAll('"', '\\"');
           cmdBuffer.write('-metadata METADATA_BLOCK_PICTURE="$escapedBlock" ');
           _log.d('Created METADATA_BLOCK_PICTURE for Opus (${pictureBlock.length} chars)');
@@ -471,19 +453,6 @@ class FFmpegService {
     return null;
   }
 
-  /// Create METADATA_BLOCK_PICTURE base64 string for OGG/Opus cover art
-  /// Format follows FLAC picture block specification:
-  /// - 4 bytes: picture type (3 = front cover)
-  /// - 4 bytes: MIME type length
-  /// - n bytes: MIME type string
-  /// - 4 bytes: description length
-  /// - n bytes: description string
-  /// - 4 bytes: width
-  /// - 4 bytes: height
-  /// - 4 bytes: color depth
-  /// - 4 bytes: colors used (0 for non-indexed)
-  /// - 4 bytes: picture data length
-  /// - n bytes: picture data
   static Future<String?> _createMetadataBlockPicture(String imagePath) async {
     try {
       final file = File(imagePath);
@@ -494,7 +463,6 @@ class FFmpegService {
       
       final imageData = await file.readAsBytes();
       
-      // Detect MIME type from file extension or magic bytes
       String mimeType;
       if (imagePath.toLowerCase().endsWith('.png')) {
         mimeType = 'image/png';
@@ -502,7 +470,6 @@ class FFmpegService {
                  imagePath.toLowerCase().endsWith('.jpeg')) {
         mimeType = 'image/jpeg';
       } else {
-        // Check magic bytes
         if (imageData.length >= 8 && 
             imageData[0] == 0x89 && imageData[1] == 0x50 && 
             imageData[2] == 0x4E && imageData[3] == 0x47) {
@@ -511,75 +478,61 @@ class FFmpegService {
                    imageData[0] == 0xFF && imageData[1] == 0xD8) {
           mimeType = 'image/jpeg';
         } else {
-          mimeType = 'image/jpeg'; // Default to JPEG
+          mimeType = 'image/jpeg';
         }
       }
       
       final mimeBytes = utf8.encode(mimeType);
-      const description = ''; // Empty description
+      const description = '';
       final descBytes = utf8.encode(description);
       
-      // Build the FLAC picture block
-      // Total size: 4 + 4 + mimeLen + 4 + descLen + 4 + 4 + 4 + 4 + 4 + imageLen
       final blockSize = 4 + 4 + mimeBytes.length + 4 + descBytes.length + 
                         4 + 4 + 4 + 4 + 4 + imageData.length;
       
       final buffer = ByteData(blockSize);
       var offset = 0;
       
-      // Picture type: 3 = Front cover
       buffer.setUint32(offset, 3, Endian.big);
       offset += 4;
       
-      // MIME type length
       buffer.setUint32(offset, mimeBytes.length, Endian.big);
       offset += 4;
       
-      // MIME type string
       final blockBytes = Uint8List(blockSize);
       blockBytes.setRange(0, offset, buffer.buffer.asUint8List());
       blockBytes.setRange(offset, offset + mimeBytes.length, mimeBytes);
       offset += mimeBytes.length;
       
-      // Description length
       final tempBuffer = ByteData(4);
       tempBuffer.setUint32(0, descBytes.length, Endian.big);
       blockBytes.setRange(offset, offset + 4, tempBuffer.buffer.asUint8List());
       offset += 4;
       
-      // Description string
       blockBytes.setRange(offset, offset + descBytes.length, descBytes);
       offset += descBytes.length;
       
-      // Width (0 = unknown)
       tempBuffer.setUint32(0, 0, Endian.big);
       blockBytes.setRange(offset, offset + 4, tempBuffer.buffer.asUint8List());
       offset += 4;
       
-      // Height (0 = unknown)
       tempBuffer.setUint32(0, 0, Endian.big);
       blockBytes.setRange(offset, offset + 4, tempBuffer.buffer.asUint8List());
       offset += 4;
       
-      // Color depth (0 = unknown)
       tempBuffer.setUint32(0, 0, Endian.big);
       blockBytes.setRange(offset, offset + 4, tempBuffer.buffer.asUint8List());
       offset += 4;
       
-      // Colors used (0 for non-indexed)
       tempBuffer.setUint32(0, 0, Endian.big);
       blockBytes.setRange(offset, offset + 4, tempBuffer.buffer.asUint8List());
       offset += 4;
       
-      // Picture data length
       tempBuffer.setUint32(0, imageData.length, Endian.big);
       blockBytes.setRange(offset, offset + 4, tempBuffer.buffer.asUint8List());
       offset += 4;
       
-      // Picture data
       blockBytes.setRange(offset, offset + imageData.length, imageData);
       
-      // Base64 encode the entire block
       final base64String = base64Encode(blockBytes);
       
       return base64String;
@@ -596,7 +549,6 @@ class FFmpegService {
       final key = entry.key.toUpperCase();
       final value = entry.value;
       
-      // Map Vorbis comments to ID3v2 frame names
       switch (key) {
         case 'TITLE':
           id3Map['title'] = value;
@@ -630,7 +582,6 @@ class FFmpegService {
           id3Map['lyrics'] = value;
           break;
         default:
-          // Pass through other tags as-is
           id3Map[key.toLowerCase()] = value;
       }
     }

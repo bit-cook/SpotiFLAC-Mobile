@@ -10,7 +10,6 @@ import (
 	"time"
 )
 
-// ISRCIndex holds a cached map of ISRC -> file path for fast duplicate checking
 type ISRCIndex struct {
 	index     map[string]string // ISRC (uppercase) -> file path
 	outputDir string
@@ -25,8 +24,6 @@ var (
 	isrcIndexTTL     = 5 * time.Minute
 )
 
-// GetISRCIndex returns or builds an ISRC index for the given directory
-// Uses per-directory mutex to prevent concurrent builds (race condition fix)
 func GetISRCIndex(outputDir string) *ISRCIndex {
 	// Fast path: check cache first
 	isrcIndexCacheMu.RLock()
@@ -56,7 +53,6 @@ func GetISRCIndex(outputDir string) *ISRCIndex {
 	return buildISRCIndex(outputDir)
 }
 
-// buildISRCIndex scans a directory and builds a map of ISRC -> file path
 func buildISRCIndex(outputDir string) *ISRCIndex {
 	idx := &ISRCIndex{
 		index:     make(map[string]string),
@@ -91,7 +87,7 @@ func buildISRCIndex(outputDir string) *ISRCIndex {
 		return nil
 	})
 
-	fmt.Printf("[ISRCIndex] Built index for %s: %d files in %v\n", 
+	fmt.Printf("[ISRCIndex] Built index for %s: %d files in %v\n",
 		outputDir, fileCount, time.Since(startTime).Round(time.Millisecond))
 
 	isrcIndexCacheMu.Lock()
@@ -113,7 +109,6 @@ func (idx *ISRCIndex) lookup(isrc string) (string, bool) {
 	return path, exists
 }
 
-// remove deletes an ISRC entry from the index (internal use)
 func (idx *ISRCIndex) remove(isrc string) {
 	if isrc == "" {
 		return
@@ -125,14 +120,11 @@ func (idx *ISRCIndex) remove(isrc string) {
 	delete(idx.index, strings.ToUpper(isrc))
 }
 
-// Lookup checks if an ISRC exists in the index (gomobile compatible)
-// Returns filepath if found, empty string if not found
 func (idx *ISRCIndex) Lookup(isrc string) (string, error) {
 	path, _ := idx.lookup(isrc)
 	return path, nil
 }
 
-// Add adds a new ISRC to the index (call after successful download)
 func (idx *ISRCIndex) Add(isrc, filePath string) {
 	if isrc == "" || filePath == "" {
 		return
@@ -144,15 +136,12 @@ func (idx *ISRCIndex) Add(isrc, filePath string) {
 	idx.index[strings.ToUpper(isrc)] = filePath
 }
 
-// InvalidateCache clears the ISRC index cache for a directory
 func InvalidateISRCCache(outputDir string) {
 	isrcIndexCacheMu.Lock()
 	delete(isrcIndexCache, outputDir)
 	isrcIndexCacheMu.Unlock()
 }
 
-// checkISRCExistsInternal checks if a file with the given ISRC exists (internal use)
-// Uses ISRC index for fast lookup
 func checkISRCExistsInternal(outputDir, isrc string) (string, bool) {
 	if isrc == "" || outputDir == "" {
 		return "", false
@@ -173,13 +162,11 @@ func checkISRCExistsInternal(outputDir, isrc string) (string, bool) {
 	return filePath, true
 }
 
-// CheckISRCExists is the exported version for gomobile (returns string, error)
 func CheckISRCExists(outputDir, isrc string) (string, error) {
 	filepath, _ := checkISRCExistsInternal(outputDir, isrc)
 	return filepath, nil
 }
 
-// CheckFileExists checks if a file with the given name exists
 func CheckFileExists(filePath string) bool {
 	info, err := os.Stat(filePath)
 	if err != nil {
@@ -188,7 +175,6 @@ func CheckFileExists(filePath string) bool {
 	return !info.IsDir() && info.Size() > 0
 }
 
-// FileExistenceResult represents the result of checking if a file exists
 type FileExistenceResult struct {
 	ISRC       string `json:"isrc"`
 	Exists     bool   `json:"exists"`
@@ -249,8 +235,6 @@ func CheckFilesExistParallel(outputDir string, tracksJSON string) (string, error
 	return string(resultJSON), nil
 }
 
-// PreBuildISRCIndex pre-builds the ISRC index for a directory
-// Call this when app starts or when entering album/playlist screen
 func PreBuildISRCIndex(outputDir string) error {
 	if outputDir == "" {
 		return fmt.Errorf("output directory is required")
@@ -260,7 +244,6 @@ func PreBuildISRCIndex(outputDir string) error {
 	return nil
 }
 
-// AddToISRCIndex adds a new file to the ISRC index after successful download
 func AddToISRCIndex(outputDir, isrc, filePath string) {
 	if outputDir == "" || isrc == "" || filePath == "" {
 		return

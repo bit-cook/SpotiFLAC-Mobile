@@ -55,7 +55,6 @@ type LoadedExtension struct {
 	IconPath  string             `json:"icon_path"`
 }
 
-// ExtensionManager manages all loaded extensions
 type ExtensionManager struct {
 	mu            sync.RWMutex
 	extensions    map[string]*LoadedExtension
@@ -283,7 +282,6 @@ func (m *ExtensionManager) initializeVM(ext *LoadedExtension) error {
 	return nil
 }
 
-// UnloadExtension unloads an extension by ID
 func (m *ExtensionManager) UnloadExtension(extensionID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -323,7 +321,6 @@ func (m *ExtensionManager) GetExtension(extensionID string) (*LoadedExtension, e
 	return ext, nil
 }
 
-// GetAllExtensions returns all loaded extensions
 func (m *ExtensionManager) GetAllExtensions() []*LoadedExtension {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -356,7 +353,6 @@ func (m *ExtensionManager) SetExtensionEnabled(extensionID string, enabled bool)
 	return nil
 }
 
-// LoadExtensionsFromDirectory scans a directory and loads all valid extensions
 func (m *ExtensionManager) LoadExtensionsFromDirectory(dirPath string) ([]string, []error) {
 	var loaded []string
 	var errors []error
@@ -456,7 +452,6 @@ func (m *ExtensionManager) loadExtensionFromDirectory(dirPath string) (*LoadedEx
 	return ext, nil
 }
 
-// RemoveExtension completely removes an extension (unload + delete files)
 func (m *ExtensionManager) RemoveExtension(extensionID string) error {
 	ext, err := m.GetExtension(extensionID)
 	if err != nil {
@@ -714,7 +709,6 @@ func (m *ExtensionManager) CheckExtensionUpgradeJSON(filePath string) (string, e
 	return string(jsonBytes), nil
 }
 
-// GetInstalledExtensionsJSON returns all extensions as JSON for Flutter
 func (m *ExtensionManager) GetInstalledExtensionsJSON() (string, error) {
 	extensions := m.GetAllExtensions()
 
@@ -923,7 +917,6 @@ func (m *ExtensionManager) CleanupExtension(extensionID string) error {
 	return nil
 }
 
-// UnloadAllExtensions unloads all extensions gracefully
 func (m *ExtensionManager) UnloadAllExtensions() {
 	m.mu.Lock()
 	extensionIDs := make([]string, 0, len(m.extensions))

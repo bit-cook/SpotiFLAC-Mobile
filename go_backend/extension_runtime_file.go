@@ -15,7 +15,6 @@ import (
 
 // ==================== File API (Sandboxed) ====================
 
-// List of allowed directories for file operations (set by Go backend for download operations)
 var (
 	allowedDownloadDirs   []string
 	allowedDownloadDirsMu sync.RWMutex
@@ -49,9 +48,6 @@ func isPathInAllowedDirs(absPath string) bool {
 	return false
 }
 
-// validatePath checks if the path is within the extension's sandbox
-// Security: Absolute paths are BLOCKED unless they're in allowed download directories
-// Extensions should use relative paths for their own data storage
 func (r *ExtensionRuntime) validatePath(path string) (string, error) {
 	// Check if extension has file permission
 	if !r.manifest.Permissions.File {

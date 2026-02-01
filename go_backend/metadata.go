@@ -238,7 +238,6 @@ func EmbedMetadataWithCoverData(filePath string, metadata Metadata, coverData []
 	return f.Save(filePath)
 }
 
-// ReadMetadata reads metadata from a FLAC file
 func ReadMetadata(filePath string) (*Metadata, error) {
 	f, err := flac.ParseFile(filePath)
 	if err != nil {
@@ -336,7 +335,6 @@ func fileExists(path string) bool {
 	return err == nil
 }
 
-// ExtractCoverArt extracts cover art from a FLAC file
 func ExtractCoverArt(filePath string) ([]byte, error) {
 	f, err := flac.ParseFile(filePath)
 	if err != nil {
@@ -453,7 +451,6 @@ func EmbedGenreLabel(filePath string, genre, label string) error {
 	return f.Save(filePath)
 }
 
-// ExtractLyrics extracts embedded lyrics from a FLAC file
 func ExtractLyrics(filePath string) (string, error) {
 	f, err := flac.ParseFile(filePath)
 	if err != nil {

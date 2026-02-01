@@ -238,12 +238,9 @@ func (c *LyricsClient) durationMatches(lrcDuration, targetDuration float64) bool
 	return diff <= durationToleranceSec
 }
 
-// durationSec: track duration in seconds for matching, use 0 to skip duration matching
 func (c *LyricsClient) FetchLyricsAllSources(spotifyID, trackName, artistName string, durationSec float64) (*LyricsResponse, error) {
-	// Normalize artist name - take first artist before comma/semicolon for better matching
 	primaryArtist := normalizeArtistName(artistName)
 
-	// Check cache first (use original artist name for cache key)
 	if cached, found := globalLyricsCache.Get(artistName, trackName, durationSec); found {
 		fmt.Printf("[Lyrics] Cache hit for: %s - %s\n", artistName, trackName)
 		cachedCopy := *cached
@@ -254,12 +251,10 @@ func (c *LyricsClient) FetchLyricsAllSources(spotifyID, trackName, artistName st
 	var lyrics *LyricsResponse
 	var err error
 
-	// Helper to check if lyrics result is valid (has lines OR is instrumental)
 	isValidResult := func(l *LyricsResponse) bool {
 		return l != nil && (len(l.Lines) > 0 || l.Instrumental)
 	}
 
-	// Try exact match first with primary artist
 	lyrics, err = c.FetchLyricsWithMetadata(primaryArtist, trackName)
 	if err == nil && isValidResult(lyrics) {
 		lyrics.Source = "LRCLIB"
@@ -267,7 +262,6 @@ func (c *LyricsClient) FetchLyricsAllSources(spotifyID, trackName, artistName st
 		return lyrics, nil
 	}
 
-	// Try with full artist name if different from primary
 	if primaryArtist != artistName {
 		lyrics, err = c.FetchLyricsWithMetadata(artistName, trackName)
 		if err == nil && isValidResult(lyrics) {
@@ -277,7 +271,6 @@ func (c *LyricsClient) FetchLyricsAllSources(spotifyID, trackName, artistName st
 		}
 	}
 
-	// Try with simplified track name
 	simplifiedTrack := simplifyTrackName(trackName)
 	if simplifiedTrack != trackName {
 		lyrics, err = c.FetchLyricsWithMetadata(primaryArtist, simplifiedTrack)
@@ -288,7 +281,6 @@ func (c *LyricsClient) FetchLyricsAllSources(spotifyID, trackName, artistName st
 		}
 	}
 
-	// Search with duration matching (use primary artist for search)
 	query := primaryArtist + " " + trackName
 	lyrics, err = c.FetchLyricsFromLRCLibSearch(query, durationSec)
 	if err == nil && isValidResult(lyrics) {
@@ -297,7 +289,6 @@ func (c *LyricsClient) FetchLyricsAllSources(spotifyID, trackName, artistName st
 		return lyrics, nil
 	}
 
-	// Search with simplified name and duration matching
 	if simplifiedTrack != trackName {
 		query = primaryArtist + " " + simplifiedTrack
 		lyrics, err = c.FetchLyricsFromLRCLibSearch(query, durationSec)
@@ -393,32 +384,6 @@ func msToLRCTimestamp(ms int64) string {
 	return fmt.Sprintf("[%02d:%02d.%02d]", minutes, seconds, centiseconds)
 }
 
-// Use convertToLRCWithMetadata for full LRC with headers
-// Kept for potential future use
-// func convertToLRC(lyrics *LyricsResponse) string {
-// 	if lyrics == nil || len(lyrics.Lines) == 0 {
-// 		return ""
-// 	}
-//
-// 	var builder strings.Builder
-//
-// 	if lyrics.SyncType == "LINE_SYNCED" {
-// 		for _, line := range lyrics.Lines {
-// 			timestamp := msToLRCTimestamp(line.StartTimeMs)
-// 			builder.WriteString(timestamp)
-// 			builder.WriteString(line.Words)
-// 			builder.WriteString("\n")
-// 		}
-// 	} else {
-// 		for _, line := range lyrics.Lines {
-// 			builder.WriteString(line.Words)
-// 			builder.WriteString("\n")
-// 		}
-// 	}
-//
-// 	return builder.String()
-// }
-
 func convertToLRCWithMetadata(lyrics *LyricsResponse, trackName, artistName string) string {
 	if lyrics == nil || len(lyrics.Lines) == 0 {
 		return ""
@@ -480,11 +445,7 @@ func simplifyTrackName(name string) string {
 	return strings.TrimSpace(result)
 }
 
-// normalizeArtistName extracts the primary artist from multi-artist strings
-// e.g., "HOYO-MiX, AURORA" -> "HOYO-MiX"
-// e.g., "Artist1; Artist2" -> "Artist1"
 func normalizeArtistName(name string) string {
-	// Split by common separators: ", " or "; " or " & " or " feat. " or " ft. "
 	separators := []string{", ", "; ", " & ", " feat. ", " ft. ", " featuring ", " with "}
 
 	result := name

@@ -10,7 +10,7 @@ class LogEntry {
   final String tag;
   final String message;
   final String? error;
-  final bool isFromGo; // Track if this log came from Go backend
+  final bool isFromGo;
 
   LogEntry({
     required this.timestamp,
@@ -47,8 +47,6 @@ class LogBuffer extends ChangeNotifier {
   Timer? _goLogTimer;
   int _lastGoLogIndex = 0;
   
-  /// Whether logging is enabled (controlled by settings)
-  /// User must enable "Detailed Logging" in settings to capture logs
   static bool _loggingEnabled = false;
   static bool get loggingEnabled => _loggingEnabled;
   static set loggingEnabled(bool value) {
@@ -64,7 +62,6 @@ class LogBuffer extends ChangeNotifier {
   int get length => _entries.length;
 
   void add(LogEntry entry) {
-    // Skip adding if logging is disabled (except for errors which are always logged)
     if (!_loggingEnabled && entry.level != 'ERROR' && entry.level != 'FATAL') {
       return;
     }
@@ -76,7 +73,6 @@ class LogBuffer extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Start polling Go backend logs
   void startGoLogPolling() {
     _goLogTimer?.cancel();
     _goLogTimer = Timer.periodic(const Duration(milliseconds: 500), (_) async {
@@ -84,13 +80,11 @@ class LogBuffer extends ChangeNotifier {
     });
   }
 
-  /// Stop polling Go backend logs
   void stopGoLogPolling() {
     _goLogTimer?.cancel();
     _goLogTimer = null;
   }
 
-  /// Fetch logs from Go backend since last index
   Future<void> _fetchGoLogs() async {
     try {
       final result = await PlatformBridge.getGoLogsSince(_lastGoLogIndex);
@@ -103,7 +97,6 @@ class LogBuffer extends ChangeNotifier {
         final tag = log['tag'] as String? ?? 'Go';
         final message = log['message'] as String? ?? '';
         
-        // Parse timestamp (format: "15:04:05.000")
         DateTime parsedTime = DateTime.now();
         if (timestamp.isNotEmpty) {
           try {
@@ -221,7 +214,6 @@ class BufferedOutput extends LogOutput {
   }
 }
 
-/// Global logger instance for the app
 final log = Logger(
   printer: PrettyPrinter(
     methodCount: 0,

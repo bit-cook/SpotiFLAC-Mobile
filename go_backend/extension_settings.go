@@ -9,7 +9,6 @@ import (
 	"sync"
 )
 
-// ExtensionSettingsStore manages settings for all extensions
 type ExtensionSettingsStore struct {
 	mu       sync.RWMutex
 	dataDir  string
@@ -22,7 +21,6 @@ var (
 	globalSettingsStoreOnce sync.Once
 )
 
-// GetExtensionSettingsStore returns the global settings store
 func GetExtensionSettingsStore() *ExtensionSettingsStore {
 	globalSettingsStoreOnce.Do(func() {
 		globalSettingsStore = &ExtensionSettingsStore{
@@ -32,7 +30,6 @@ func GetExtensionSettingsStore() *ExtensionSettingsStore {
 	return globalSettingsStore
 }
 
-// SetDataDir sets the data directory for settings storage
 func (s *ExtensionSettingsStore) SetDataDir(dataDir string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -45,12 +42,10 @@ func (s *ExtensionSettingsStore) SetDataDir(dataDir string) error {
 	return s.loadAllSettings()
 }
 
-// getSettingsPath returns the path to an extension's settings file
 func (s *ExtensionSettingsStore) getSettingsPath(extensionID string) string {
 	return filepath.Join(s.dataDir, extensionID, "settings.json")
 }
 
-// loadAllSettings loads settings for all extensions from disk
 func (s *ExtensionSettingsStore) loadAllSettings() error {
 	entries, err := os.ReadDir(s.dataDir)
 	if err != nil {
@@ -75,7 +70,6 @@ func (s *ExtensionSettingsStore) loadAllSettings() error {
 	return nil
 }
 
-// loadSettings loads settings for a specific extension
 func (s *ExtensionSettingsStore) loadSettings(extensionID string) (map[string]interface{}, error) {
 	settingsPath := s.getSettingsPath(extensionID)
 	data, err := os.ReadFile(settingsPath)
@@ -94,7 +88,6 @@ func (s *ExtensionSettingsStore) loadSettings(extensionID string) (map[string]in
 	return settings, nil
 }
 
-// saveSettings saves settings for a specific extension
 func (s *ExtensionSettingsStore) saveSettings(extensionID string, settings map[string]interface{}) error {
 	settingsPath := s.getSettingsPath(extensionID)
 
@@ -111,8 +104,6 @@ func (s *ExtensionSettingsStore) saveSettings(extensionID string, settings map[s
 	return os.WriteFile(settingsPath, data, 0644)
 }
 
-// Get retrieves a setting value for an extension
-// Returns error if extension or key not found (gomobile compatible)
 func (s *ExtensionSettingsStore) Get(extensionID, key string) (interface{}, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -129,7 +120,6 @@ func (s *ExtensionSettingsStore) Get(extensionID, key string) (interface{}, erro
 	return value, nil
 }
 
-// GetAll retrieves all settings for an extension
 func (s *ExtensionSettingsStore) GetAll(extensionID string) map[string]interface{} {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -147,7 +137,6 @@ func (s *ExtensionSettingsStore) GetAll(extensionID string) map[string]interface
 	return result
 }
 
-// Set stores a setting value for an extension
 func (s *ExtensionSettingsStore) Set(extensionID, key string, value interface{}) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -161,7 +150,6 @@ func (s *ExtensionSettingsStore) Set(extensionID, key string, value interface{})
 	return s.saveSettings(extensionID, s.settings[extensionID])
 }
 
-// SetAll stores all settings for an extension
 func (s *ExtensionSettingsStore) SetAll(extensionID string, settings map[string]interface{}) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -172,7 +160,6 @@ func (s *ExtensionSettingsStore) SetAll(extensionID string, settings map[string]
 	return s.saveSettings(extensionID, settings)
 }
 
-// Remove removes a setting for an extension
 func (s *ExtensionSettingsStore) Remove(extensionID, key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -188,7 +175,6 @@ func (s *ExtensionSettingsStore) Remove(extensionID, key string) error {
 	return s.saveSettings(extensionID, extSettings)
 }
 
-// RemoveAll removes all settings for an extension
 func (s *ExtensionSettingsStore) RemoveAll(extensionID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -203,7 +189,6 @@ func (s *ExtensionSettingsStore) RemoveAll(extensionID string) error {
 	return nil
 }
 
-// GetAllExtensionSettings returns settings for all extensions as JSON
 func (s *ExtensionSettingsStore) GetAllExtensionSettingsJSON() (string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
