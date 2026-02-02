@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:spotiflac_android/models/download_item.dart';
 import 'package:spotiflac_android/models/settings.dart';
 import 'package:spotiflac_android/models/track.dart';
@@ -1597,8 +1598,20 @@ void removeItem(String id) {
     }
   }
 
-  Future<void> _processQueue() async {
+Future<void> _processQueue() async {
     if (state.isProcessing) return;
+
+    // Check network connectivity before starting
+    final settings = ref.read(settingsProvider);
+    if (settings.downloadNetworkMode == 'wifi_only') {
+      final connectivityResult = await Connectivity().checkConnectivity();
+      final hasWifi = connectivityResult.contains(ConnectivityResult.wifi);
+      if (!hasWifi) {
+        _log.w('WiFi-only mode enabled but no WiFi connection. Queue paused.');
+        state = state.copyWith(isProcessing: false, isPaused: true);
+        return;
+      }
+    }
 
     state = state.copyWith(isProcessing: true);
     _log.i('Starting queue processing...');

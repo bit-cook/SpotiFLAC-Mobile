@@ -35,6 +35,7 @@ class AppSettings {
   final String tidalHighFormat; // Format for Tidal HIGH quality: 'mp3_320' or 'opus_128'
   final bool useAllFilesAccess; // Android 13+ only: enable MANAGE_EXTERNAL_STORAGE
   final bool autoExportFailedDownloads; // Auto export failed downloads to TXT file
+  final String downloadNetworkMode; // 'any' = WiFi + Mobile, 'wifi_only' = WiFi only
 
   const AppSettings({
     this.defaultService = 'tidal',
@@ -68,6 +69,7 @@ class AppSettings {
     this.tidalHighFormat = 'mp3_320',
     this.useAllFilesAccess = false,
     this.autoExportFailedDownloads = false,
+    this.downloadNetworkMode = 'any',
   });
 
   AppSettings copyWith({
@@ -103,6 +105,7 @@ class AppSettings {
     String? tidalHighFormat,
     bool? useAllFilesAccess,
     bool? autoExportFailedDownloads,
+    String? downloadNetworkMode,
   }) {
     return AppSettings(
       defaultService: defaultService ?? this.defaultService,
@@ -136,6 +139,7 @@ class AppSettings {
       tidalHighFormat: tidalHighFormat ?? this.tidalHighFormat,
       useAllFilesAccess: useAllFilesAccess ?? this.useAllFilesAccess,
       autoExportFailedDownloads: autoExportFailedDownloads ?? this.autoExportFailedDownloads,
+      downloadNetworkMode: downloadNetworkMode ?? this.downloadNetworkMode,
     );
   }
 

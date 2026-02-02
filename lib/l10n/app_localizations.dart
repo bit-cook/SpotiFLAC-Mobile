@@ -3688,6 +3688,30 @@ abstract class AppLocalizations {
   /// **'Save failed downloads to TXT file automatically'**
   String get settingsAutoExportFailedSubtitle;
 
+  /// Setting for network type preference
+  ///
+  /// In en, this message translates to:
+  /// **'Download Network'**
+  String get settingsDownloadNetwork;
+
+  /// Network option - use any connection
+  ///
+  /// In en, this message translates to:
+  /// **'WiFi + Mobile Data'**
+  String get settingsDownloadNetworkAny;
+
+  /// Network option - only use WiFi
+  ///
+  /// In en, this message translates to:
+  /// **'WiFi Only'**
+  String get settingsDownloadNetworkWifiOnly;
+
+  /// Subtitle explaining network preference
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which network to use for downloads. When set to WiFi Only, downloads will pause on mobile data.'**
+  String get settingsDownloadNetworkSubtitle;
+
   /// Empty queue state title
   ///
   /// In en, this message translates to:

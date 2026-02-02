@@ -1476,6 +1476,16 @@
   "@settingsAutoExportFailed": {"description": "Setting toggle for auto-export"},
   "settingsAutoExportFailedSubtitle": "Save failed downloads to TXT file automatically",
   "@settingsAutoExportFailedSubtitle": {"description": "Subtitle for auto-export setting"},
+
+  "settingsDownloadNetwork": "Download Network",
+  "@settingsDownloadNetwork": {"description": "Setting for network type preference"},
+  "settingsDownloadNetworkAny": "WiFi + Mobile Data",
+  "@settingsDownloadNetworkAny": {"description": "Network option - use any connection"},
+  "settingsDownloadNetworkWifiOnly": "WiFi Only",
+  "@settingsDownloadNetworkWifiOnly": {"description": "Network option - only use WiFi"},
+  "settingsDownloadNetworkSubtitle": "Choose which network to use for downloads. When set to WiFi Only, downloads will pause on mobile data.",
+  "@settingsDownloadNetworkSubtitle": {"description": "Subtitle explaining network preference"},
+
   "queueEmpty": "No downloads in queue",
   "@queueEmpty": {"description": "Empty queue state title"},
   "queueEmptySubtitle": "Add tracks from the home screen",

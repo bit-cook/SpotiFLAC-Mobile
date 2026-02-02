@@ -407,6 +407,49 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
               ),
             ),
 
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+            // Download Network Mode
+            SliverToBoxAdapter(
+              child: SettingsGroup(
+                children: [
+                  SettingsItem(
+                    icon: Icons.wifi,
+                    title: context.l10n.settingsDownloadNetwork,
+                    subtitle: settings.downloadNetworkMode == 'wifi_only'
+                        ? context.l10n.settingsDownloadNetworkWifiOnly
+                        : context.l10n.settingsDownloadNetworkAny,
+                    onTap: () => _showNetworkModePicker(context, ref, settings.downloadNetworkMode),
+                    showDivider: false,
+                  ),
+                ],
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        context.l10n.settingsDownloadNetworkSubtitle,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
           ],
         ),
@@ -949,6 +992,68 @@ ListTile(
               trailing: current == 'opus_128' ? Icon(Icons.check, color: colorScheme.primary) : null,
               onTap: () {
                 ref.read(settingsProvider.notifier).setTidalHighFormat('opus_128');
+                Navigator.pop(context);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showNetworkModePicker(
+    BuildContext context,
+    WidgetRef ref,
+    String current,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colorScheme.surfaceContainerHigh,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+              child: Text(
+                context.l10n.settingsDownloadNetwork,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+              child: Text(
+                context.l10n.settingsDownloadNetworkSubtitle,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.signal_cellular_alt),
+              title: Text(context.l10n.settingsDownloadNetworkAny),
+              subtitle: const Text('WiFi + Mobile Data'),
+              trailing: current == 'any' ? Icon(Icons.check, color: colorScheme.primary) : null,
+              onTap: () {
+                ref.read(settingsProvider.notifier).setDownloadNetworkMode('any');
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.wifi),
+              title: Text(context.l10n.settingsDownloadNetworkWifiOnly),
+              subtitle: const Text('Pause downloads on mobile data'),
+              trailing: current == 'wifi_only' ? Icon(Icons.check, color: colorScheme.primary) : null,
+              onTap: () {
+                ref.read(settingsProvider.notifier).setDownloadNetworkMode('wifi_only');
                 Navigator.pop(context);
               },
             ),

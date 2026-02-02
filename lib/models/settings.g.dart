@@ -41,6 +41,7 @@ AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => AppSettings(
   useAllFilesAccess: json['useAllFilesAccess'] as bool? ?? false,
   autoExportFailedDownloads:
       json['autoExportFailedDownloads'] as bool? ?? false,
+  downloadNetworkMode: json['downloadNetworkMode'] as String? ?? 'any',
 );
 
 Map<String, dynamic> _$AppSettingsToJson(AppSettings instance) =>
@@ -76,4 +77,5 @@ Map<String, dynamic> _$AppSettingsToJson(AppSettings instance) =>
       'tidalHighFormat': instance.tidalHighFormat,
       'useAllFilesAccess': instance.useAllFilesAccess,
       'autoExportFailedDownloads': instance.autoExportFailedDownloads,
+      'downloadNetworkMode': instance.downloadNetworkMode,
     };

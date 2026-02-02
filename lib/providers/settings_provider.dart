@@ -245,6 +245,11 @@ void setUseAllFilesAccess(bool enabled) {
     state = state.copyWith(autoExportFailedDownloads: enabled);
     _saveSettings();
   }
+
+  void setDownloadNetworkMode(String mode) {
+    state = state.copyWith(downloadNetworkMode: mode);
+    _saveSettings();
+  }
 }
 
 final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(

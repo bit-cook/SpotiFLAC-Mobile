@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.3.6] - 2026-02-02
+
+### Added
+
+- **WiFi-Only Download Mode**: Option to pause downloads when not connected to WiFi
+  - New setting in Settings > Download > Download Network
+  - Choose between "WiFi + Mobile Data" or "WiFi Only"
+  - Downloads automatically pause on mobile data and resume on WiFi
+
+### Dependencies
+
+- Added `connectivity_plus: ^6.0.3` for network state detection
+
+---
+
 ## [3.3.5] - 2026-02-01
 
 Same as 3.3.1 but fixes crash issues caused by FFmpeg.

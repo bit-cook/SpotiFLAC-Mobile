@@ -2050,6 +2050,19 @@ class AppLocalizationsRu extends AppLocalizations {
       'Save failed downloads to TXT file automatically';
 
   @override
+  String get settingsDownloadNetwork => 'Download Network';
+
+  @override
+  String get settingsDownloadNetworkAny => 'WiFi + Mobile Data';
+
+  @override
+  String get settingsDownloadNetworkWifiOnly => 'WiFi Only';
+
+  @override
+  String get settingsDownloadNetworkSubtitle =>
+      'Choose which network to use for downloads. When set to WiFi Only, downloads will pause on mobile data.';
+
+  @override
   String get queueEmpty => 'Нет загрузок в очереди';
 
   @override
