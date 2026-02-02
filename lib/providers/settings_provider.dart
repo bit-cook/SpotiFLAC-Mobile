@@ -250,6 +250,56 @@ void setUseAllFilesAccess(bool enabled) {
     state = state.copyWith(downloadNetworkMode: mode);
     _saveSettings();
   }
+
+  // Cloud Upload Settings
+  void setCloudUploadEnabled(bool enabled) {
+    state = state.copyWith(cloudUploadEnabled: enabled);
+    _saveSettings();
+  }
+
+  void setCloudProvider(String provider) {
+    state = state.copyWith(cloudProvider: provider);
+    _saveSettings();
+  }
+
+  void setCloudServerUrl(String url) {
+    state = state.copyWith(cloudServerUrl: url);
+    _saveSettings();
+  }
+
+  void setCloudUsername(String username) {
+    state = state.copyWith(cloudUsername: username);
+    _saveSettings();
+  }
+
+  void setCloudPassword(String password) {
+    state = state.copyWith(cloudPassword: password);
+    _saveSettings();
+  }
+
+  void setCloudRemotePath(String path) {
+    state = state.copyWith(cloudRemotePath: path);
+    _saveSettings();
+  }
+
+  void setCloudSettings({
+    bool? enabled,
+    String? provider,
+    String? serverUrl,
+    String? username,
+    String? password,
+    String? remotePath,
+  }) {
+    state = state.copyWith(
+      cloudUploadEnabled: enabled ?? state.cloudUploadEnabled,
+      cloudProvider: provider ?? state.cloudProvider,
+      cloudServerUrl: serverUrl ?? state.cloudServerUrl,
+      cloudUsername: username ?? state.cloudUsername,
+      cloudPassword: password ?? state.cloudPassword,
+      cloudRemotePath: remotePath ?? state.cloudRemotePath,
+    );
+    _saveSettings();
+  }
 }
 
 final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(

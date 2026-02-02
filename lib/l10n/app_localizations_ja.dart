@@ -12,8 +12,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get appName => 'SpotiFLAC';
 
   @override
-  String get appDescription =>
-      'Tidal、Qobuz、Amazon Music から Spotify のトラックをロスレス品質でダウンロードします。';
+  String get appDescription => 'Tidal、Qobuz、Amazon Music から Spotify のトラックをロスレス品質でダウンロードします。';
 
   @override
   String get navHome => 'ホーム';
@@ -99,15 +98,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get historyNoAlbums => 'アルバムのダウンロードはありません';
 
   @override
-  String get historyNoAlbumsSubtitle =>
-      'Download multiple tracks from an album to see them here';
+  String get historyNoAlbumsSubtitle => 'Download multiple tracks from an album to see them here';
 
   @override
   String get historyNoSingles => 'シングルのダウンロードはありません';
 
   @override
-  String get historyNoSinglesSubtitle =>
-      'Single track downloads will appear here';
+  String get historyNoSinglesSubtitle => 'Single track downloads will appear here';
 
   @override
   String get historySearchHint => '検索履歴...';
@@ -155,8 +152,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get downloadAskQuality => 'ダウンロード前に品質を確認する';
 
   @override
-  String get downloadAskQualitySubtitle =>
-      'Show quality picker for each download';
+  String get downloadAskQualitySubtitle => 'Show quality picker for each download';
 
   @override
   String get downloadFilenameFormat => 'ファイル名の形式';
@@ -168,8 +164,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get downloadSeparateSingles => 'シングルを分割';
 
   @override
-  String get downloadSeparateSinglesSubtitle =>
-      'Put single tracks in a separate folder';
+  String get downloadSeparateSinglesSubtitle => 'Put single tracks in a separate folder';
 
   @override
   String get qualityBest => 'おすすめ';
@@ -226,8 +221,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get optionsPrimaryProvider => 'プライマリーのプロバイダー';
 
   @override
-  String get optionsPrimaryProviderSubtitle =>
-      'Service used when searching by track name.';
+  String get optionsPrimaryProviderSubtitle => 'Service used when searching by track name.';
 
   @override
   String optionsUsingExtension(String extensionName) {
@@ -235,15 +229,13 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get optionsSwitchBack =>
-      'Tap Deezer or Spotify to switch back from extension';
+  String get optionsSwitchBack => 'Tap Deezer or Spotify to switch back from extension';
 
   @override
   String get optionsAutoFallback => 'Auto Fallback';
 
   @override
-  String get optionsAutoFallbackSubtitle =>
-      'Try other services if download fails';
+  String get optionsAutoFallbackSubtitle => 'Try other services if download fails';
 
   @override
   String get optionsUseExtensionProviders => '拡張のプロバイダーを使用する';
@@ -278,8 +270,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get optionsConcurrentWarning =>
-      'Parallel downloads may trigger rate limiting';
+  String get optionsConcurrentWarning => 'Parallel downloads may trigger rate limiting';
 
   @override
   String get optionsExtensionStore => '拡張ストア';
@@ -291,8 +282,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get optionsCheckUpdates => '更新を確認';
 
   @override
-  String get optionsCheckUpdatesSubtitle =>
-      'Notify when new version is available';
+  String get optionsCheckUpdatesSubtitle => 'Notify when new version is available';
 
   @override
   String get optionsUpdateChannel => '更新チャンネル';
@@ -304,8 +294,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get optionsUpdateChannelPreview => 'プレビューリリースを入手';
 
   @override
-  String get optionsUpdateChannelWarning =>
-      'Preview may contain bugs or incomplete features';
+  String get optionsUpdateChannelWarning => 'Preview may contain bugs or incomplete features';
 
   @override
   String get optionsClearHistory => 'ダウンロード履歴を消去';
@@ -334,8 +323,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get optionsSpotifyCredentialsRequired => '必須 - タップで設定';
 
   @override
-  String get optionsSpotifyWarning =>
-      'Spotify は独自の API 認証情報が必要です。developer.spotify.com から取得できます。';
+  String get optionsSpotifyWarning => 'Spotify は独自の API 認証情報が必要です。developer.spotify.com から取得できます。';
 
   @override
   String get extensionsTitle => '拡張';
@@ -459,34 +447,28 @@ class AppLocalizationsJa extends AppLocalizations {
   String get aboutVersion => 'バージョン';
 
   @override
-  String get aboutBinimumDesc =>
-      'The creator of QQDL & HiFi API. Without this API, Tidal downloads wouldn\'t exist!';
+  String get aboutBinimumDesc => 'The creator of QQDL & HiFi API. Without this API, Tidal downloads wouldn\'t exist!';
 
   @override
-  String get aboutSachinsenalDesc =>
-      'The original HiFi project creator. The foundation of Tidal integration!';
+  String get aboutSachinsenalDesc => 'The original HiFi project creator. The foundation of Tidal integration!';
 
   @override
-  String get aboutSjdonadoDesc =>
-      'Creator of I Don\'t Have Spotify (IDHS). The fallback link resolver that saves the day!';
+  String get aboutSjdonadoDesc => 'Creator of I Don\'t Have Spotify (IDHS). The fallback link resolver that saves the day!';
 
   @override
   String get aboutDoubleDouble => 'DoubleDouble';
 
   @override
-  String get aboutDoubleDoubleDesc =>
-      'Amazing API for Amazon Music downloads. Thank you for making it free!';
+  String get aboutDoubleDoubleDesc => 'Amazing API for Amazon Music downloads. Thank you for making it free!';
 
   @override
   String get aboutDabMusic => 'DAB Music';
 
   @override
-  String get aboutDabMusicDesc =>
-      'The best Qobuz streaming API. Hi-Res downloads wouldn\'t be possible without this!';
+  String get aboutDabMusicDesc => 'The best Qobuz streaming API. Hi-Res downloads wouldn\'t be possible without this!';
 
   @override
-  String get aboutAppDescription =>
-      'Tidal、Qobuz、Amazon Music から Spotify のトラックをロスレス品質でダウンロードします。';
+  String get aboutAppDescription => 'Tidal、Qobuz、Amazon Music から Spotify のトラックをロスレス品質でダウンロードします。';
 
   @override
   String get albumTitle => 'アルバム';
@@ -618,19 +600,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get setupStorageAccessRequired => 'ストレージアクセスが必要です';
 
   @override
-  String get setupStorageAccessMessage =>
-      'SpotiFLAC needs \"All files access\" permission to save music files to your chosen folder.';
+  String get setupStorageAccessMessage => 'SpotiFLAC needs \"All files access\" permission to save music files to your chosen folder.';
 
   @override
-  String get setupStorageAccessMessageAndroid11 =>
-      'Android 11+ requires \"All files access\" permission to save files to your chosen download folder.';
+  String get setupStorageAccessMessageAndroid11 => 'Android 11+ requires \"All files access\" permission to save files to your chosen download folder.';
 
   @override
   String get setupOpenSettings => '設定を開く';
 
   @override
-  String get setupPermissionDeniedMessage =>
-      'Permission denied. Please grant all permissions to continue.';
+  String get setupPermissionDeniedMessage => 'Permission denied. Please grant all permissions to continue.';
 
   @override
   String setupPermissionRequired(String permissionType) {
@@ -649,8 +628,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get setupUseDefaultFolder => 'デフォルトのフォルダを使用しますか？';
 
   @override
-  String get setupNoFolderSelected =>
-      'No folder selected. Would you like to use the default Music folder?';
+  String get setupNoFolderSelected => 'No folder selected. Would you like to use the default Music folder?';
 
   @override
   String get setupUseDefault => 'デフォルトを使用する';
@@ -659,15 +637,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get setupDownloadLocationTitle => 'ダウンロード先';
 
   @override
-  String get setupDownloadLocationIosMessage =>
-      'On iOS, downloads are saved to the app\'s Documents folder. You can access them via the Files app.';
+  String get setupDownloadLocationIosMessage => 'On iOS, downloads are saved to the app\'s Documents folder. You can access them via the Files app.';
 
   @override
   String get setupAppDocumentsFolder => 'アプリのドキュメントフォルダ';
 
   @override
-  String get setupAppDocumentsFolderSubtitle =>
-      'Recommended - accessible via Files app';
+  String get setupAppDocumentsFolderSubtitle => 'Recommended - accessible via Files app';
 
   @override
   String get setupChooseFromFiles => 'ファイルから選択';
@@ -676,12 +652,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get setupChooseFromFilesSubtitle => 'iCloud またはその他の場所を選択';
 
   @override
-  String get setupIosEmptyFolderWarning =>
-      'iOS limitation: Empty folders cannot be selected. Choose a folder with at least one file.';
+  String get setupIosEmptyFolderWarning => 'iOS limitation: Empty folders cannot be selected. Choose a folder with at least one file.';
 
   @override
-  String get setupIcloudNotSupported =>
-      'iCloud Drive is not supported. Please use the app Documents folder.';
+  String get setupIcloudNotSupported => 'iCloud Drive is not supported. Please use the app Documents folder.';
 
   @override
   String get setupDownloadInFlac => 'Spotify のトラックを FLAC でダウンロード';
@@ -708,8 +682,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get setupStorageRequired => 'ストレージの権限が必要です';
 
   @override
-  String get setupStorageDescription =>
-      'SpotiFLAC はダウンロードした音楽ファイルを保存するためにストレージの権限が必要です。';
+  String get setupStorageDescription => 'SpotiFLAC はダウンロードした音楽ファイルを保存するためにストレージの権限が必要です。';
 
   @override
   String get setupNotificationGranted => '通知の権限が許可されました！';
@@ -718,8 +691,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get setupNotificationEnable => '通知を有効化する';
 
   @override
-  String get setupNotificationDescription =>
-      'Get notified when downloads complete or require attention.';
+  String get setupNotificationDescription => 'Get notified when downloads complete or require attention.';
 
   @override
   String get setupFolderSelected => 'ダウンロードフォルダが選択済みです！';
@@ -728,8 +700,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get setupFolderChoose => 'ダウンロードフォルダを選択';
 
   @override
-  String get setupFolderDescription =>
-      'Select a folder where your downloaded music will be saved.';
+  String get setupFolderDescription => 'Select a folder where your downloaded music will be saved.';
 
   @override
   String get setupChangeFolder => 'フォルダを変更';
@@ -741,8 +712,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get setupSpotifyApiOptional => 'Spotify API (任意)';
 
   @override
-  String get setupSpotifyApiDescription =>
-      'Add your Spotify API credentials for better search results and access to Spotify-exclusive content.';
+  String get setupSpotifyApiDescription => 'Add your Spotify API credentials for better search results and access to Spotify-exclusive content.';
 
   @override
   String get setupUseSpotifyApi => 'Spotify API を使用する';
@@ -760,8 +730,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get setupEnterClientSecret => 'Spotify クライアントシークレットを入力';
 
   @override
-  String get setupGetFreeCredentials =>
-      'Spotify 開発者ダッシュボードから無料の API 認証情報を取得します。';
+  String get setupGetFreeCredentials => 'Spotify 開発者ダッシュボードから無料の API 認証情報を取得します。';
 
   @override
   String get setupEnableNotifications => '通知を有効化する';
@@ -770,12 +739,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get setupProceedToNextStep => 'You can now proceed to the next step.';
 
   @override
-  String get setupNotificationProgressDescription =>
-      'You will receive download progress notifications.';
+  String get setupNotificationProgressDescription => 'You will receive download progress notifications.';
 
   @override
-  String get setupNotificationBackgroundDescription =>
-      'Get notified about download progress and completion. This helps you track downloads when the app is in background.';
+  String get setupNotificationBackgroundDescription => 'Get notified about download progress and completion. This helps you track downloads when the app is in background.';
 
   @override
   String get setupSkipForNow => '今はスキップ';
@@ -793,12 +760,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get setupSkipAndStart => 'スキップと開始';
 
   @override
-  String get setupAllowAccessToManageFiles =>
-      'Please enable \"Allow access to manage all files\" in the next screen.';
+  String get setupAllowAccessToManageFiles => 'Please enable \"Allow access to manage all files\" in the next screen.';
 
   @override
-  String get setupGetCredentialsFromSpotify =>
-      'developer.spotify.com から認証情報を取得します';
+  String get setupGetCredentialsFromSpotify => 'developer.spotify.com から認証情報を取得します';
 
   @override
   String get dialogCancel => 'キャンセル';
@@ -849,8 +814,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dialogDiscardChanges => '変更を破棄しますか？';
 
   @override
-  String get dialogUnsavedChanges =>
-      'You have unsaved changes. Do you want to discard them?';
+  String get dialogUnsavedChanges => 'You have unsaved changes. Do you want to discard them?';
 
   @override
   String get dialogDownloadFailed => 'ダウンロードに失敗しました';
@@ -868,8 +832,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dialogClearAll => 'すべて消去';
 
   @override
-  String get dialogClearAllDownloads =>
-      'Are you sure you want to clear all downloads?';
+  String get dialogClearAllDownloads => 'Are you sure you want to clear all downloads?';
 
   @override
   String get dialogRemoveFromDevice => 'デバイスから削除しますか？';
@@ -878,8 +841,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dialogRemoveExtension => '拡張を削除';
 
   @override
-  String get dialogRemoveExtensionMessage =>
-      'Are you sure you want to remove this extension? This cannot be undone.';
+  String get dialogRemoveExtensionMessage => 'Are you sure you want to remove this extension? This cannot be undone.';
 
   @override
   String get dialogUninstallExtension => '拡張をアンインストールしますか？';
@@ -893,8 +855,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dialogClearHistoryTitle => '履歴を消去';
 
   @override
-  String get dialogClearHistoryMessage =>
-      'Are you sure you want to clear all download history? This cannot be undone.';
+  String get dialogClearHistoryMessage => 'Are you sure you want to clear all download history? This cannot be undone.';
 
   @override
   String get dialogDeleteSelectedTitle => '選択済みを削除';
@@ -1011,8 +972,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get errorRateLimited => 'レート制限';
 
   @override
-  String get errorRateLimitedMessage =>
-      'Too many requests. Please wait a moment before searching again.';
+  String get errorRateLimitedMessage => 'Too many requests. Please wait a moment before searching again.';
 
   @override
   String errorFailedToLoad(String item) {
@@ -1185,16 +1145,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get folderOrganizationNoneSubtitle => 'ダウンロードフォルダ内のすべてのファイル';
 
   @override
-  String get folderOrganizationByArtistSubtitle =>
-      'Separate folder for each artist';
+  String get folderOrganizationByArtistSubtitle => 'Separate folder for each artist';
 
   @override
-  String get folderOrganizationByAlbumSubtitle =>
-      'Separate folder for each album';
+  String get folderOrganizationByAlbumSubtitle => 'Separate folder for each album';
 
   @override
-  String get folderOrganizationByArtistAlbumSubtitle =>
-      'Nested folders for artist and album';
+  String get folderOrganizationByArtistAlbumSubtitle => 'Nested folders for artist and album';
 
   @override
   String get updateAvailable => '更新が利用可能です';
@@ -1253,12 +1210,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get providerPriorityTitle => 'プロバイダーの優先度';
 
   @override
-  String get providerPriorityDescription =>
-      'Drag to reorder download providers. The app will try providers from top to bottom when downloading tracks.';
+  String get providerPriorityDescription => 'Drag to reorder download providers. The app will try providers from top to bottom when downloading tracks.';
 
   @override
-  String get providerPriorityInfo =>
-      'If a track is not available on the first provider, the app will automatically try the next one.';
+  String get providerPriorityInfo => 'If a track is not available on the first provider, the app will automatically try the next one.';
 
   @override
   String get providerBuiltIn => '内蔵';
@@ -1270,19 +1225,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get metadataProviderPriority => 'メタデータプロバイダーの優先度';
 
   @override
-  String get metadataProviderPrioritySubtitle =>
-      'Order used when fetching track metadata';
+  String get metadataProviderPrioritySubtitle => 'Order used when fetching track metadata';
 
   @override
   String get metadataProviderPriorityTitle => 'メタデータの優先度';
 
   @override
-  String get metadataProviderPriorityDescription =>
-      'Drag to reorder metadata providers. The app will try providers from top to bottom when searching for tracks and fetching metadata.';
+  String get metadataProviderPriorityDescription => 'Drag to reorder metadata providers. The app will try providers from top to bottom when searching for tracks and fetching metadata.';
 
   @override
-  String get metadataProviderPriorityInfo =>
-      'Deezer has no rate limits and is recommended as primary. Spotify may rate limit after many requests.';
+  String get metadataProviderPriorityInfo => 'Deezer has no rate limits and is recommended as primary. Spotify may rate limit after many requests.';
 
   @override
   String get metadataNoRateLimits => 'レート制限はありません';
@@ -1354,19 +1306,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get logIssueSummary => '問題の概要';
 
   @override
-  String get logIspBlockingDescription =>
-      'ISP がダウンロードサービスのアクセスをブロックしている可能性があります';
+  String get logIspBlockingDescription => 'ISP がダウンロードサービスのアクセスをブロックしている可能性があります';
 
   @override
-  String get logIspBlockingSuggestion =>
-      'VPN を使用するか DNS を 1.1.1.1 または 8.8.8.8 に変更をお試しください';
+  String get logIspBlockingSuggestion => 'VPN を使用するか DNS を 1.1.1.1 または 8.8.8.8 に変更をお試しください';
 
   @override
   String get logRateLimitedDescription => 'サービスへのリクエストが多すぎます';
 
   @override
-  String get logRateLimitedSuggestion =>
-      'Wait a few minutes before trying again';
+  String get logRateLimitedSuggestion => 'Wait a few minutes before trying again';
 
   @override
   String get logNetworkErrorDescription => '接続の問題が検出されました';
@@ -1375,12 +1324,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get logNetworkErrorSuggestion => 'インターネット接続を確認してください';
 
   @override
-  String get logTrackNotFoundDescription =>
-      'Some tracks could not be found on download services';
+  String get logTrackNotFoundDescription => 'Some tracks could not be found on download services';
 
   @override
-  String get logTrackNotFoundSuggestion =>
-      'The track may not be available in lossless quality';
+  String get logTrackNotFoundSuggestion => 'The track may not be available in lossless quality';
 
   @override
   String logTotalErrors(int count) {
@@ -1406,8 +1353,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get credentialsTitle => 'Spotify の認証情報';
 
   @override
-  String get credentialsDescription =>
-      'Enter your Client ID and Secret to use your own Spotify application quota.';
+  String get credentialsDescription => 'Enter your Client ID and Secret to use your own Spotify application quota.';
 
   @override
   String get credentialsClientId => 'クライアント ID';
@@ -1461,8 +1407,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get lyricsMode => '歌詞モード';
 
   @override
-  String get lyricsModeDescription =>
-      'Choose how lyrics are saved with your downloads';
+  String get lyricsModeDescription => 'Choose how lyrics are saved with your downloads';
 
   @override
   String get lyricsModeEmbed => 'Embed in file';
@@ -1474,8 +1419,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get lyricsModeExternal => '外部 .lrc ファイル';
 
   @override
-  String get lyricsModeExternalSubtitle =>
-      'Separate .lrc file for players like Samsung Music';
+  String get lyricsModeExternalSubtitle => 'Separate .lrc file for players like Samsung Music';
 
   @override
   String get lyricsModeBoth => '両方';
@@ -1635,8 +1579,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get trackDeleteConfirmTitle => 'デバイスから削除しますか？';
 
   @override
-  String get trackDeleteConfirmMessage =>
-      'This will permanently delete the downloaded file and remove it from your history.';
+  String get trackDeleteConfirmMessage => 'This will permanently delete the downloaded file and remove it from your history.';
 
   @override
   String trackCannotOpen(String message) {
@@ -1788,15 +1731,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get extensionsNoExtensions => '拡張はインストールされていません';
 
   @override
-  String get extensionsNoExtensionsSubtitle =>
-      '新しいプロバイダーを追加するには .spotiflac-ext ファイルをインストールします';
+  String get extensionsNoExtensionsSubtitle => '新しいプロバイダーを追加するには .spotiflac-ext ファイルをインストールします';
 
   @override
   String get extensionsInstallButton => '拡張をインストール';
 
   @override
-  String get extensionsInfoTip =>
-      '拡張は新しいメタデータとダウンロードプロバイダーを追加することがあります。信頼できるソースからの拡張のみをインストールしてください。';
+  String get extensionsInfoTip => '拡張は新しいメタデータとダウンロードプロバイダーを追加することがあります。信頼できるソースからの拡張のみをインストールしてください。';
 
   @override
   String get extensionsInstalledSuccess => '拡張のインストールが成功しました';
@@ -1868,8 +1809,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get enableLossyOptionSubtitleOn => 'Lossy quality option is available';
 
   @override
-  String get enableLossyOptionSubtitleOff =>
-      'Downloads FLAC then converts to lossy format';
+  String get enableLossyOptionSubtitleOff => 'Downloads FLAC then converts to lossy format';
 
   @override
   String get lossyFormat => 'Lossy Format';
@@ -1881,8 +1821,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get lossyFormatMp3Subtitle => '320kbps, best compatibility';
 
   @override
-  String get lossyFormatOpusSubtitle =>
-      '128kbps, better quality at smaller size';
+  String get lossyFormatOpusSubtitle => '128kbps, better quality at smaller size';
 
   @override
   String get qualityNote => '実際の品質はサービスからのトラックの可用性に依存します';
@@ -1981,8 +1920,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get queueExportFailed => 'Export';
 
   @override
-  String get queueExportFailedSuccess =>
-      'Failed downloads exported to TXT file';
+  String get queueExportFailedSuccess => 'Failed downloads exported to TXT file';
 
   @override
   String get queueExportFailedClear => 'Clear Failed';
@@ -1994,8 +1932,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsAutoExportFailed => 'Auto-export failed downloads';
 
   @override
-  String get settingsAutoExportFailedSubtitle =>
-      'Save failed downloads to TXT file automatically';
+  String get settingsAutoExportFailedSubtitle => 'Save failed downloads to TXT file automatically';
 
   @override
   String get settingsDownloadNetwork => 'Download Network';
@@ -2007,8 +1944,55 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsDownloadNetworkWifiOnly => 'WiFi Only';
 
   @override
-  String get settingsDownloadNetworkSubtitle =>
-      'Choose which network to use for downloads. When set to WiFi Only, downloads will pause on mobile data.';
+  String get settingsDownloadNetworkSubtitle => 'Choose which network to use for downloads. When set to WiFi Only, downloads will pause on mobile data.';
+
+  @override
+  String get settingsCloudSave => 'Cloud Save';
+
+  @override
+  String get settingsCloudSaveSubtitle => 'Auto-upload to NAS or cloud storage';
+
+  @override
+  String get cloudSettingsTitle => 'Cloud Save';
+
+  @override
+  String get cloudSettingsSectionGeneral => 'General';
+
+  @override
+  String get cloudSettingsEnable => 'Enable Cloud Upload';
+
+  @override
+  String get cloudSettingsEnableSubtitle => 'Automatically upload files after download completes';
+
+  @override
+  String get cloudSettingsSectionProvider => 'Cloud Provider';
+
+  @override
+  String get cloudSettingsProvider => 'Provider';
+
+  @override
+  String get cloudSettingsProviderDescription => 'Select where to upload your downloaded files';
+
+  @override
+  String get cloudSettingsSectionServer => 'Server Configuration';
+
+  @override
+  String get cloudSettingsServerUrl => 'Server URL';
+
+  @override
+  String get cloudSettingsUsername => 'Username';
+
+  @override
+  String get cloudSettingsPassword => 'Password';
+
+  @override
+  String get cloudSettingsRemotePath => 'Remote Folder Path';
+
+  @override
+  String get cloudSettingsTestConnection => 'Test Connection';
+
+  @override
+  String get cloudSettingsInfo => 'Downloaded files will be automatically uploaded to your cloud storage after download completes. Original files are kept on your device.';
 
   @override
   String get queueEmpty => 'キューにダウンロードがありません';
@@ -2062,8 +2046,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get albumFolderArtistAlbumSingles => 'Artist / Album + Singles';
 
   @override
-  String get albumFolderArtistAlbumSinglesSubtitle =>
-      'Artist/Album/ and Artist/Singles/';
+  String get albumFolderArtistAlbumSinglesSubtitle => 'Artist/Album/ and Artist/Singles/';
 
   @override
   String get downloadedAlbumDeleteSelected => '選択済みを削除';
@@ -2173,8 +2156,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get discographySelectAlbums => 'アルバムを選択...';
 
   @override
-  String get discographySelectAlbumsSubtitle =>
-      'Choose specific albums or singles';
+  String get discographySelectAlbumsSubtitle => 'Choose specific albums or singles';
 
   @override
   String get discographyFetchingTracks => 'トラックを取得中です...';
@@ -2221,14 +2203,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get allFilesAccessDisabledSubtitle => 'Limited to media folders only';
 
   @override
-  String get allFilesAccessDescription =>
-      'Enable this if you encounter write errors when saving to custom folders. Android 13+ restricts access to certain directories by default.';
+  String get allFilesAccessDescription => 'Enable this if you encounter write errors when saving to custom folders. Android 13+ restricts access to certain directories by default.';
 
   @override
-  String get allFilesAccessDeniedMessage =>
-      'Permission was denied. Please enable \'All files access\' manually in system settings.';
+  String get allFilesAccessDeniedMessage => 'Permission was denied. Please enable \'All files access\' manually in system settings.';
 
   @override
-  String get allFilesAccessDisabledMessage =>
-      'All Files Access disabled. The app will use limited storage access.';
+  String get allFilesAccessDisabledMessage => 'All Files Access disabled. The app will use limited storage access.';
 }

@@ -9,6 +9,12 @@
   - Choose between "WiFi + Mobile Data" or "WiFi Only"
   - Downloads automatically pause on mobile data and resume on WiFi
 
+- **Cloud Save Settings (UI Only)**: New settings page for cloud/NAS upload configuration
+  - Settings > Cloud Save - configure auto-upload to NAS or cloud storage
+  - Support for WebDAV (Synology, Nextcloud, QNAP) and SFTP providers
+  - Server URL, username, password, and remote path configuration
+  - Test connection button (actual upload implementation coming in v3.4.0)
+
 ### Dependencies
 
 - Added `connectivity_plus: ^6.0.3` for network state detection

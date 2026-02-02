@@ -36,6 +36,14 @@ class AppSettings {
   final bool useAllFilesAccess; // Android 13+ only: enable MANAGE_EXTERNAL_STORAGE
   final bool autoExportFailedDownloads; // Auto export failed downloads to TXT file
   final String downloadNetworkMode; // 'any' = WiFi + Mobile, 'wifi_only' = WiFi only
+  
+  // Cloud Upload Settings
+  final bool cloudUploadEnabled; // Enable auto-upload after download
+  final String cloudProvider; // 'none', 'webdav', 'sftp', 'gdrive'
+  final String cloudServerUrl; // WebDAV/SFTP server URL
+  final String cloudUsername; // Server username
+  final String cloudPassword; // Server password (encrypted)
+  final String cloudRemotePath; // Remote folder path (e.g. /Music/SpotiFLAC)
 
   const AppSettings({
     this.defaultService = 'tidal',
@@ -70,6 +78,13 @@ class AppSettings {
     this.useAllFilesAccess = false,
     this.autoExportFailedDownloads = false,
     this.downloadNetworkMode = 'any',
+    // Cloud Upload defaults
+    this.cloudUploadEnabled = false,
+    this.cloudProvider = 'none',
+    this.cloudServerUrl = '',
+    this.cloudUsername = '',
+    this.cloudPassword = '',
+    this.cloudRemotePath = '/Music/SpotiFLAC',
   });
 
   AppSettings copyWith({
@@ -106,6 +121,13 @@ class AppSettings {
     bool? useAllFilesAccess,
     bool? autoExportFailedDownloads,
     String? downloadNetworkMode,
+    // Cloud Upload
+    bool? cloudUploadEnabled,
+    String? cloudProvider,
+    String? cloudServerUrl,
+    String? cloudUsername,
+    String? cloudPassword,
+    String? cloudRemotePath,
   }) {
     return AppSettings(
       defaultService: defaultService ?? this.defaultService,
@@ -140,6 +162,13 @@ class AppSettings {
       useAllFilesAccess: useAllFilesAccess ?? this.useAllFilesAccess,
       autoExportFailedDownloads: autoExportFailedDownloads ?? this.autoExportFailedDownloads,
       downloadNetworkMode: downloadNetworkMode ?? this.downloadNetworkMode,
+      // Cloud Upload
+      cloudUploadEnabled: cloudUploadEnabled ?? this.cloudUploadEnabled,
+      cloudProvider: cloudProvider ?? this.cloudProvider,
+      cloudServerUrl: cloudServerUrl ?? this.cloudServerUrl,
+      cloudUsername: cloudUsername ?? this.cloudUsername,
+      cloudPassword: cloudPassword ?? this.cloudPassword,
+      cloudRemotePath: cloudRemotePath ?? this.cloudRemotePath,
     );
   }
 
