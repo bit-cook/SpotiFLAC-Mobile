@@ -2006,6 +2006,26 @@ class AppLocalizationsDe extends AppLocalizations {
       'Are you sure you want to clear all downloads?';
 
   @override
+  String get queueExportFailed => 'Export';
+
+  @override
+  String get queueExportFailedSuccess =>
+      'Failed downloads exported to TXT file';
+
+  @override
+  String get queueExportFailedClear => 'Clear Failed';
+
+  @override
+  String get queueExportFailedError => 'Failed to export downloads';
+
+  @override
+  String get settingsAutoExportFailed => 'Auto-export failed downloads';
+
+  @override
+  String get settingsAutoExportFailedSubtitle =>
+      'Save failed downloads to TXT file automatically';
+
+  @override
   String get queueEmpty => 'No downloads in queue';
 
   @override

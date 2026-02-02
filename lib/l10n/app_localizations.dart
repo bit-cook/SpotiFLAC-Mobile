@@ -3652,6 +3652,42 @@ abstract class AppLocalizations {
   /// **'Are you sure you want to clear all downloads?'**
   String get queueClearAllMessage;
 
+  /// Button - export failed downloads to TXT
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get queueExportFailed;
+
+  /// Success message after exporting failed downloads
+  ///
+  /// In en, this message translates to:
+  /// **'Failed downloads exported to TXT file'**
+  String get queueExportFailedSuccess;
+
+  /// Action to clear failed downloads after export
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Failed'**
+  String get queueExportFailedClear;
+
+  /// Error message when export fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to export downloads'**
+  String get queueExportFailedError;
+
+  /// Setting toggle for auto-export
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-export failed downloads'**
+  String get settingsAutoExportFailed;
+
+  /// Subtitle for auto-export setting
+  ///
+  /// In en, this message translates to:
+  /// **'Save failed downloads to TXT file automatically'**
+  String get settingsAutoExportFailedSubtitle;
+
   /// Empty queue state title
   ///
   /// In en, this message translates to:

@@ -34,6 +34,7 @@ class AppSettings {
   final String lyricsMode;
   final String tidalHighFormat; // Format for Tidal HIGH quality: 'mp3_320' or 'opus_128'
   final bool useAllFilesAccess; // Android 13+ only: enable MANAGE_EXTERNAL_STORAGE
+  final bool autoExportFailedDownloads; // Auto export failed downloads to TXT file
 
   const AppSettings({
     this.defaultService = 'tidal',
@@ -66,6 +67,7 @@ class AppSettings {
     this.lyricsMode = 'embed',
     this.tidalHighFormat = 'mp3_320',
     this.useAllFilesAccess = false,
+    this.autoExportFailedDownloads = false,
   });
 
   AppSettings copyWith({
@@ -100,6 +102,7 @@ class AppSettings {
     String? lyricsMode,
     String? tidalHighFormat,
     bool? useAllFilesAccess,
+    bool? autoExportFailedDownloads,
   }) {
     return AppSettings(
       defaultService: defaultService ?? this.defaultService,
@@ -132,6 +135,7 @@ class AppSettings {
       lyricsMode: lyricsMode ?? this.lyricsMode,
       tidalHighFormat: tidalHighFormat ?? this.tidalHighFormat,
       useAllFilesAccess: useAllFilesAccess ?? this.useAllFilesAccess,
+      autoExportFailedDownloads: autoExportFailedDownloads ?? this.autoExportFailedDownloads,
     );
   }
 

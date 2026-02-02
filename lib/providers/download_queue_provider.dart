@@ -1012,10 +1012,72 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
-  void removeItem(String id) {
+void removeItem(String id) {
     final items = state.items.where((item) => item.id != id).toList();
     state = state.copyWith(items: items);
     _saveQueueToStorage();
+  }
+
+  /// Export failed downloads to a TXT file
+  /// Returns the file path if successful, null otherwise
+  Future<String?> exportFailedDownloads() async {
+    final failedItems = state.items
+        .where((item) => item.status == DownloadStatus.failed)
+        .toList();
+
+    if (failedItems.isEmpty) {
+      _log.d('No failed downloads to export');
+      return null;
+    }
+
+    try {
+      final buffer = StringBuffer();
+      buffer.writeln('# SpotiFLAC Failed Downloads');
+      buffer.writeln('# Exported: ${DateTime.now().toIso8601String()}');
+      buffer.writeln('# Total: ${failedItems.length} tracks');
+      buffer.writeln('#');
+      buffer.writeln('# Format: Track - Artist | Spotify URL | Error');
+      buffer.writeln('');
+
+      for (final item in failedItems) {
+        final track = item.track;
+        final spotifyUrl = track.id.startsWith('deezer:')
+            ? 'https://www.deezer.com/track/${track.id.substring(7)}'
+            : 'https://open.spotify.com/track/${track.id}';
+        final error = item.error ?? 'Unknown error';
+        buffer.writeln('${track.name} - ${track.artistName} | $spotifyUrl | $error');
+      }
+
+      // Save to download directory
+      String exportDir = state.outputDir;
+      if (exportDir.isEmpty) {
+        final dir = await getApplicationDocumentsDirectory();
+        exportDir = dir.path;
+      }
+
+      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+      final fileName = 'failed_downloads_$timestamp.txt';
+      final filePath = '$exportDir/$fileName';
+
+      final file = File(filePath);
+      await file.writeAsString(buffer.toString());
+
+      _log.i('Exported ${failedItems.length} failed downloads to: $filePath');
+      return filePath;
+    } catch (e) {
+      _log.e('Failed to export failed downloads: $e');
+      return null;
+    }
+  }
+
+  /// Clear all failed downloads from queue
+  void clearFailedDownloads() {
+    final items = state.items
+        .where((item) => item.status != DownloadStatus.failed)
+        .toList();
+    state = state.copyWith(items: items);
+    _saveQueueToStorage();
+    _log.d('Cleared failed downloads from queue');
   }
 
   Future<void> _runPostProcessingHooks(String filePath, Track track) async {
@@ -1626,7 +1688,7 @@ if (state.outputDir.isEmpty) {
       _downloadCount = 0;
     }
 
-    _log.i(
+_log.i(
       'Queue stats - completed: $_completedInSession, failed: $_failedInSession, totalAtStart: $_totalQueuedAtStart',
     );
     if (_totalQueuedAtStart > 0) {
@@ -1634,6 +1696,15 @@ if (state.outputDir.isEmpty) {
         completedCount: _completedInSession,
         failedCount: _failedInSession,
       );
+
+      // Auto-export failed downloads if enabled
+      final settings = ref.read(settingsProvider);
+      if (settings.autoExportFailedDownloads && _failedInSession > 0) {
+        final exportPath = await exportFailedDownloads();
+        if (exportPath != null) {
+          _log.i('Auto-exported failed downloads to: $exportPath');
+        }
+      }
     }
 
     _log.i('Queue processing finished');

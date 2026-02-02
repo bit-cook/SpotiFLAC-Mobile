@@ -4,6 +4,11 @@
 
 Same as 3.3.1 but fixes crash issues caused by FFmpeg.
 
+### Added
+
+- **Export Failed Downloads**: Export failed downloads to TXT file for easy lookup on other platforms
+- **Auto-Export Setting**: Option to automatically export failed downloads when queue finishes
+
 ### Fixed
 
 - **FFmpeg Crash**: Fixed crash issues during M4A to MP3/Opus conversion

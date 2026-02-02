@@ -236,8 +236,13 @@ class SettingsNotifier extends Notifier<AppSettings> {
     _saveSettings();
   }
 
-  void setUseAllFilesAccess(bool enabled) {
+void setUseAllFilesAccess(bool enabled) {
     state = state.copyWith(useAllFilesAccess: enabled);
+    _saveSettings();
+  }
+
+  void setAutoExportFailedDownloads(bool enabled) {
+    state = state.copyWith(autoExportFailedDownloads: enabled);
     _saveSettings();
   }
 }

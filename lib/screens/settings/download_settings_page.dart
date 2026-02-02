@@ -385,7 +385,27 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
                   ),
                 ),
               ),
-            ],
+],
+
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            
+            // Auto Export Failed Downloads
+            SliverToBoxAdapter(
+              child: SettingsGroup(
+                children: [
+                  SettingsSwitchItem(
+                    icon: Icons.file_download_outlined,
+                    title: context.l10n.settingsAutoExportFailed,
+                    subtitle: context.l10n.settingsAutoExportFailedSubtitle,
+                    value: settings.autoExportFailedDownloads,
+                    onChanged: (value) {
+                      ref.read(settingsProvider.notifier).setAutoExportFailedDownloads(value);
+                    },
+                    showDivider: false,
+                  ),
+                ],
+              ),
+            ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
           ],

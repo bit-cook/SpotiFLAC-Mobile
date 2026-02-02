@@ -806,7 +806,9 @@ final queueItems = ref.watch(downloadQueueProvider.select((s) => s.items));
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const Spacer(),
+const Spacer(),
+                        _buildExportFailedButton(context, ref, colorScheme),
+                        const SizedBox(width: 4),
                         _buildPauseResumeButton(context, ref, colorScheme),
                         const SizedBox(width: 4),
                         _buildClearAllButton(context, ref, colorScheme),
@@ -1194,7 +1196,7 @@ if (queueItems.isEmpty &&
     );
   }
 
-  Widget _buildClearAllButton(
+Widget _buildClearAllButton(
     BuildContext context,
     WidgetRef ref,
     ColorScheme colorScheme,
@@ -1208,6 +1210,60 @@ if (queueItems.isEmpty &&
         foregroundColor: colorScheme.error,
       ),
     );
+  }
+
+  Widget _buildExportFailedButton(
+    BuildContext context,
+    WidgetRef ref,
+    ColorScheme colorScheme,
+  ) {
+    final queueState = ref.watch(downloadQueueProvider);
+    final failedCount = queueState.failedCount;
+
+    if (failedCount == 0) {
+      return const SizedBox.shrink();
+    }
+
+    return TextButton.icon(
+      onPressed: () => _exportFailedDownloads(context, ref),
+      icon: const Icon(Icons.file_download, size: 18),
+      label: Text(context.l10n.queueExportFailed),
+      style: TextButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        foregroundColor: colorScheme.tertiary,
+      ),
+    );
+  }
+
+  Future<void> _exportFailedDownloads(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final filePath = await ref.read(downloadQueueProvider.notifier).exportFailedDownloads();
+    
+    if (!context.mounted) return;
+    
+    if (filePath != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.queueExportFailedSuccess),
+          action: SnackBarAction(
+            label: context.l10n.queueExportFailedClear,
+            onPressed: () {
+              ref.read(downloadQueueProvider.notifier).clearFailedDownloads();
+            },
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.queueExportFailedError),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
   }
 
   Future<void> _showClearAllDialog(

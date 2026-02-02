@@ -39,6 +39,8 @@ AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => AppSettings(
   lyricsMode: json['lyricsMode'] as String? ?? 'embed',
   tidalHighFormat: json['tidalHighFormat'] as String? ?? 'mp3_320',
   useAllFilesAccess: json['useAllFilesAccess'] as bool? ?? false,
+  autoExportFailedDownloads:
+      json['autoExportFailedDownloads'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$AppSettingsToJson(AppSettings instance) =>
@@ -73,4 +75,5 @@ Map<String, dynamic> _$AppSettingsToJson(AppSettings instance) =>
       'lyricsMode': instance.lyricsMode,
       'tidalHighFormat': instance.tidalHighFormat,
       'useAllFilesAccess': instance.useAllFilesAccess,
+      'autoExportFailedDownloads': instance.autoExportFailedDownloads,
     };
