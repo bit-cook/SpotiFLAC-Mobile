@@ -2946,11 +2946,11 @@
   "@discographyFailedToFetch": {
     "description": "Error - some albums failed to load"
   },
-  "sectionStorageAccess": "Storage Access",
+  "sectionStorageAccess": "Доступ к хранилищу",
   "@sectionStorageAccess": {
     "description": "Section header for storage access settings"
   },
-  "allFilesAccess": "All Files Access",
+  "allFilesAccess": "Доступ ко всем файлам",
   "@allFilesAccess": {
     "description": "Toggle for MANAGE_EXTERNAL_STORAGE permission"
   },
@@ -2974,7 +2974,7 @@
   "@allFilesAccessDisabledMessage": {
     "description": "Snackbar message when user disables all files access"
   },
-  "settingsLocalLibrary": "Local Library",
+  "settingsLocalLibrary": "Локальная библиотека",
   "@settingsLocalLibrary": {
     "description": "Settings menu item - local library"
   },
@@ -3022,7 +3022,7 @@
   "@libraryActions": {
     "description": "Section header for library actions"
   },
-  "libraryScan": "Scan Library",
+  "libraryScan": "Сканировать библиотеку",
   "@libraryScan": {
     "description": "Button to start library scan"
   },
