@@ -23,6 +23,7 @@ type AudioMetadata struct {
 	TrackNumber int
 	DiscNumber  int
 	ISRC        string
+	Lyrics      string
 	Label       string
 	Copyright   string
 	Composer    string
@@ -181,6 +182,15 @@ func parseID3v22Frames(data []byte, metadata *AudioMetadata, tagUnsync bool) {
 			metadata.Label = value
 		case "TCR":
 			metadata.Copyright = value
+		case "ULT":
+			if v := extractLyricsFrame(frameData); v != "" && metadata.Lyrics == "" {
+				metadata.Lyrics = v
+			}
+		case "TXX":
+			desc, userValue := extractUserTextFrame(frameData)
+			if isLyricsDescription(desc) && userValue != "" && metadata.Lyrics == "" {
+				metadata.Lyrics = userValue
+			}
 		}
 
 		pos += 6 + frameSize
@@ -297,6 +307,15 @@ func parseID3v23Frames(data []byte, metadata *AudioMetadata, version byte, tagUn
 			if v := extractCommentFrame(frameData); v != "" {
 				metadata.Comment = v
 			}
+		case "USLT":
+			if v := extractLyricsFrame(frameData); v != "" && metadata.Lyrics == "" {
+				metadata.Lyrics = v
+			}
+		case "TXXX":
+			desc, userValue := extractUserTextFrame(frameData)
+			if isLyricsDescription(desc) && userValue != "" && metadata.Lyrics == "" {
+				metadata.Lyrics = userValue
+			}
 		}
 
 		pos += 10 + frameSize
@@ -397,6 +416,98 @@ func extractCommentFrame(data []byte) string {
 	framed[0] = encoding
 	copy(framed[1:], text)
 	return extractTextFrame(framed)
+}
+
+// extractLyricsFrame parses ID3 unsynchronized lyrics frames (USLT/ULT).
+// Format: encoding(1) + language(3) + description(null-terminated) + lyrics text.
+func extractLyricsFrame(data []byte) string {
+	if len(data) < 5 {
+		return ""
+	}
+
+	encoding := data[0]
+	rest := data[4:] // skip 3-byte language code
+
+	var text []byte
+	switch encoding {
+	case 1, 2: // UTF-16 variants use double-null terminator
+		for i := 0; i+1 < len(rest); i += 2 {
+			if rest[i] == 0 && rest[i+1] == 0 {
+				text = rest[i+2:]
+				break
+			}
+		}
+	default: // ISO-8859-1 or UTF-8
+		idx := bytes.IndexByte(rest, 0)
+		if idx >= 0 && idx+1 < len(rest) {
+			text = rest[idx+1:]
+		} else {
+			text = rest
+		}
+	}
+
+	if len(text) == 0 {
+		return ""
+	}
+
+	framed := make([]byte, 1+len(text))
+	framed[0] = encoding
+	copy(framed[1:], text)
+	return extractTextFrame(framed)
+}
+
+// extractUserTextFrame parses ID3 TXXX/TXX user text frame:
+// encoding(1) + description + separator + value.
+func extractUserTextFrame(data []byte) (string, string) {
+	if len(data) < 2 {
+		return "", ""
+	}
+
+	encoding := data[0]
+	payload := data[1:]
+
+	var descRaw, valueRaw []byte
+	switch encoding {
+	case 1, 2: // UTF-16 variants
+		for i := 0; i+1 < len(payload); i += 2 {
+			if payload[i] == 0 && payload[i+1] == 0 {
+				descRaw = payload[:i]
+				valueRaw = payload[i+2:]
+				break
+			}
+		}
+	default: // ISO-8859-1 or UTF-8
+		idx := bytes.IndexByte(payload, 0)
+		if idx >= 0 {
+			descRaw = payload[:idx]
+			if idx+1 <= len(payload) {
+				valueRaw = payload[idx+1:]
+			}
+		}
+	}
+
+	if len(valueRaw) == 0 {
+		return "", ""
+	}
+
+	descFramed := make([]byte, 1+len(descRaw))
+	descFramed[0] = encoding
+	copy(descFramed[1:], descRaw)
+
+	valueFramed := make([]byte, 1+len(valueRaw))
+	valueFramed[0] = encoding
+	copy(valueFramed[1:], valueRaw)
+
+	return strings.TrimSpace(extractTextFrame(descFramed)), strings.TrimSpace(extractTextFrame(valueFramed))
+}
+
+func isLyricsDescription(description string) bool {
+	switch strings.ToLower(strings.TrimSpace(description)) {
+	case "lyrics", "lyric", "unsyncedlyrics", "unsynced lyrics", "lrc":
+		return true
+	default:
+		return false
+	}
 }
 
 func decodeUTF16(data []byte) string {
@@ -843,6 +954,10 @@ func parseVorbisComments(data []byte, metadata *AudioMetadata) {
 			metadata.Composer = value
 		case "COMMENT", "DESCRIPTION":
 			metadata.Comment = value
+		case "LYRICS", "UNSYNCEDLYRICS":
+			if metadata.Lyrics == "" {
+				metadata.Lyrics = value
+			}
 		case "ORGANIZATION", "LABEL", "PUBLISHER":
 			metadata.Label = value
 		case "COPYRIGHT":

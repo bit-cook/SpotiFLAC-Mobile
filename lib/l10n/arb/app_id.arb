@@ -3206,5 +3206,38 @@
     "placeholders": {
       "error": {"type": "String"}
     }
-  }
+  },
+
+  "trackConvertFormat": "Konversi Format",
+  "@trackConvertFormat": {"description": "Menu item - convert audio format"},
+  "trackConvertFormatSubtitle": "Konversi ke MP3 atau Opus",
+  "@trackConvertFormatSubtitle": {"description": "Subtitle for convert format menu item"},
+  "trackConvertTitle": "Konversi Audio",
+  "@trackConvertTitle": {"description": "Title of convert bottom sheet"},
+  "trackConvertTargetFormat": "Format Tujuan",
+  "@trackConvertTargetFormat": {"description": "Label for format selection"},
+  "trackConvertBitrate": "Bitrate",
+  "@trackConvertBitrate": {"description": "Label for bitrate selection"},
+  "trackConvertConfirmTitle": "Konfirmasi Konversi",
+  "@trackConvertConfirmTitle": {"description": "Confirmation dialog title"},
+  "trackConvertConfirmMessage": "Konversi dari {sourceFormat} ke {targetFormat} pada {bitrate}?\n\nFile asli akan dihapus setelah konversi.",
+  "@trackConvertConfirmMessage": {
+    "description": "Confirmation dialog message",
+    "placeholders": {
+      "sourceFormat": {"type": "String"},
+      "targetFormat": {"type": "String"},
+      "bitrate": {"type": "String"}
+    }
+  },
+  "trackConvertConverting": "Mengkonversi audio...",
+  "@trackConvertConverting": {"description": "Snackbar while converting"},
+  "trackConvertSuccess": "Berhasil dikonversi ke {format}",
+  "@trackConvertSuccess": {
+    "description": "Snackbar after successful conversion",
+    "placeholders": {
+      "format": {"type": "String"}
+    }
+  },
+  "trackConvertFailed": "Konversi gagal",
+  "@trackConvertFailed": {"description": "Snackbar when conversion fails"}
 }

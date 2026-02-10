@@ -4,6 +4,7 @@ package gobackend
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -49,6 +50,7 @@ func RunWithTimeout(vm *goja.Runtime, script string, timeout time.Duration) (goj
 						IsTimeout: true,
 					}}
 				} else {
+					GoLog("[ExtensionRuntime] panic during JS execution: %v\n%s\n", r, string(debug.Stack()))
 					resultCh <- result{nil, fmt.Errorf("panic during execution: %v", r)}
 				}
 			}

@@ -22,8 +22,7 @@ class BuiltInService {
   });
 }
 
-/// Default quality options for built-in services (Tidal, Qobuz, YouTube)
-/// Note: Amazon is fallback-only and not shown in picker
+/// Default quality options for built-in services (Tidal, Qobuz, Amazon, YouTube)
 /// Note: Tidal lossy (HIGH) removed - use YouTube for lossy downloads
 const _builtInServices = [
   BuiltInService(
@@ -42,6 +41,17 @@ const _builtInServices = [
       QualityOption(id: 'LOSSLESS', label: 'FLAC Lossless', description: '16-bit / 44.1kHz'),
       QualityOption(id: 'HI_RES', label: 'Hi-Res FLAC', description: '24-bit / up to 96kHz'),
       QualityOption(id: 'HI_RES_LOSSLESS', label: 'Hi-Res FLAC Max', description: '24-bit / up to 192kHz'),
+    ],
+  ),
+  BuiltInService(
+    id: 'amazon',
+    label: 'Amazon',
+    qualityOptions: [
+      QualityOption(
+        id: 'LOSSLESS',
+        label: 'FLAC Best Available',
+        description: 'Amazon API delivers the best available lossless quality',
+      ),
     ],
   ),
   BuiltInService(

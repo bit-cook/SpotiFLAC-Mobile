@@ -475,31 +475,89 @@ func EmbedGenreLabel(filePath string, genre, label string) error {
 }
 
 func ExtractLyrics(filePath string) (string, error) {
+	lower := strings.ToLower(filePath)
+
+	if strings.HasSuffix(lower, ".flac") {
+		return extractLyricsFromFlac(filePath)
+	}
+
+	if strings.HasSuffix(lower, ".mp3") {
+		meta, err := ReadID3Tags(filePath)
+		if err != nil || meta == nil {
+			return "", fmt.Errorf("no lyrics found in file")
+		}
+		if strings.TrimSpace(meta.Lyrics) != "" {
+			return meta.Lyrics, nil
+		}
+		if looksLikeEmbeddedLyrics(meta.Comment) {
+			return meta.Comment, nil
+		}
+		return "", fmt.Errorf("no lyrics found in file")
+	}
+
+	if strings.HasSuffix(lower, ".opus") || strings.HasSuffix(lower, ".ogg") {
+		meta, err := ReadOggVorbisComments(filePath)
+		if err != nil || meta == nil {
+			return "", fmt.Errorf("no lyrics found in file")
+		}
+		if strings.TrimSpace(meta.Lyrics) != "" {
+			return meta.Lyrics, nil
+		}
+		if looksLikeEmbeddedLyrics(meta.Comment) {
+			return meta.Comment, nil
+		}
+		return "", fmt.Errorf("no lyrics found in file")
+	}
+
+	return "", fmt.Errorf("unsupported file format for lyrics extraction")
+}
+
+func extractLyricsFromFlac(filePath string) (string, error) {
 	f, err := flac.ParseFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse FLAC file: %w", err)
 	}
 
 	for _, meta := range f.Meta {
-		if meta.Type == flac.VorbisComment {
-			cmt, err := flacvorbis.ParseFromMetaDataBlock(*meta)
-			if err != nil {
-				continue
-			}
+		if meta.Type != flac.VorbisComment {
+			continue
+		}
 
-			lyrics, err := cmt.Get("LYRICS")
-			if err == nil && len(lyrics) > 0 && lyrics[0] != "" {
-				return lyrics[0], nil
-			}
+		cmt, err := flacvorbis.ParseFromMetaDataBlock(*meta)
+		if err != nil {
+			continue
+		}
 
-			lyrics, err = cmt.Get("UNSYNCEDLYRICS")
-			if err == nil && len(lyrics) > 0 && lyrics[0] != "" {
-				return lyrics[0], nil
-			}
+		lyrics, err := cmt.Get("LYRICS")
+		if err == nil && len(lyrics) > 0 && strings.TrimSpace(lyrics[0]) != "" {
+			return lyrics[0], nil
+		}
+
+		lyrics, err = cmt.Get("UNSYNCEDLYRICS")
+		if err == nil && len(lyrics) > 0 && strings.TrimSpace(lyrics[0]) != "" {
+			return lyrics[0], nil
 		}
 	}
 
 	return "", fmt.Errorf("no lyrics found in file")
+}
+
+func looksLikeEmbeddedLyrics(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return false
+	}
+
+	lower := strings.ToLower(trimmed)
+	if strings.Contains(lower, "[ar:") || strings.Contains(lower, "[ti:") {
+		return true
+	}
+
+	if strings.Contains(trimmed, "\n") && strings.Contains(trimmed, "[") && strings.Contains(trimmed, "]") {
+		return true
+	}
+
+	return false
 }
 
 type AudioQuality struct {

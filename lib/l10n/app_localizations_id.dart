@@ -2913,4 +2913,42 @@ class AppLocalizationsId extends AppLocalizations {
   String trackSaveFailed(String error) {
     return 'Gagal: $error';
   }
+
+  @override
+  String get trackConvertFormat => 'Konversi Format';
+
+  @override
+  String get trackConvertFormatSubtitle => 'Konversi ke MP3 atau Opus';
+
+  @override
+  String get trackConvertTitle => 'Konversi Audio';
+
+  @override
+  String get trackConvertTargetFormat => 'Format Tujuan';
+
+  @override
+  String get trackConvertBitrate => 'Bitrate';
+
+  @override
+  String get trackConvertConfirmTitle => 'Konfirmasi Konversi';
+
+  @override
+  String trackConvertConfirmMessage(
+    String sourceFormat,
+    String targetFormat,
+    String bitrate,
+  ) {
+    return 'Konversi dari $sourceFormat ke $targetFormat pada $bitrate?\n\nFile asli akan dihapus setelah konversi.';
+  }
+
+  @override
+  String get trackConvertConverting => 'Mengkonversi audio...';
+
+  @override
+  String trackConvertSuccess(String format) {
+    return 'Berhasil dikonversi ke $format';
+  }
+
+  @override
+  String get trackConvertFailed => 'Konversi gagal';
 }

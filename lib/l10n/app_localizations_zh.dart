@@ -2894,6 +2894,44 @@ class AppLocalizationsZh extends AppLocalizations {
   String trackSaveFailed(String error) {
     return 'Failed: $error';
   }
+
+  @override
+  String get trackConvertFormat => 'Convert Format';
+
+  @override
+  String get trackConvertFormatSubtitle => 'Convert to MP3 or Opus';
+
+  @override
+  String get trackConvertTitle => 'Convert Audio';
+
+  @override
+  String get trackConvertTargetFormat => 'Target Format';
+
+  @override
+  String get trackConvertBitrate => 'Bitrate';
+
+  @override
+  String get trackConvertConfirmTitle => 'Confirm Conversion';
+
+  @override
+  String trackConvertConfirmMessage(
+    String sourceFormat,
+    String targetFormat,
+    String bitrate,
+  ) {
+    return 'Convert from $sourceFormat to $targetFormat at $bitrate?\n\nThe original file will be deleted after conversion.';
+  }
+
+  @override
+  String get trackConvertConverting => 'Converting audio...';
+
+  @override
+  String trackConvertSuccess(String format) {
+    return 'Converted to $format successfully';
+  }
+
+  @override
+  String get trackConvertFailed => 'Conversion failed';
 }
 
 /// The translations for Chinese, as used in China (`zh_CN`).

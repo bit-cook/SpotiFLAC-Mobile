@@ -31,6 +31,8 @@ type AmazonDownloader struct {
 var (
 	globalAmazonDownloader *AmazonDownloader
 	amazonDownloaderOnce   sync.Once
+	amazonASINRegex        = regexp.MustCompile(`(?i)^B[0-9A-Z]{9}$`)
+	amazonASINFindRegex    = regexp.MustCompile(`(?i)B[0-9A-Z]{9}`)
 )
 
 // AfkarXYZResponse is the response from AfkarXYZ API
@@ -43,6 +45,12 @@ type AfkarXYZResponse struct {
 	} `json:"data"`
 }
 
+// AmazonStreamResponse is the new response format from amazon.afkarxyz.fun/api/track/{asin}
+type AmazonStreamResponse struct {
+	StreamURL     string `json:"streamUrl"`
+	DecryptionKey string `json:"decryptionKey"`
+}
+
 func NewAmazonDownloader() *AmazonDownloader {
 	amazonDownloaderOnce.Do(func() {
 		globalAmazonDownloader = &AmazonDownloader{
@@ -52,10 +60,9 @@ func NewAmazonDownloader() *AmazonDownloader {
 	return globalAmazonDownloader
 }
 
-// fetchAmazonURLWithRetry fetches from AfkarXYZ API with retry logic for mobile networks
-func (a *AmazonDownloader) fetchAmazonURLWithRetry(amazonURL string) (string, string, error) {
-	apiURL := "https://amazon.afkarxyz.fun/convert?url=" + url.QueryEscape(amazonURL)
-
+// fetchAmazonURLWithRetry fetches from AfkarXYZ API with retry logic for mobile networks.
+// Returns downloadURL, suggested fileName, optional decryptionKey.
+func (a *AmazonDownloader) fetchAmazonURLWithRetry(amazonURL string) (string, string, string, error) {
 	var lastErr error
 	for attempt := 0; attempt <= amazonMaxRetries; attempt++ {
 		if attempt > 0 {
@@ -64,66 +71,184 @@ func (a *AmazonDownloader) fetchAmazonURLWithRetry(amazonURL string) (string, st
 			time.Sleep(delay)
 		}
 
-		downloadURL, fileName, err := a.doAfkarXYZRequest(apiURL)
+		downloadURL, fileName, decryptionKey, err := a.doAfkarXYZRequest(amazonURL)
 		if err == nil {
-			return downloadURL, fileName, nil
+			return downloadURL, fileName, decryptionKey, nil
 		}
 
 		lastErr = err
-		errStr := err.Error()
+		errStr := strings.ToLower(err.Error())
 
 		// Check if error is retryable
 		isRetryable := strings.Contains(errStr, "timeout") ||
 			strings.Contains(errStr, "connection reset") ||
 			strings.Contains(errStr, "connection refused") ||
-			strings.Contains(errStr, "EOF") ||
+			strings.Contains(errStr, "eof") ||
 			strings.Contains(errStr, "status 5") ||
-			strings.Contains(errStr, "status 429")
+			strings.Contains(errStr, "status 429") ||
+			strings.Contains(errStr, "http 429")
 
 		if !isRetryable {
-			return "", "", err
+			return "", "", "", err
 		}
 
 		GoLog("[Amazon] Attempt %d failed (retryable): %v\n", attempt+1, err)
 	}
 
-	return "", "", fmt.Errorf("all %d attempts failed: %w", amazonMaxRetries+1, lastErr)
+	return "", "", "", fmt.Errorf("all %d attempts failed: %w", amazonMaxRetries+1, lastErr)
 }
 
-// doAfkarXYZRequest performs a single request to AfkarXYZ API
-func (a *AmazonDownloader) doAfkarXYZRequest(apiURL string) (string, string, error) {
+func normalizeAmazonASIN(candidate string) string {
+	trimmed := strings.TrimSpace(candidate)
+	if trimmed == "" {
+		return ""
+	}
+
+	if decoded, err := url.QueryUnescape(trimmed); err == nil {
+		trimmed = decoded
+	}
+
+	trimmed = strings.ToUpper(trimmed)
+	if idx := strings.IndexAny(trimmed, "?#&/"); idx >= 0 {
+		trimmed = trimmed[:idx]
+	}
+
+	if amazonASINRegex.MatchString(trimmed) {
+		return trimmed
+	}
+
+	return ""
+}
+
+func extractAmazonASIN(amazonURL string) string {
+	raw := strings.TrimSpace(amazonURL)
+	if raw == "" {
+		return ""
+	}
+
+	parsed, err := url.Parse(raw)
+	if err == nil {
+		query := parsed.Query()
+
+		// Prefer track-level ASIN when URL also contains albumAsin.
+		for _, key := range []string{"trackAsin", "trackasin", "trackASIN", "asin", "ASIN", "i"} {
+			if asin := normalizeAmazonASIN(query.Get(key)); asin != "" {
+				return asin
+			}
+		}
+
+		path := strings.Trim(parsed.Path, "/")
+		if path != "" {
+			segments := strings.Split(path, "/")
+
+			for i := 0; i < len(segments)-1; i++ {
+				segment := strings.ToLower(strings.TrimSpace(segments[i]))
+				if segment == "track" || segment == "tracks" {
+					if asin := normalizeAmazonASIN(segments[i+1]); asin != "" {
+						return asin
+					}
+				}
+			}
+
+			if asin := normalizeAmazonASIN(segments[len(segments)-1]); asin != "" {
+				return asin
+			}
+		}
+	}
+
+	match := amazonASINFindRegex.FindString(strings.ToUpper(raw))
+	return normalizeAmazonASIN(match)
+}
+
+// doAfkarXYZRequest performs a single request to Amazon API.
+// It tries new endpoint first, then falls back to legacy /convert endpoint.
+func (a *AmazonDownloader) doAfkarXYZRequest(amazonURL string) (string, string, string, error) {
+	asin := extractAmazonASIN(amazonURL)
+	if asin != "" {
+		GoLog("[Amazon] Using ASIN: %s\n", asin)
+		downloadURL, fileName, decryptKey, err := a.doAfkarXYZRequestNew(asin)
+		if err == nil {
+			return downloadURL, fileName, decryptKey, nil
+		}
+		GoLog("[Amazon] New API failed for ASIN %s, trying legacy endpoint: %v\n", asin, err)
+	}
+	return a.doAfkarXYZRequestLegacy(amazonURL)
+}
+
+func (a *AmazonDownloader) doAfkarXYZRequestNew(asin string) (string, string, string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), amazonAPITimeoutMobile)
 	defer cancel()
 
+	apiURL := fmt.Sprintf("https://amazon.afkarxyz.fun/api/track/%s", asin)
 	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to create request: %w", err)
+		return "", "", "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36")
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to call Amazon API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return "", "", "", fmt.Errorf("Amazon API returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var apiResp AmazonStreamResponse
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return "", "", "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if strings.TrimSpace(apiResp.StreamURL) == "" {
+		return "", "", "", fmt.Errorf("Amazon API returned empty stream URL")
+	}
+
+	fileName := asin + ".m4a"
+	return apiResp.StreamURL, fileName, strings.TrimSpace(apiResp.DecryptionKey), nil
+}
+
+func (a *AmazonDownloader) doAfkarXYZRequestLegacy(amazonURL string) (string, string, string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), amazonAPITimeoutMobile)
+	defer cancel()
+
+	apiURL := "https://amazon.afkarxyz.fun/convert?url=" + url.QueryEscape(amazonURL)
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to create legacy request: %w", err)
 	}
 
 	req.Header.Set("User-Agent", getRandomUserAgent())
 
 	resp, err := a.client.Do(req)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to call AfkarXYZ API: %w", err)
+		return "", "", "", fmt.Errorf("failed to call legacy AfkarXYZ API: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return "", "", fmt.Errorf("AfkarXYZ API returned status %d", resp.StatusCode)
+		return "", "", "", fmt.Errorf("legacy AfkarXYZ API returned status %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to read response: %w", err)
+		return "", "", "", fmt.Errorf("failed to read legacy response: %w", err)
 	}
 
 	var apiResp AfkarXYZResponse
 	if err := json.Unmarshal(body, &apiResp); err != nil {
-		return "", "", fmt.Errorf("failed to decode response: %w", err)
+		return "", "", "", fmt.Errorf("failed to decode legacy response: %w", err)
 	}
 
-	if !apiResp.Success || apiResp.Data.DirectLink == "" {
-		return "", "", fmt.Errorf("AfkarXYZ API failed or no download link found")
+	if !apiResp.Success || strings.TrimSpace(apiResp.Data.DirectLink) == "" {
+		return "", "", "", fmt.Errorf("legacy AfkarXYZ API failed or no download link found")
 	}
 
 	fileName := apiResp.Data.FileName
@@ -134,19 +259,22 @@ func (a *AmazonDownloader) doAfkarXYZRequest(apiURL string) (string, string, err
 	reg := regexp.MustCompile(`[<>:"/\\|?*]`)
 	fileName = reg.ReplaceAllString(fileName, "")
 
-	return apiResp.Data.DirectLink, fileName, nil
+	return apiResp.Data.DirectLink, fileName, "", nil
 }
 
-func (a *AmazonDownloader) downloadFromAfkarXYZ(amazonURL string) (string, string, error) {
+func (a *AmazonDownloader) downloadFromAfkarXYZ(amazonURL string) (string, string, string, error) {
 	GoLog("[Amazon] Fetching from AfkarXYZ API...\n")
 
-	downloadURL, fileName, err := a.fetchAmazonURLWithRetry(amazonURL)
+	downloadURL, fileName, decryptionKey, err := a.fetchAmazonURLWithRetry(amazonURL)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
+	if decryptionKey != "" {
+		GoLog("[Amazon] AfkarXYZ returned encrypted stream (decryption key available)\n")
+	}
 	GoLog("[Amazon] AfkarXYZ returned: %s\n", fileName)
-	return downloadURL, fileName, nil
+	return downloadURL, fileName, decryptionKey, nil
 }
 
 func (a *AmazonDownloader) DownloadFile(downloadURL, outputPath string, outputFD int, itemID string) error {
@@ -233,17 +361,18 @@ func (a *AmazonDownloader) DownloadFile(downloadURL, outputPath string, outputFD
 
 // AmazonDownloadResult contains download result with quality info
 type AmazonDownloadResult struct {
-	FilePath    string
-	BitDepth    int
-	SampleRate  int
-	Title       string
-	Artist      string
-	Album       string
-	ReleaseDate string
-	TrackNumber int
-	DiscNumber  int
-	ISRC        string
-	LyricsLRC   string
+	FilePath      string
+	BitDepth      int
+	SampleRate    int
+	Title         string
+	Artist        string
+	Album         string
+	ReleaseDate   string
+	TrackNumber   int
+	DiscNumber    int
+	ISRC          string
+	LyricsLRC     string
+	DecryptionKey string
 }
 
 func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
@@ -299,7 +428,7 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 	}
 
 	// Download using AfkarXYZ API
-	downloadURL, _, err := downloader.downloadFromAfkarXYZ(amazonURL)
+	downloadURL, afkarFileName, decryptionKey, err := downloader.downloadFromAfkarXYZ(amazonURL)
 	if err != nil {
 		return AmazonDownloadResult{}, fmt.Errorf("failed to get download URL from AfkarXYZ: %w", err)
 	}
@@ -321,7 +450,11 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 			outputPath = fmt.Sprintf("/proc/self/fd/%d", req.OutputFD)
 		}
 	} else {
-		filename = sanitizeFilename(filename) + ".flac"
+		outputExt := strings.ToLower(filepath.Ext(afkarFileName))
+		if outputExt == "" {
+			outputExt = ".flac"
+		}
+		filename = sanitizeFilename(filename) + outputExt
 		outputPath = filepath.Join(req.OutputDir, filename)
 		if fileInfo, statErr := os.Stat(outputPath); statErr == nil && fileInfo.Size() > 0 {
 			return AmazonDownloadResult{FilePath: "EXISTS:" + outputPath}, nil
@@ -352,6 +485,12 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 		return AmazonDownloadResult{}, fmt.Errorf("download failed: %w", err)
 	}
 
+	actualOutputPath := outputPath
+	needsDecryption := strings.TrimSpace(decryptionKey) != ""
+	if needsDecryption {
+		GoLog("[Amazon] Download requires decryption; deferring decrypt to Flutter FFmpeg path\n")
+	}
+
 	// Wait for parallel operations to complete
 	<-parallelDone
 
@@ -360,7 +499,6 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 		SetItemFinalizing(req.ItemID)
 	}
 
-	existingMeta, metaErr := ReadMetadata(outputPath)
 	actualTrackNum := req.TrackNumber
 	actualDiscNum := req.DiscNumber
 	actualDate := req.ReleaseDate
@@ -368,25 +506,28 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 	actualTitle := req.TrackName
 	actualArtist := req.ArtistName
 
-	if metaErr == nil && existingMeta != nil {
-		if existingMeta.TrackNumber > 0 && (req.TrackNumber == 0 || req.TrackNumber == 1) {
-			actualTrackNum = existingMeta.TrackNumber
-			GoLog("[Amazon] Using track number from file: %d (request had: %d)\n", actualTrackNum, req.TrackNumber)
+	if !needsDecryption {
+		existingMeta, metaErr := ReadMetadata(actualOutputPath)
+		if metaErr == nil && existingMeta != nil {
+			if existingMeta.TrackNumber > 0 && (req.TrackNumber == 0 || req.TrackNumber == 1) {
+				actualTrackNum = existingMeta.TrackNumber
+				GoLog("[Amazon] Using track number from file: %d (request had: %d)\n", actualTrackNum, req.TrackNumber)
+			}
+			if existingMeta.DiscNumber > 0 && (req.DiscNumber == 0 || req.DiscNumber == 1) {
+				actualDiscNum = existingMeta.DiscNumber
+				GoLog("[Amazon] Using disc number from file: %d (request had: %d)\n", actualDiscNum, req.DiscNumber)
+			}
+			if existingMeta.Date != "" && req.ReleaseDate == "" {
+				actualDate = existingMeta.Date
+				GoLog("[Amazon] Using release date from file: %s\n", actualDate)
+			}
+			if existingMeta.Album != "" && req.AlbumName == "" {
+				actualAlbum = existingMeta.Album
+				GoLog("[Amazon] Using album from file: %s\n", actualAlbum)
+			}
+			GoLog("[Amazon] Existing metadata - Title: %s, Artist: %s, Album: %s, Date: %s\n",
+				existingMeta.Title, existingMeta.Artist, existingMeta.Album, existingMeta.Date)
 		}
-		if existingMeta.DiscNumber > 0 && (req.DiscNumber == 0 || req.DiscNumber == 1) {
-			actualDiscNum = existingMeta.DiscNumber
-			GoLog("[Amazon] Using disc number from file: %d (request had: %d)\n", actualDiscNum, req.DiscNumber)
-		}
-		if existingMeta.Date != "" && req.ReleaseDate == "" {
-			actualDate = existingMeta.Date
-			GoLog("[Amazon] Using release date from file: %s\n", actualDate)
-		}
-		if existingMeta.Album != "" && req.AlbumName == "" {
-			actualAlbum = existingMeta.Album
-			GoLog("[Amazon] Using album from file: %s\n", actualAlbum)
-		}
-		GoLog("[Amazon] Existing metadata - Title: %s, Artist: %s, Album: %s, Date: %s\n",
-			existingMeta.Title, existingMeta.Artist, existingMeta.Album, existingMeta.Date)
 	}
 
 	metadata := Metadata{
@@ -409,7 +550,7 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 		coverData = parallelResult.CoverData
 		GoLog("[Amazon] Using parallel-fetched cover (%d bytes)\n", len(coverData))
 	} else {
-		existingCover, coverErr := ExtractCoverArt(outputPath)
+		existingCover, coverErr := ExtractCoverArt(actualOutputPath)
 		if coverErr == nil && len(existingCover) > 0 {
 			coverData = existingCover
 			GoLog("[Amazon] Using existing cover from Amazon file (%d bytes)\n", len(coverData))
@@ -418,11 +559,16 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 		}
 	}
 
-	if isSafOutput {
+	if isSafOutput || needsDecryption {
 		GoLog("[Amazon] SAF output detected - skipping in-backend metadata/lyrics embedding (handled in Flutter)\n")
 	} else {
-		if err := EmbedMetadataWithCoverData(outputPath, metadata, coverData); err != nil {
-			GoLog("[Amazon] Warning: failed to embed metadata: %v\n", err)
+		isFlacOutput := strings.HasSuffix(strings.ToLower(actualOutputPath), ".flac")
+		if isFlacOutput {
+			if err := EmbedMetadataWithCoverData(actualOutputPath, metadata, coverData); err != nil {
+				GoLog("[Amazon] Warning: failed to embed metadata: %v\n", err)
+			}
+		} else {
+			GoLog("[Amazon] Non-FLAC output detected (%s), skipping native metadata embedding\n", filepath.Ext(actualOutputPath))
 		}
 
 		if req.EmbedLyrics && parallelResult != nil && parallelResult.LyricsLRC != "" {
@@ -433,20 +579,22 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 
 			if lyricsMode == "external" || lyricsMode == "both" {
 				GoLog("[Amazon] Saving external LRC file...\n")
-				if lrcPath, lrcErr := SaveLRCFile(outputPath, parallelResult.LyricsLRC); lrcErr != nil {
+				if lrcPath, lrcErr := SaveLRCFile(actualOutputPath, parallelResult.LyricsLRC); lrcErr != nil {
 					GoLog("[Amazon] Warning: failed to save LRC file: %v\n", lrcErr)
 				} else {
 					GoLog("[Amazon] LRC file saved: %s\n", lrcPath)
 				}
 			}
 
-			if lyricsMode == "embed" || lyricsMode == "both" {
+			if (lyricsMode == "embed" || lyricsMode == "both") && isFlacOutput {
 				GoLog("[Amazon] Embedding parallel-fetched lyrics (%d lines)...\n", len(parallelResult.LyricsData.Lines))
-				if embedErr := EmbedLyrics(outputPath, parallelResult.LyricsLRC); embedErr != nil {
+				if embedErr := EmbedLyrics(actualOutputPath, parallelResult.LyricsLRC); embedErr != nil {
 					GoLog("[Amazon] Warning: failed to embed lyrics: %v\n", embedErr)
 				} else {
 					GoLog("[Amazon] Lyrics embedded successfully\n")
 				}
+			} else if (lyricsMode == "embed" || lyricsMode == "both") && !isFlacOutput {
+				GoLog("[Amazon] Skipping embedded lyrics for non-FLAC output\n")
 			}
 		} else if req.EmbedLyrics {
 			GoLog("[Amazon] No lyrics available from parallel fetch\n")
@@ -456,17 +604,17 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 	GoLog("[Amazon] Downloaded successfully from Amazon Music\n")
 
 	quality := AudioQuality{}
-	if isSafOutput {
+	if isSafOutput || needsDecryption {
 		GoLog("[Amazon] SAF output detected - skipping post-write file inspection in backend\n")
 	} else {
-		quality, err = GetAudioQuality(outputPath)
+		quality, err = GetAudioQuality(actualOutputPath)
 		if err != nil {
 			GoLog("[Amazon] Warning: couldn't read quality from file: %v\n", err)
 		} else {
 			GoLog("[Amazon] Actual quality: %d-bit/%dHz\n", quality.BitDepth, quality.SampleRate)
 		}
 
-		finalMeta, metaReadErr := ReadMetadata(outputPath)
+		finalMeta, metaReadErr := ReadMetadata(actualOutputPath)
 		if metaReadErr == nil && finalMeta != nil {
 			GoLog("[Amazon] Final metadata from file - Track: %d, Disc: %d, Date: %s\n",
 				finalMeta.TrackNumber, finalMeta.DiscNumber, finalMeta.Date)
@@ -478,9 +626,10 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 		}
 	}
 
-	// Add to ISRC index for fast duplicate checking
-	if !isSafOutput {
-		AddToISRCIndex(req.OutputDir, req.ISRC, outputPath)
+	// Add to ISRC index for fast duplicate checking.
+	// When decryption is pending in Flutter, postpone indexing until final file is settled.
+	if !isSafOutput && !needsDecryption {
+		AddToISRCIndex(req.OutputDir, req.ISRC, actualOutputPath)
 	}
 
 	bitDepth := 0
@@ -496,16 +645,17 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 	}
 
 	return AmazonDownloadResult{
-		FilePath:    outputPath,
-		BitDepth:    bitDepth,
-		SampleRate:  sampleRate,
-		Title:       req.TrackName,
-		Artist:      req.ArtistName,
-		Album:       req.AlbumName,
-		ReleaseDate: req.ReleaseDate,
-		TrackNumber: actualTrackNum,
-		DiscNumber:  actualDiscNum,
-		ISRC:        req.ISRC,
-		LyricsLRC:   lyricsLRC,
+		FilePath:      outputPath,
+		BitDepth:      bitDepth,
+		SampleRate:    sampleRate,
+		Title:         req.TrackName,
+		Artist:        req.ArtistName,
+		Album:         req.AlbumName,
+		ReleaseDate:   req.ReleaseDate,
+		TrackNumber:   actualTrackNum,
+		DiscNumber:    actualDiscNum,
+		ISRC:          req.ISRC,
+		LyricsLRC:     lyricsLRC,
+		DecryptionKey: decryptionKey,
 	}, nil
 }

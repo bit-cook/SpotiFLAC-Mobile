@@ -1237,6 +1237,11 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       }
       return '.opus';
     }
+    // Amazon stream is delivered as MP4/M4A container (may contain FLAC audio),
+    // so SAF should keep .m4a before decrypt/convert pipeline.
+    if (service.toLowerCase() == 'amazon') {
+      return '.m4a';
+    }
     if (service.toLowerCase() == 'tidal' && quality == 'HIGH') {
       return '.m4a';
     }
@@ -2897,6 +2902,123 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         final actualService =
             ((result['service'] as String?)?.toLowerCase()) ??
             item.service.toLowerCase();
+        final decryptionKey =
+            (result['decryption_key'] as String?)?.trim() ?? '';
+
+        if (!wasExisting &&
+            decryptionKey.isNotEmpty &&
+            filePath != null &&
+            actualService == 'amazon') {
+          _log.i(
+            'Amazon encrypted stream detected, decrypting via FFmpeg...',
+          );
+          updateItemStatus(
+            item.id,
+            DownloadStatus.downloading,
+            progress: 0.9,
+          );
+
+          if (effectiveSafMode && isContentUri(filePath)) {
+            final currentFilePath = filePath;
+            final tempPath = await _copySafToTemp(currentFilePath);
+            if (tempPath == null) {
+              _log.e('Failed to copy encrypted SAF file to temp for decrypt');
+              updateItemStatus(
+                item.id,
+                DownloadStatus.failed,
+                error: 'Failed to access encrypted SAF file',
+                errorType: DownloadErrorType.unknown,
+              );
+              return;
+            }
+
+            String? decryptedTempPath;
+            try {
+              decryptedTempPath = await FFmpegService.decryptAudioFile(
+                inputPath: tempPath,
+                decryptionKey: decryptionKey,
+                deleteOriginal: false,
+              );
+              if (decryptedTempPath == null) {
+                _log.e('FFmpeg decrypt failed for SAF file');
+                updateItemStatus(
+                  item.id,
+                  DownloadStatus.failed,
+                  error: 'Failed to decrypt Amazon stream',
+                  errorType: DownloadErrorType.unknown,
+                );
+                return;
+              }
+
+              final dotIndex = decryptedTempPath.lastIndexOf('.');
+              final decryptedExt = dotIndex >= 0
+                  ? decryptedTempPath.substring(dotIndex).toLowerCase()
+                  : '.flac';
+              final allowedExt = <String>{'.flac', '.m4a', '.mp3', '.opus'};
+              final finalExt = allowedExt.contains(decryptedExt)
+                  ? decryptedExt
+                  : '.flac';
+
+              final newFileName = '${safBaseName ?? 'track'}$finalExt';
+              final newUri = await _writeTempToSaf(
+                treeUri: settings.downloadTreeUri,
+                relativeDir: effectiveOutputDir,
+                fileName: newFileName,
+                mimeType: _mimeTypeForExt(finalExt),
+                srcPath: decryptedTempPath,
+              );
+
+              if (newUri == null) {
+                _log.e('Failed to write decrypted Amazon stream back to SAF');
+                updateItemStatus(
+                  item.id,
+                  DownloadStatus.failed,
+                  error: 'Failed to write decrypted file to storage',
+                  errorType: DownloadErrorType.unknown,
+                );
+                return;
+              }
+
+              if (newUri != currentFilePath) {
+                await _deleteSafFile(currentFilePath);
+              }
+              filePath = newUri;
+              finalSafFileName = newFileName;
+              _log.i('Amazon SAF decryption completed');
+            } finally {
+              try {
+                await File(tempPath).delete();
+              } catch (_) {}
+              if (decryptedTempPath != null && decryptedTempPath != tempPath) {
+                try {
+                  await File(decryptedTempPath).delete();
+                } catch (_) {}
+              }
+            }
+          } else {
+            final decryptedPath = await FFmpegService.decryptAudioFile(
+              inputPath: filePath,
+              decryptionKey: decryptionKey,
+              deleteOriginal: true,
+            );
+            if (decryptedPath == null) {
+              _log.e('FFmpeg decrypt failed for local file');
+              updateItemStatus(
+                item.id,
+                DownloadStatus.failed,
+                error: 'Failed to decrypt Amazon stream',
+                errorType: DownloadErrorType.unknown,
+              );
+              try {
+                await deleteFile(filePath);
+              } catch (_) {}
+              return;
+            }
+            filePath = decryptedPath;
+            _log.i('Amazon local decryption completed');
+          }
+        }
+
         final isContentUriPath = filePath != null && isContentUri(filePath);
         final mimeType = isContentUriPath
             ? await _getSafMimeType(filePath)
@@ -3323,7 +3445,43 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                 await File(tempPath).delete();
               } catch (_) {}
             }
-        }
+          }
+        } else if (!isContentUriPath &&
+            !effectiveSafMode &&
+            isFlacFile &&
+            !wasExisting &&
+            actualService == 'amazon' &&
+            decryptionKey.isNotEmpty) {
+          _log.d(
+            'Local FLAC after Amazon decrypt detected, embedding metadata and cover...',
+          );
+          try {
+            updateItemStatus(
+              item.id,
+              DownloadStatus.downloading,
+              progress: 0.99,
+            );
+
+            final finalTrack = _buildTrackForMetadataEmbedding(
+              trackToDownload,
+              result,
+              normalizedAlbumArtist,
+            );
+            final backendGenre = result['genre'] as String?;
+            final backendLabel = result['label'] as String?;
+            final backendCopyright = result['copyright'] as String?;
+
+            await _embedMetadataAndCover(
+              filePath,
+              finalTrack,
+              genre: backendGenre ?? genre,
+              label: backendLabel ?? label,
+              copyright: backendCopyright,
+            );
+            _log.d('Local FLAC metadata embedding completed');
+          } catch (e) {
+            _log.w('Local FLAC metadata embedding failed: $e');
+          }
         }
 
         // YouTube downloads: embed metadata to raw Opus/MP3 files from Cobalt

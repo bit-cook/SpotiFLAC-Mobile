@@ -56,6 +56,48 @@ class FFmpegService {
     return '$tempDirPath${Platform.pathSeparator}temp_embed_${timestamp}_${processId}_$_tempEmbedCounter$normalizedExt';
   }
 
+  static List<String> _buildDecryptionKeyCandidates(String rawKey) {
+    final candidates = <String>[];
+
+    void addCandidate(String key) {
+      final normalized = key.trim();
+      if (normalized.isEmpty) return;
+      if (!candidates.contains(normalized)) {
+        candidates.add(normalized);
+      }
+    }
+
+    final trimmed = rawKey.trim();
+    if (trimmed.isEmpty) return candidates;
+
+    addCandidate(trimmed);
+
+    final noPrefix = trimmed.startsWith(RegExp(r'0x', caseSensitive: false))
+        ? trimmed.substring(2)
+        : trimmed;
+    addCandidate(noPrefix);
+
+    final compactHex = noPrefix.replaceAll(RegExp(r'[^0-9a-fA-F]'), '');
+    if (compactHex.isNotEmpty && compactHex.length.isEven) {
+      addCandidate(compactHex);
+    }
+
+    try {
+      final b64 = noPrefix.replaceAll(RegExp(r'\s+'), '');
+      final decoded = base64Decode(b64);
+      if (decoded.isNotEmpty) {
+        final hex = decoded
+            .map((b) => b.toRadixString(16).padLeft(2, '0'))
+            .join();
+        if (hex.isNotEmpty) {
+          addCandidate(hex);
+        }
+      }
+    } catch (_) {}
+
+    return candidates;
+  }
+
   static Future<FFmpegResult> _execute(String command) async {
     try {
       final session = await FFmpegKit.execute(command);
@@ -77,7 +119,7 @@ class FFmpegService {
     final outputPath = _buildOutputPath(inputPath, '.flac');
 
     final command =
-        '-i "$inputPath" -c:a flac -compression_level 8 "$outputPath" -y';
+        '-v error -xerror -i "$inputPath" -c:a flac -compression_level 8 "$outputPath" -y';
 
     final result = await _execute(command);
 
@@ -131,6 +173,111 @@ class FFmpegService {
 
     _log.e('M4A to $format conversion failed: ${result.output}');
     return null;
+  }
+
+  static Future<String?> decryptAudioFile({
+    required String inputPath,
+    required String decryptionKey,
+    bool deleteOriginal = true,
+  }) async {
+    final trimmedKey = decryptionKey.trim();
+    if (trimmedKey.isEmpty) return inputPath;
+
+    // Amazon encrypted streams are commonly MP4 container with FLAC audio.
+    // Prefer FLAC output to avoid MP4 muxing errors during decrypt copy.
+    final preferredExt = inputPath.toLowerCase().endsWith('.m4a')
+        ? '.flac'
+        : inputPath.toLowerCase().endsWith('.flac')
+        ? '.flac'
+        : inputPath.toLowerCase().endsWith('.mp3')
+        ? '.mp3'
+        : inputPath.toLowerCase().endsWith('.opus')
+        ? '.opus'
+        : '.flac';
+    var tempOutput = _buildOutputPath(inputPath, preferredExt);
+
+    String buildDecryptCommand(
+      String outputPath, {
+      required bool mapAudioOnly,
+      required String key,
+    }) {
+      final audioMap = mapAudioOnly ? '-map 0:a ' : '';
+      return '-v error -decryption_key "$key" -i "$inputPath" $audioMap-c copy "$outputPath" -y';
+    }
+
+    final keyCandidates = _buildDecryptionKeyCandidates(trimmedKey);
+    if (keyCandidates.isEmpty) {
+      _log.e('No usable decryption key candidates');
+      return null;
+    }
+
+    FFmpegResult? lastResult;
+    var decryptSucceeded = false;
+
+    for (final keyCandidate in keyCandidates) {
+      _log.d(
+        'Executing FFmpeg decrypt command (key length: ${keyCandidate.length})',
+      );
+      var result = await _execute(
+        buildDecryptCommand(
+          tempOutput,
+          mapAudioOnly: preferredExt == '.flac',
+          key: keyCandidate,
+        ),
+      );
+
+      // Fallback for uncommon streams that cannot be remuxed into FLAC.
+      if (!result.success && preferredExt == '.flac') {
+        final fallbackOutput = _buildOutputPath(inputPath, '.m4a');
+        final fallbackResult = await _execute(
+          buildDecryptCommand(
+            fallbackOutput,
+            mapAudioOnly: false,
+            key: keyCandidate,
+          ),
+        );
+        if (fallbackResult.success) {
+          tempOutput = fallbackOutput;
+          result = fallbackResult;
+        }
+      }
+
+      if (result.success) {
+        decryptSucceeded = true;
+        lastResult = result;
+        break;
+      }
+
+      try {
+        final tempFile = File(tempOutput);
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
+      } catch (_) {}
+      lastResult = result;
+    }
+
+    if (!decryptSucceeded) {
+      _log.e('FFmpeg decrypt failed: ${lastResult?.output ?? 'unknown error'}');
+      return null;
+    }
+
+    try {
+      final tempFile = File(tempOutput);
+      final inputFile = File(inputPath);
+      if (!await tempFile.exists()) {
+        _log.e('Decrypted output file not found: $tempOutput');
+        return null;
+      }
+
+      if (deleteOriginal && await inputFile.exists()) {
+        await inputFile.delete();
+      }
+      return tempOutput;
+    } catch (e) {
+      _log.e('Failed to finalize decrypted file: $e');
+      return null;
+    }
   }
 
   static Future<String?> convertFlacToMp3(
@@ -614,6 +761,97 @@ class FFmpegService {
       _log.e('Error creating METADATA_BLOCK_PICTURE: $e');
       return null;
     }
+  }
+
+  /// Unified audio format conversion with full metadata + cover preservation.
+  /// Supports: FLAC/MP3/Opus -> MP3/Opus (any direction except same format).
+  /// Returns the new file path on success, null on failure.
+  static Future<String?> convertAudioFormat({
+    required String inputPath,
+    required String targetFormat,
+    required String bitrate,
+    required Map<String, String> metadata,
+    String? coverPath,
+    bool deleteOriginal = true,
+  }) async {
+    final format = targetFormat.toLowerCase();
+    if (format != 'mp3' && format != 'opus') {
+      _log.e('Unsupported target format: $targetFormat');
+      return null;
+    }
+
+    final extension = format == 'opus' ? '.opus' : '.mp3';
+    final outputPath = _buildOutputPath(inputPath, extension);
+
+    // Step 1: Convert audio
+    String command;
+    if (format == 'opus') {
+      command =
+          '-i "$inputPath" -codec:a libopus -b:a $bitrate -vbr on -compression_level 10 -map 0:a "$outputPath" -y';
+    } else {
+      command =
+          '-i "$inputPath" -codec:a libmp3lame -b:a $bitrate -map 0:a -id3v2_version 3 "$outputPath" -y';
+    }
+
+    _log.i(
+      'Converting ${inputPath.split(Platform.pathSeparator).last} to $format @ $bitrate',
+    );
+    final result = await _execute(command);
+
+    if (!result.success) {
+      _log.e('Audio conversion failed: ${result.output}');
+      return null;
+    }
+
+    // Step 2: Embed metadata + cover into the converted file.
+    // Treat embed failure as conversion failure when metadata/cover was requested.
+    final hasMetadata = metadata.values.any((v) => v.trim().isNotEmpty);
+    final hasCover = coverPath != null && coverPath.trim().isNotEmpty;
+    if (hasMetadata || hasCover) {
+      String? embedResult;
+      if (format == 'mp3') {
+        embedResult = await embedMetadataToMp3(
+          mp3Path: outputPath,
+          coverPath: coverPath,
+          metadata: metadata,
+        );
+      } else {
+        embedResult = await embedMetadataToOpus(
+          opusPath: outputPath,
+          coverPath: coverPath,
+          metadata: metadata,
+        );
+      }
+
+      if (embedResult == null) {
+        _log.e(
+          'Metadata/Cover preservation failed, rolling back converted file',
+        );
+        try {
+          final out = File(outputPath);
+          if (await out.exists()) {
+            await out.delete();
+          }
+        } catch (e) {
+          _log.w('Failed to cleanup failed converted file: $e');
+        }
+        return null;
+      }
+    }
+
+    // Step 3: Delete original if requested
+    if (deleteOriginal) {
+      try {
+        await File(inputPath).delete();
+        _log.i(
+          'Deleted original: ${inputPath.split(Platform.pathSeparator).last}',
+        );
+      } catch (e) {
+        _log.w('Failed to delete original: $e');
+      }
+    }
+
+    return outputPath;
   }
 
   static Map<String, String> _convertToId3Tags(

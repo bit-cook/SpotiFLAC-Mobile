@@ -646,13 +646,26 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   }
 
   String _getQualityBadgeText(String quality) {
-    if (quality.contains('bit')) {
+    final q = quality.trim().toLowerCase();
+    if (q.contains('bit')) {
       return quality.split('/').first;
     }
-    final bitrateMatch = RegExp(r'(\d+)kbps').firstMatch(quality);
-    if (bitrateMatch != null) {
-      return '${bitrateMatch.group(1)}k';
+
+    // Supports "MP3 320k", "Opus 256kbps", etc.
+    final bitrateTextMatch = RegExp(
+      r'(\d+)\s*k(?:bps)?',
+      caseSensitive: false,
+    ).firstMatch(quality);
+    if (bitrateTextMatch != null) {
+      return '${bitrateTextMatch.group(1)}k';
     }
+
+    // Supports legacy quality IDs like "opus_256" / "mp3_320".
+    final bitrateIdMatch = RegExp(r'_(\d+)$').firstMatch(q);
+    if (bitrateIdMatch != null) {
+      return '${bitrateIdMatch.group(1)}k';
+    }
+
     return quality.split(' ').first;
   }
 
@@ -1647,7 +1660,9 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                 ),
 
                 // Search bar - always at top
-                if (allHistoryItems.isNotEmpty || hasQueueItems || localLibraryItems.isNotEmpty)
+                if (allHistoryItems.isNotEmpty ||
+                    hasQueueItems ||
+                    localLibraryItems.isNotEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -2946,13 +2961,13 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                             // show bytes downloaded instead of percentage
                             item.progress > 0
                                 ? (item.speedMBps > 0
-                                    ? '${(item.progress * 100).toStringAsFixed(0)}% • ${item.speedMBps.toStringAsFixed(1)} MB/s'
-                                    : '${(item.progress * 100).toStringAsFixed(0)}%')
+                                      ? '${(item.progress * 100).toStringAsFixed(0)}% • ${item.speedMBps.toStringAsFixed(1)} MB/s'
+                                      : '${(item.progress * 100).toStringAsFixed(0)}%')
                                 : (item.bytesReceived > 0
-                                    ? '${(item.bytesReceived / (1024 * 1024)).toStringAsFixed(1)} MB • ${item.speedMBps.toStringAsFixed(1)} MB/s'
-                                    : (item.speedMBps > 0
-                                        ? 'Downloading • ${item.speedMBps.toStringAsFixed(1)} MB/s'
-                                        : 'Starting...')),
+                                      ? '${(item.bytesReceived / (1024 * 1024)).toStringAsFixed(1)} MB • ${item.speedMBps.toStringAsFixed(1)} MB/s'
+                                      : (item.speedMBps > 0
+                                            ? 'Downloading • ${item.speedMBps.toStringAsFixed(1)} MB/s'
+                                            : 'Starting...')),
                             style: Theme.of(context).textTheme.labelSmall
                                 ?.copyWith(
                                   color: colorScheme.primary,

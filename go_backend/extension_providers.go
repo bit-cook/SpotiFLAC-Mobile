@@ -1082,16 +1082,18 @@ func tryBuiltInProvider(providerID string, req DownloadRequest) (*DownloadRespon
 		amazonResult, amazonErr := downloadFromAmazon(req)
 		if amazonErr == nil {
 			result = DownloadResult{
-				FilePath:    amazonResult.FilePath,
-				BitDepth:    amazonResult.BitDepth,
-				SampleRate:  amazonResult.SampleRate,
-				Title:       amazonResult.Title,
-				Artist:      amazonResult.Artist,
-				Album:       amazonResult.Album,
-				ReleaseDate: amazonResult.ReleaseDate,
-				TrackNumber: amazonResult.TrackNumber,
-				DiscNumber:  amazonResult.DiscNumber,
-				ISRC:        amazonResult.ISRC,
+				FilePath:      amazonResult.FilePath,
+				BitDepth:      amazonResult.BitDepth,
+				SampleRate:    amazonResult.SampleRate,
+				Title:         amazonResult.Title,
+				Artist:        amazonResult.Artist,
+				Album:         amazonResult.Album,
+				ReleaseDate:   amazonResult.ReleaseDate,
+				TrackNumber:   amazonResult.TrackNumber,
+				DiscNumber:    amazonResult.DiscNumber,
+				ISRC:          amazonResult.ISRC,
+				LyricsLRC:     amazonResult.LyricsLRC,
+				DecryptionKey: amazonResult.DecryptionKey,
 			}
 		}
 		err = amazonErr
@@ -1119,6 +1121,8 @@ func tryBuiltInProvider(providerID string, req DownloadRequest) (*DownloadRespon
 		Genre:            req.Genre,
 		Label:            req.Label,
 		Copyright:        req.Copyright,
+		LyricsLRC:        result.LyricsLRC,
+		DecryptionKey:    result.DecryptionKey,
 	}, nil
 }
 
@@ -1164,16 +1168,30 @@ func (p *ExtensionProviderWrapper) CustomSearch(query string, options map[string
 	p.extension.VMMu.Lock()
 	defer p.extension.VMMu.Unlock()
 
-	optionsJSON, _ := json.Marshal(options)
+	if options == nil {
+		options = map[string]interface{}{}
+	}
 
-	script := fmt.Sprintf(`
+	// Avoid embedding user input directly into JS source. Some inputs can trigger
+	// parser/runtime edge cases on specific devices/Goja builds.
+	const queryVar = "__sf_custom_search_query"
+	const optionsVar = "__sf_custom_search_options"
+	global := p.vm.GlobalObject()
+	_ = global.Set(queryVar, query)
+	_ = global.Set(optionsVar, options)
+	defer func() {
+		global.Delete(queryVar)
+		global.Delete(optionsVar)
+	}()
+
+	const script = `
 		(function() {
 			if (typeof extension !== 'undefined' && typeof extension.customSearch === 'function') {
-				return extension.customSearch(%q, %s);
+				return extension.customSearch(__sf_custom_search_query, __sf_custom_search_options);
 			}
 			return null;
 		})()
-	`, query, string(optionsJSON))
+	`
 
 	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
 	if err != nil {
@@ -1358,12 +1376,12 @@ type PostProcessResult struct {
 }
 
 type PostProcessInput struct {
-	Path    string `json:"path,omitempty"`
-	URI     string `json:"uri,omitempty"`
-	Name    string `json:"name,omitempty"`
+	Path     string `json:"path,omitempty"`
+	URI      string `json:"uri,omitempty"`
+	Name     string `json:"name,omitempty"`
 	MimeType string `json:"mime_type,omitempty"`
-	Size    int64  `json:"size,omitempty"`
-	IsSAF   bool   `json:"is_saf,omitempty"`
+	Size     int64  `json:"size,omitempty"`
+	IsSAF    bool   `json:"is_saf,omitempty"`
 }
 
 const PostProcessTimeout = 2 * time.Minute

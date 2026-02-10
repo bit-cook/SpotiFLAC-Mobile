@@ -5139,6 +5139,70 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed: {error}'**
   String trackSaveFailed(String error);
+
+  /// Menu item - convert audio format
+  ///
+  /// In en, this message translates to:
+  /// **'Convert Format'**
+  String get trackConvertFormat;
+
+  /// Subtitle for convert format menu item
+  ///
+  /// In en, this message translates to:
+  /// **'Convert to MP3 or Opus'**
+  String get trackConvertFormatSubtitle;
+
+  /// Title of convert bottom sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Convert Audio'**
+  String get trackConvertTitle;
+
+  /// Label for format selection
+  ///
+  /// In en, this message translates to:
+  /// **'Target Format'**
+  String get trackConvertTargetFormat;
+
+  /// Label for bitrate selection
+  ///
+  /// In en, this message translates to:
+  /// **'Bitrate'**
+  String get trackConvertBitrate;
+
+  /// Confirmation dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Conversion'**
+  String get trackConvertConfirmTitle;
+
+  /// Confirmation dialog message
+  ///
+  /// In en, this message translates to:
+  /// **'Convert from {sourceFormat} to {targetFormat} at {bitrate}?\n\nThe original file will be deleted after conversion.'**
+  String trackConvertConfirmMessage(
+    String sourceFormat,
+    String targetFormat,
+    String bitrate,
+  );
+
+  /// Snackbar while converting
+  ///
+  /// In en, this message translates to:
+  /// **'Converting audio...'**
+  String get trackConvertConverting;
+
+  /// Snackbar after successful conversion
+  ///
+  /// In en, this message translates to:
+  /// **'Converted to {format} successfully'**
+  String trackConvertSuccess(String format);
+
+  /// Snackbar when conversion fails
+  ///
+  /// In en, this message translates to:
+  /// **'Conversion failed'**
+  String get trackConvertFailed;
 }
 
 class _AppLocalizationsDelegate

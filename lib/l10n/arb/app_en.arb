@@ -2184,5 +2184,38 @@
     "placeholders": {
       "error": {"type": "String"}
     }
-  }
+  },
+
+  "trackConvertFormat": "Convert Format",
+  "@trackConvertFormat": {"description": "Menu item - convert audio format"},
+  "trackConvertFormatSubtitle": "Convert to MP3 or Opus",
+  "@trackConvertFormatSubtitle": {"description": "Subtitle for convert format menu item"},
+  "trackConvertTitle": "Convert Audio",
+  "@trackConvertTitle": {"description": "Title of convert bottom sheet"},
+  "trackConvertTargetFormat": "Target Format",
+  "@trackConvertTargetFormat": {"description": "Label for format selection"},
+  "trackConvertBitrate": "Bitrate",
+  "@trackConvertBitrate": {"description": "Label for bitrate selection"},
+  "trackConvertConfirmTitle": "Confirm Conversion",
+  "@trackConvertConfirmTitle": {"description": "Confirmation dialog title"},
+  "trackConvertConfirmMessage": "Convert from {sourceFormat} to {targetFormat} at {bitrate}?\n\nThe original file will be deleted after conversion.",
+  "@trackConvertConfirmMessage": {
+    "description": "Confirmation dialog message",
+    "placeholders": {
+      "sourceFormat": {"type": "String"},
+      "targetFormat": {"type": "String"},
+      "bitrate": {"type": "String"}
+    }
+  },
+  "trackConvertConverting": "Converting audio...",
+  "@trackConvertConverting": {"description": "Snackbar while converting"},
+  "trackConvertSuccess": "Converted to {format} successfully",
+  "@trackConvertSuccess": {
+    "description": "Snackbar after successful conversion",
+    "placeholders": {
+      "format": {"type": "String"}
+    }
+  },
+  "trackConvertFailed": "Conversion failed",
+  "@trackConvertFailed": {"description": "Snackbar when conversion fails"}
 }

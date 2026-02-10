@@ -1,30 +1,56 @@
 # Changelog
 
-## [3.6.1] - 2026-02-10
+## [3.6.5] - 2026-02-10
+
+### Highlights
+
+- **Audio Format Conversion**: Convert between FLAC, MP3, and Opus directly from Track Metadata screen with full metadata and cover art preservation
+- **PC v7.0.8 Backend Merge**: Adopts several Go backend improvements from SpotiFLAC PC v7.0.8 including Amazon encrypted stream support, SpotFetch metadata fallback, and Qobuz API update
+- **Amazon Music Re-enabled**: Amazon provider back in service with new API
 
 ### Added
 
 - "Use Primary Artist Only" setting: strips featured artists from folder names (e.g. "Justin Bieber, Quavo" becomes "Justin Bieber") for cleaner folder organization
   - Supports separators: `, ` `;` `&` `feat.` `ft.` `featuring` `with` `x`
   - Available in Settings > Download > below "Use Album Artist for folders"
+- Audio format conversion from Track Metadata screen
+  - Convert between FLAC, MP3, and Opus formats (any direction)
+  - Selectable bitrate: 128k, 192k, 256k, 320k
+  - Full metadata and cover art preservation during conversion
+  - Confirmation dialog before converting (original file deleted after)
+  - SAF storage support: copies to temp, converts, writes back via SAF
+  - Download history automatically updated with new file path
 - Unified download request contract (`DownloadRequestPayload`) for all providers/flows
   - Includes full superset fields: lyrics mode, genre/label/copyright, provider IDs, SAF params, cover/quality settings
   - Added strategy flags in payload: `use_extensions`, `use_fallback`
 - New Go unified router entrypoint: `DownloadByStrategy(requestJSON)`
   - Routing priority: YouTube service -> extension fallback -> built-in fallback -> direct service
 - New Android method channel handler: `"downloadByStrategy"` -> `Gobackend.downloadByStrategy(...)`
+- SpotFetch metadata fallback integration for Spotify-blocked regions
+  - New backend client for `spotify.afkarxyz.fun/api`
+  - Automatic fallback in Spotify metadata fetch path when primary source fails
+- Lyrics extraction now supports MP3 (ID3v2) and Opus/OGG (Vorbis comments) in addition to FLAC
+  - Includes heuristic detection of lyrics stored in Comment fields
 
 ### Changed
 
+- Merged several Go backend improvements from SpotiFLAC PC v7.0.8: Amazon new API with encrypted stream/decryption support, SpotFetch metadata fallback for Spotify-blocked regions, multi-format lyrics extraction (MP3/Opus/OGG), Qobuz Jumo API update.
 - Download queue execution now builds one payload and uses a single bridge entrypoint (`PlatformBridge.downloadByStrategy`) instead of branching into multiple bridge methods
 - Dart `downloadByStrategy` now sends a single request to Go (`downloadByStrategy` channel); routing concern is centralized in Go backend
 - Legacy Dart bridge methods (`downloadTrack`, `downloadWithFallback`, `downloadWithExtensions`, `downloadFromYouTube`) are now thin wrappers and marked `@Deprecated`
+- Qobuz downloader updated to latest Jumo API contract (`/get` endpoint, required headers)
+- Amazon download flow now returns `decryption_key` from Go and performs decryption in Flutter (local file + SAF paths)
+- Amazon now uses the new `amazon.afkarxyz.fun` API flow (ASIN-based track endpoint + legacy fallback) with encrypted stream support
+- Amazon ASIN extraction rewritten with robust URL/query-param parsing and regex fallback
+- Amazon provider re-enabled in download service picker and download settings (alongside Tidal, Qobuz, and YouTube picker flow)
 
 ### Fixed
 
 - Fixed lyrics mode "External .LRC" still embedding lyrics into metadata - `lyrics_mode` was not being sent to Go backend for single-service downloads and YouTube provider, causing Go to default to "embed"
 - Fixed `flutter_local_notifications` v20 breaking changes - migrated all `initialize()`, `show()`, and `cancel()` calls from positional parameters to named parameters
 - Fixed SAF duplicate folder bug: concurrent batch downloads creating empty folders with `(1)`, `(2)`, `(3)` suffixes - added synchronized lock to `ensureDocumentDir` in Kotlin with duplicate detection and cleanup
+- Track Metadata lyrics section now hides "Embed Lyrics" when lyrics are already embedded in file, preventing redundant embed attempts
+- Fixed lyrics embed path to support FLAC/MP3/Opus consistently (including SAF files) without forcing unsupported parser paths
 - Inconsistent parameter parity across download paths
   - `downloadWithExtensions` now carries `copyright`
   - YouTube path now carries `embed_max_quality_cover` and metadata parity fields
@@ -37,10 +63,12 @@
 
 - Centralized request serialization in `PlatformBridge` via shared invoke helper and unified payload model
 - Go strategy router normalizes incoming service casing before dispatch
-- Verified integration after AAR refresh with:
-  - `flutter analyze`
-  - `go test -v ./...`
-  - Android Kotlin compile check (`:app:compileDebugKotlin`)
+- Extension runtime: `customSearch` now passes query/options via VM globals instead of string interpolation, preventing parser edge cases on certain devices
+- Extension runtime: JS panic handler now logs full stack trace for easier debugging
+
+### Removed
+
+- Buy Me a Coffee references removed from donate page, FUNDING.yml, README, and all localization files (account suspended)
 
 ---
 

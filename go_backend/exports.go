@@ -47,10 +47,30 @@ func GetSpotifyMetadata(spotifyURL string) (string, error) {
 
 	client, err := NewSpotifyMetadataClient()
 	if err != nil {
+		if shouldTrySpotFetchFallback(err) {
+			data, apiErr := GetSpotifyDataWithAPI(ctx, spotifyURL, DefaultSpotFetchAPIBaseURL)
+			if apiErr == nil {
+				jsonBytes, marshalErr := json.Marshal(data)
+				if marshalErr != nil {
+					return "", marshalErr
+				}
+				return string(jsonBytes), nil
+			}
+		}
 		return "", err
 	}
 	data, err := client.GetFilteredData(ctx, spotifyURL, false, 0)
 	if err != nil {
+		if shouldTrySpotFetchFallback(err) {
+			fallbackData, apiErr := GetSpotifyDataWithAPI(ctx, spotifyURL, DefaultSpotFetchAPIBaseURL)
+			if apiErr == nil {
+				jsonBytes, marshalErr := json.Marshal(fallbackData)
+				if marshalErr != nil {
+					return "", marshalErr
+				}
+				return string(jsonBytes), nil
+			}
+		}
 		return "", err
 	}
 
@@ -178,20 +198,22 @@ type DownloadResponse struct {
 	Copyright              string `json:"copyright,omitempty"`
 	SkipMetadataEnrichment bool   `json:"skip_metadata_enrichment,omitempty"`
 	LyricsLRC              string `json:"lyrics_lrc,omitempty"`
+	DecryptionKey          string `json:"decryption_key,omitempty"`
 }
 
 type DownloadResult struct {
-	FilePath    string
-	BitDepth    int
-	SampleRate  int
-	Title       string
-	Artist      string
-	Album       string
-	ReleaseDate string
-	TrackNumber int
-	DiscNumber  int
-	ISRC        string
-	LyricsLRC   string
+	FilePath      string
+	BitDepth      int
+	SampleRate    int
+	Title         string
+	Artist        string
+	Album         string
+	ReleaseDate   string
+	TrackNumber   int
+	DiscNumber    int
+	ISRC          string
+	LyricsLRC     string
+	DecryptionKey string
 }
 
 func buildDownloadSuccessResponse(
@@ -258,6 +280,7 @@ func buildDownloadSuccessResponse(
 		Label:            req.Label,
 		Copyright:        req.Copyright,
 		LyricsLRC:        result.LyricsLRC,
+		DecryptionKey:    result.DecryptionKey,
 	}
 }
 
@@ -323,17 +346,18 @@ func DownloadTrack(requestJSON string) (string, error) {
 		amazonResult, amazonErr := downloadFromAmazon(req)
 		if amazonErr == nil {
 			result = DownloadResult{
-				FilePath:    amazonResult.FilePath,
-				BitDepth:    amazonResult.BitDepth,
-				SampleRate:  amazonResult.SampleRate,
-				Title:       amazonResult.Title,
-				Artist:      amazonResult.Artist,
-				Album:       amazonResult.Album,
-				ReleaseDate: amazonResult.ReleaseDate,
-				TrackNumber: amazonResult.TrackNumber,
-				DiscNumber:  amazonResult.DiscNumber,
-				ISRC:        amazonResult.ISRC,
-				LyricsLRC:   amazonResult.LyricsLRC,
+				FilePath:      amazonResult.FilePath,
+				BitDepth:      amazonResult.BitDepth,
+				SampleRate:    amazonResult.SampleRate,
+				Title:         amazonResult.Title,
+				Artist:        amazonResult.Artist,
+				Album:         amazonResult.Album,
+				ReleaseDate:   amazonResult.ReleaseDate,
+				TrackNumber:   amazonResult.TrackNumber,
+				DiscNumber:    amazonResult.DiscNumber,
+				ISRC:          amazonResult.ISRC,
+				LyricsLRC:     amazonResult.LyricsLRC,
+				DecryptionKey: amazonResult.DecryptionKey,
 			}
 		}
 		err = amazonErr
@@ -534,17 +558,18 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 			amazonResult, amazonErr := downloadFromAmazon(req)
 			if amazonErr == nil {
 				result = DownloadResult{
-					FilePath:    amazonResult.FilePath,
-					BitDepth:    amazonResult.BitDepth,
-					SampleRate:  amazonResult.SampleRate,
-					Title:       amazonResult.Title,
-					Artist:      amazonResult.Artist,
-					Album:       amazonResult.Album,
-					ReleaseDate: amazonResult.ReleaseDate,
-					TrackNumber: amazonResult.TrackNumber,
-					DiscNumber:  amazonResult.DiscNumber,
-					ISRC:        amazonResult.ISRC,
-					LyricsLRC:   amazonResult.LyricsLRC,
+					FilePath:      amazonResult.FilePath,
+					BitDepth:      amazonResult.BitDepth,
+					SampleRate:    amazonResult.SampleRate,
+					Title:         amazonResult.Title,
+					Artist:        amazonResult.Artist,
+					Album:         amazonResult.Album,
+					ReleaseDate:   amazonResult.ReleaseDate,
+					TrackNumber:   amazonResult.TrackNumber,
+					DiscNumber:    amazonResult.DiscNumber,
+					ISRC:          amazonResult.ISRC,
+					LyricsLRC:     amazonResult.LyricsLRC,
+					DecryptionKey: amazonResult.DecryptionKey,
 				}
 			} else if !errors.Is(amazonErr, ErrDownloadCancelled) {
 				GoLog("[DownloadWithFallback] Amazon error: %v\n", amazonErr)
@@ -699,6 +724,7 @@ func ReadFileMetadata(filePath string) (string, error) {
 			result["track_number"] = meta.TrackNumber
 			result["disc_number"] = meta.DiscNumber
 			result["isrc"] = meta.ISRC
+			result["lyrics"] = meta.Lyrics
 			result["genre"] = meta.Genre
 			result["composer"] = meta.Composer
 			result["comment"] = meta.Comment
@@ -723,6 +749,7 @@ func ReadFileMetadata(filePath string) (string, error) {
 			result["track_number"] = meta.TrackNumber
 			result["disc_number"] = meta.DiscNumber
 			result["isrc"] = meta.ISRC
+			result["lyrics"] = meta.Lyrics
 			result["genre"] = meta.Genre
 			result["composer"] = meta.Composer
 			result["comment"] = meta.Comment
@@ -1178,9 +1205,12 @@ func GetSpotifyMetadataWithDeezerFallback(spotifyURL string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	var spotifyErr error
+
 	client, err := NewSpotifyMetadataClient()
 	if err != nil {
 		LogWarn("Spotify", "Credentials not configured, falling back to Deezer")
+		spotifyErr = err
 	} else {
 		data, err := client.GetFilteredData(ctx, spotifyURL, false, 0)
 		if err == nil {
@@ -1191,28 +1221,81 @@ func GetSpotifyMetadataWithDeezerFallback(spotifyURL string) (string, error) {
 			return string(jsonBytes), nil
 		}
 
-		errStr := strings.ToLower(err.Error())
-		if !strings.Contains(errStr, "429") && !strings.Contains(errStr, "rate") && !strings.Contains(errStr, "limit") {
+		spotifyErr = err
+		if !shouldTrySpotFetchFallback(err) {
 			return "", err
 		}
 	}
 
+	spotFetchData, apiErr := GetSpotifyDataWithAPI(ctx, spotifyURL, DefaultSpotFetchAPIBaseURL)
+	if apiErr == nil {
+		GoLog("[Fallback] Spotify metadata fetched via SpotFetch API\n")
+		jsonBytes, err := json.Marshal(spotFetchData)
+		if err != nil {
+			return "", err
+		}
+		return string(jsonBytes), nil
+	}
+	GoLog("[Fallback] SpotFetch API fallback failed: %v\n", apiErr)
+
 	parsed, parseErr := parseSpotifyURI(spotifyURL)
 	if parseErr != nil {
-		return "", fmt.Errorf("spotify rate limited and failed to parse URL: %w", parseErr)
+		if spotifyErr != nil {
+			return "", fmt.Errorf("spotify failed (%v), SpotFetch fallback failed (%v), and URL parsing failed: %w", spotifyErr, apiErr, parseErr)
+		}
+		return "", fmt.Errorf("SpotFetch fallback failed (%v) and URL parsing failed: %w", apiErr, parseErr)
 	}
 
-	GoLog("[Fallback] Spotify rate limited for %s, trying Deezer...\n", parsed.Type)
+	GoLog("[Fallback] Trying Deezer conversion fallback for %s...\n", parsed.Type)
 
 	if parsed.Type == "track" || parsed.Type == "album" {
 		return ConvertSpotifyToDeezer(parsed.Type, parsed.ID)
 	}
 
 	if parsed.Type == "artist" {
-		return "", fmt.Errorf("spotify rate limited. Artist pages require Spotify API - please try again later")
+		if spotifyErr != nil {
+			return "", fmt.Errorf("spotify metadata unavailable (%v) and SpotFetch fallback failed (%v). Artist pages require Spotify/SpotFetch API", spotifyErr, apiErr)
+		}
+		return "", fmt.Errorf("SpotFetch fallback failed (%v). Artist pages require Spotify/SpotFetch API", apiErr)
 	}
 
-	return "", fmt.Errorf("spotify rate limited. Playlists are user-specific and require Spotify API")
+	if spotifyErr != nil {
+		return "", fmt.Errorf("spotify metadata unavailable (%v), SpotFetch fallback failed (%v), and Deezer conversion is unavailable for playlists", spotifyErr, apiErr)
+	}
+	return "", fmt.Errorf("SpotFetch fallback failed (%v), and Deezer conversion is unavailable for playlists", apiErr)
+}
+
+func shouldTrySpotFetchFallback(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, ErrNoSpotifyCredentials) {
+		return true
+	}
+
+	errStr := strings.ToLower(err.Error())
+	indicators := []string{
+		"429",
+		"rate",
+		"limit",
+		"403",
+		"forbidden",
+		"401",
+		"unauthorized",
+		"timeout",
+		"connection",
+		"spotify error",
+		"access token",
+		"client token",
+		"eof",
+	}
+
+	for _, indicator := range indicators {
+		if strings.Contains(errStr, indicator) {
+			return true
+		}
+	}
+	return false
 }
 
 func CheckAvailabilityFromDeezerID(deezerTrackID string) (string, error) {

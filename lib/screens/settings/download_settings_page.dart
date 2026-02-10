@@ -22,7 +22,7 @@ class DownloadSettingsPage extends ConsumerStatefulWidget {
 }
 
 class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
-  static const _builtInServices = ['tidal', 'qobuz'];
+  static const _builtInServices = ['tidal', 'qobuz', 'amazon'];
   int _androidSdkVersion = 0;
   bool _hasAllFilesAccess = false;
 
@@ -248,7 +248,7 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Select Tidal or Qobuz above to configure quality',
+                              'Select Tidal, Qobuz, or Amazon above to configure quality',
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
                                     color: colorScheme.onSurfaceVariant,
@@ -1366,6 +1366,7 @@ class _ServiceSelector extends ConsumerWidget {
     final isExtensionService = ![
       'tidal',
       'qobuz',
+      'amazon',
     ].contains(currentService);
     final isCurrentExtensionEnabled = isExtensionService
         ? extensionProviders.any((e) => e.id == currentService)
@@ -1391,6 +1392,13 @@ class _ServiceSelector extends ConsumerWidget {
                 label: 'Qobuz',
                 isSelected: effectiveService == 'qobuz',
                 onTap: () => onChanged('qobuz'),
+              ),
+              const SizedBox(width: 8),
+              _ServiceChip(
+                icon: Icons.shopping_bag_outlined,
+                label: 'Amazon',
+                isSelected: effectiveService == 'amazon',
+                onTap: () => onChanged('amazon'),
               ),
             ],
           ),

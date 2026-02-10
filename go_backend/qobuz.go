@@ -419,7 +419,7 @@ func extractQobuzDownloadURLFromBody(body []byte) (string, error) {
 func (q *QobuzDownloader) downloadFromJumo(trackID int64, quality string) (string, error) {
 	formatID := mapJumoQuality(quality)
 	region := "US"
-	jumoURL := fmt.Sprintf("https://jumo-dl.pages.dev/file?track_id=%d&format_id=%d&region=%s", trackID, formatID, region)
+	jumoURL := fmt.Sprintf("https://jumo-dl.pages.dev/get?track_id=%d&format_id=%d&region=%s", trackID, formatID, region)
 
 	GoLog("[Qobuz] Trying Jumo API fallback...\n")
 
@@ -428,6 +428,8 @@ func (q *QobuzDownloader) downloadFromJumo(trackID int64, quality string) (strin
 	if err != nil {
 		return "", err
 	}
+	req.Header.Set("User-Agent", getRandomUserAgent())
+	req.Header.Set("Referer", "https://jumo-dl.pages.dev/")
 
 	resp, err := client.Do(req)
 	if err != nil {
