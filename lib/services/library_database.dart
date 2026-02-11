@@ -23,6 +23,7 @@ class LocalLibraryItem {
   final String? releaseDate;
   final int? bitDepth;
   final int? sampleRate;
+  final int? bitrate; // kbps, for lossy formats (mp3, opus, ogg)
   final String? genre;
   final String? format; // flac, mp3, opus, m4a
 
@@ -43,6 +44,7 @@ class LocalLibraryItem {
     this.releaseDate,
     this.bitDepth,
     this.sampleRate,
+    this.bitrate,
     this.genre,
     this.format,
   });
@@ -64,6 +66,7 @@ class LocalLibraryItem {
     'releaseDate': releaseDate,
     'bitDepth': bitDepth,
     'sampleRate': sampleRate,
+    'bitrate': bitrate,
     'genre': genre,
     'format': format,
   };
@@ -86,6 +89,7 @@ class LocalLibraryItem {
         releaseDate: json['releaseDate'] as String?,
         bitDepth: json['bitDepth'] as int?,
         sampleRate: json['sampleRate'] as int?,
+        bitrate: (json['bitrate'] as num?)?.toInt(),
         genre: json['genre'] as String?,
         format: json['format'] as String?,
       );
@@ -115,7 +119,7 @@ class LibraryDatabase {
     
     return await openDatabase(
       path,
-      version: 3, // Bumped version for file_mod_time migration
+      version: 4, // Bumped version for bitrate column
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -142,6 +146,7 @@ class LibraryDatabase {
         release_date TEXT,
         bit_depth INTEGER,
         sample_rate INTEGER,
+        bitrate INTEGER,
         genre TEXT,
         format TEXT
       )
@@ -169,6 +174,12 @@ class LibraryDatabase {
       await db.execute('ALTER TABLE library ADD COLUMN file_mod_time INTEGER');
       _log.i('Added file_mod_time column for incremental scanning');
     }
+    
+    if (oldVersion < 4) {
+      // Add bitrate column for lossy format quality info
+      await db.execute('ALTER TABLE library ADD COLUMN bitrate INTEGER');
+      _log.i('Added bitrate column for lossy format quality');
+    }
   }
   
   Map<String, dynamic> _jsonToDbRow(Map<String, dynamic> json) {
@@ -189,6 +200,7 @@ class LibraryDatabase {
       'release_date': json['releaseDate'],
       'bit_depth': json['bitDepth'],
       'sample_rate': json['sampleRate'],
+      'bitrate': json['bitrate'],
       'genre': json['genre'],
       'format': json['format'],
     };
@@ -212,6 +224,7 @@ class LibraryDatabase {
       'releaseDate': row['release_date'],
       'bitDepth': row['bit_depth'],
       'sampleRate': row['sample_rate'],
+      'bitrate': row['bitrate'],
       'genre': row['genre'],
       'format': row['format'],
     };

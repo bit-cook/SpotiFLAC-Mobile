@@ -70,7 +70,12 @@ class UnifiedLibraryItem {
 
   factory UnifiedLibraryItem.fromLocalLibrary(LocalLibraryItem item) {
     String? quality;
-    if (item.bitDepth != null && item.sampleRate != null) {
+    if (item.bitrate != null && item.bitrate! > 0) {
+      // Lossy format with bitrate
+      final fmt = item.format?.toUpperCase() ?? '';
+      quality = '$fmt ${item.bitrate}kbps'.trim();
+    } else if (item.bitDepth != null && item.bitDepth! > 0 && item.sampleRate != null) {
+      // Lossless format with actual bit depth
       quality =
           '${item.bitDepth}bit/${(item.sampleRate! / 1000).toStringAsFixed(1)}kHz';
     }
@@ -897,7 +902,10 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   }
 
   String? _localQualityLabel(LocalLibraryItem item) {
-    if (item.bitDepth == null || item.sampleRate == null) {
+    if (item.bitrate != null && item.bitrate! > 0) {
+      return '${item.bitrate}kbps';
+    }
+    if (item.bitDepth == null || item.bitDepth == 0 || item.sampleRate == null) {
       return null;
     }
     return '${item.bitDepth}bit/${(item.sampleRate! / 1000).toStringAsFixed(1)}kHz';

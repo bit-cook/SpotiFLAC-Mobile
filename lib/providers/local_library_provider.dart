@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/services/history_database.dart';
 import 'package:spotiflac_android/services/library_database.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
@@ -180,6 +181,58 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
     await _loadFromDatabase();
   }
 
+  Set<String> _buildPathMatchKeys(String? filePath) {
+    final raw = filePath?.trim() ?? '';
+    if (raw.isEmpty) return const {};
+
+    final cleaned = raw.startsWith('EXISTS:') ? raw.substring(7) : raw;
+    final keys = <String>{cleaned};
+
+    void addNormalized(String value) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty) return;
+      keys.add(trimmed);
+      keys.add(trimmed.toLowerCase());
+      if (trimmed.contains('\\')) {
+        final slash = trimmed.replaceAll('\\', '/');
+        keys.add(slash);
+        keys.add(slash.toLowerCase());
+      }
+      if (trimmed.contains('%')) {
+        try {
+          final decoded = Uri.decodeFull(trimmed);
+          keys.add(decoded);
+          keys.add(decoded.toLowerCase());
+        } catch (_) {}
+      }
+    }
+
+    addNormalized(cleaned);
+
+    if (cleaned.startsWith('content://')) {
+      try {
+        final uri = Uri.parse(cleaned);
+        addNormalized(uri.toString());
+        addNormalized(uri.replace(query: null, fragment: null).toString());
+      } catch (_) {}
+    }
+
+    return keys;
+  }
+
+  bool _isDownloadedPath(String? filePath, Set<String> downloadedPathKeys) {
+    if (filePath == null || filePath.isEmpty || downloadedPathKeys.isEmpty) {
+      return false;
+    }
+    final candidateKeys = _buildPathMatchKeys(filePath);
+    for (final key in candidateKeys) {
+      if (downloadedPathKeys.contains(key)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   Future<void> startScan(
     String folderPath, {
     bool forceFullScan = false,
@@ -217,10 +270,26 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
     try {
       final isSaf = folderPath.startsWith('content://');
 
-      // Get all file paths from download history to exclude them
+      // Get all file paths from download history to exclude them.
+      // Merge DB + in-memory state to avoid race when a fresh download has not
+      // been flushed to SQLite yet.
       final downloadedPaths = await _historyDb.getAllFilePaths();
+      final inMemoryHistoryPaths = ref
+          .read(downloadHistoryProvider)
+          .items
+          .map((item) => item.filePath)
+          .where((path) => path.isNotEmpty);
+      final allHistoryPaths = <String>{
+        ...downloadedPaths,
+        ...inMemoryHistoryPaths,
+      };
+      final downloadedPathKeys = <String>{};
+      for (final path in allHistoryPaths) {
+        downloadedPathKeys.addAll(_buildPathMatchKeys(path));
+      }
       _log.i(
-        'Excluding ${downloadedPaths.length} downloaded files from library scan',
+        'Excluding ${allHistoryPaths.length} downloaded files from library scan '
+        '(${downloadedPathKeys.length} path keys)',
       );
 
       if (forceFullScan) {
@@ -238,7 +307,7 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
         for (final json in results) {
           final filePath = json['filePath'] as String?;
           // Skip files that are already in download history
-          if (filePath != null && downloadedPaths.contains(filePath)) {
+          if (_isDownloadedPath(filePath, downloadedPathKeys)) {
             skippedDownloads++;
             continue;
           }
@@ -344,7 +413,7 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
           for (final json in scannedList) {
             final map = json as Map<String, dynamic>;
             final filePath = map['filePath'] as String?;
-            if (filePath != null && downloadedPaths.contains(filePath)) {
+            if (_isDownloadedPath(filePath, downloadedPathKeys)) {
               skippedDownloads++;
               continue;
             }

@@ -28,6 +28,7 @@ type LibraryScanResult struct {
 	ReleaseDate string `json:"releaseDate,omitempty"`
 	BitDepth    int    `json:"bitDepth,omitempty"`
 	SampleRate  int    `json:"sampleRate,omitempty"`
+	Bitrate     int    `json:"bitrate,omitempty"` // kbps, for lossy formats (MP3, Opus, Vorbis)
 	Genre       string `json:"genre,omitempty"`
 	Format      string `json:"format,omitempty"`
 }
@@ -289,8 +290,11 @@ func scanMP3File(filePath string, result *LibraryScanResult) (*LibraryScanResult
 	quality, err := GetMP3Quality(filePath)
 	if err == nil {
 		result.SampleRate = quality.SampleRate
-		result.BitDepth = quality.BitDepth
+		result.BitDepth = quality.BitDepth // 0 for lossy
 		result.Duration = quality.Duration
+		if quality.Bitrate > 0 {
+			result.Bitrate = quality.Bitrate / 1000 // convert bps to kbps
+		}
 	}
 
 	if result.TrackName == "" {
@@ -326,8 +330,11 @@ func scanOggFile(filePath string, result *LibraryScanResult) (*LibraryScanResult
 	quality, err := GetOggQuality(filePath)
 	if err == nil {
 		result.SampleRate = quality.SampleRate
-		result.BitDepth = quality.BitDepth
+		result.BitDepth = quality.BitDepth // 0 for lossy
 		result.Duration = quality.Duration
+		if quality.Bitrate > 0 {
+			result.Bitrate = quality.Bitrate / 1000 // convert bps to kbps
+		}
 	}
 
 	if result.TrackName == "" {

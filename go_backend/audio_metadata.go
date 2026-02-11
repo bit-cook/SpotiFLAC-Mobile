@@ -43,6 +43,7 @@ type OggQuality struct {
 	SampleRate int
 	BitDepth   int
 	Duration   int
+	Bitrate    int // estimated bitrate in bps
 }
 
 // =============================================================================
@@ -664,48 +665,142 @@ func GetMP3Quality(filePath string) (*MP3Quality, error) {
 
 	file.Seek(audioStart, io.SeekStart)
 
+	// Find first valid MP3 frame sync
 	frameHeader := make([]byte, 4)
-	for i := 0; i < 10000; i++ { // Search first 10KB
+	var frameStart int64 = -1
+	for i := 0; i < 10000; i++ {
 		if _, err := io.ReadFull(file, frameHeader); err != nil {
 			break
 		}
 
 		if frameHeader[0] == 0xFF && (frameHeader[1]&0xE0) == 0xE0 {
-			version := (frameHeader[1] >> 3) & 0x03
-			layer := (frameHeader[1] >> 1) & 0x03
-			bitrateIdx := (frameHeader[2] >> 4) & 0x0F
-			sampleRateIdx := (frameHeader[2] >> 2) & 0x03
-
-			sampleRates := [][]int{
-				{11025, 12000, 8000},
-				{0, 0, 0},
-				{22050, 24000, 16000},
-				{44100, 48000, 32000},
-			}
-			if version < 4 && sampleRateIdx < 3 {
-				quality.SampleRate = sampleRates[version][sampleRateIdx]
-			}
-
-			if version == 3 && layer == 1 {
-				bitrates := []int{0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0}
-				if bitrateIdx < 16 {
-					quality.Bitrate = bitrates[bitrateIdx] * 1000
-				}
-			}
-
-			quality.BitDepth = 16
-
-			if quality.Bitrate > 0 {
-				audioSize := fileSize - audioStart - 128
-				if audioSize > 0 {
-					quality.Duration = int(audioSize * 8 / int64(quality.Bitrate))
-				}
-			}
-
+			pos, _ := file.Seek(0, io.SeekCurrent)
+			frameStart = pos - 4
 			break
 		}
 
 		file.Seek(-3, io.SeekCurrent)
+	}
+
+	if frameStart < 0 {
+		return quality, nil
+	}
+
+	version := (frameHeader[1] >> 3) & 0x03
+	layer := (frameHeader[1] >> 1) & 0x03
+	bitrateIdx := (frameHeader[2] >> 4) & 0x0F
+	sampleRateIdx := (frameHeader[2] >> 2) & 0x03
+	channelMode := (frameHeader[3] >> 6) & 0x03
+
+	// Sample rate tables: [version][index]
+	// version: 0=MPEG2.5, 1=reserved, 2=MPEG2, 3=MPEG1
+	sampleRates := [][]int{
+		{11025, 12000, 8000},
+		{0, 0, 0},
+		{22050, 24000, 16000},
+		{44100, 48000, 32000},
+	}
+	if version < 4 && sampleRateIdx < 3 {
+		quality.SampleRate = sampleRates[version][sampleRateIdx]
+	}
+
+	// Bitrate tables for all MPEG versions and layers
+	// MPEG1 Layer III
+	if version == 3 && layer == 1 {
+		bitrates := []int{0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0}
+		if bitrateIdx < 16 {
+			quality.Bitrate = bitrates[bitrateIdx] * 1000
+		}
+	}
+	// MPEG2/2.5 Layer III
+	if (version == 0 || version == 2) && layer == 1 {
+		bitrates := []int{0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0}
+		if bitrateIdx < 16 {
+			quality.Bitrate = bitrates[bitrateIdx] * 1000
+		}
+	}
+
+	// Determine samples per frame for duration calculation
+	samplesPerFrame := 1152 // MPEG1 Layer III
+	if version == 0 || version == 2 {
+		samplesPerFrame = 576 // MPEG2/2.5 Layer III
+	}
+
+	// Try to read Xing/VBRI header from the first frame for VBR info
+	// Xing header offset depends on MPEG version and channel mode
+	var xingOffset int
+	if version == 3 { // MPEG1
+		if channelMode == 3 { // Mono
+			xingOffset = 17
+		} else {
+			xingOffset = 32
+		}
+	} else { // MPEG2/2.5
+		if channelMode == 3 {
+			xingOffset = 9
+		} else {
+			xingOffset = 17
+		}
+	}
+
+	// Read enough of the first frame to find Xing/VBRI header
+	xingBuf := make([]byte, 200)
+	file.Seek(frameStart+4, io.SeekStart)
+	n, _ := io.ReadFull(file, xingBuf)
+	xingBuf = xingBuf[:n]
+
+	vbrFrames := 0
+	vbrBytes := int64(0)
+	isVBR := false
+
+	// Check for Xing/Info header
+	if xingOffset+8 <= n {
+		tag := string(xingBuf[xingOffset : xingOffset+4])
+		if tag == "Xing" || tag == "Info" {
+			flags := binary.BigEndian.Uint32(xingBuf[xingOffset+4 : xingOffset+8])
+			off := xingOffset + 8
+			if flags&0x01 != 0 && off+4 <= n { // Frames flag
+				vbrFrames = int(binary.BigEndian.Uint32(xingBuf[off : off+4]))
+				off += 4
+			}
+			if flags&0x02 != 0 && off+4 <= n { // Bytes flag
+				vbrBytes = int64(binary.BigEndian.Uint32(xingBuf[off : off+4]))
+			}
+			if vbrFrames > 0 {
+				isVBR = true
+			}
+		}
+	}
+
+	// Check for VBRI header (always at offset 32 from frame start + 4)
+	if !isVBR && 36+26 <= n {
+		if string(xingBuf[32:36]) == "VBRI" {
+			vbrBytes = int64(binary.BigEndian.Uint32(xingBuf[36+6 : 36+10]))
+			vbrFrames = int(binary.BigEndian.Uint32(xingBuf[36+10 : 36+14]))
+			if vbrFrames > 0 {
+				isVBR = true
+			}
+		}
+	}
+
+	if isVBR && vbrFrames > 0 && quality.SampleRate > 0 {
+		// Accurate duration from total frames
+		totalSamples := int64(vbrFrames) * int64(samplesPerFrame)
+		quality.Duration = int(totalSamples / int64(quality.SampleRate))
+
+		// Accurate average bitrate
+		if vbrBytes > 0 && quality.Duration > 0 {
+			quality.Bitrate = int(vbrBytes * 8 / int64(quality.Duration))
+		} else if quality.Duration > 0 {
+			audioSize := fileSize - audioStart
+			quality.Bitrate = int(audioSize * 8 / int64(quality.Duration))
+		}
+	} else if quality.Bitrate > 0 {
+		// CBR fallback: estimate duration from file size and frame bitrate
+		audioSize := fileSize - audioStart - 128 // subtract possible ID3v1 tag
+		if audioSize > 0 {
+			quality.Duration = int(audioSize * 8 / int64(quality.Bitrate))
+		}
 	}
 
 	return quality, nil
@@ -981,7 +1076,6 @@ func GetOggQuality(filePath string) (*OggQuality, error) {
 	defer file.Close()
 
 	quality := &OggQuality{}
-	isOpus := false
 
 	packets, err := collectOggPackets(file, 5, 10)
 	if err != nil && len(packets) == 0 {
@@ -997,15 +1091,17 @@ func GetOggQuality(filePath string) (*OggQuality, error) {
 		}
 	}
 
-	if streamType == oggStreamOpus {
-		isOpus = true
+	isOpus := streamType == oggStreamOpus
+	var preSkip int
+
+	if isOpus {
 		for _, pkt := range packets {
 			if len(pkt) >= 19 && string(pkt[0:8]) == "OpusHead" {
 				quality.SampleRate = int(binary.LittleEndian.Uint32(pkt[12:16]))
 				if quality.SampleRate == 0 {
 					quality.SampleRate = 48000
 				}
-				quality.BitDepth = 16
+				preSkip = int(binary.LittleEndian.Uint16(pkt[10:12]))
 				break
 			}
 		}
@@ -1013,24 +1109,74 @@ func GetOggQuality(filePath string) (*OggQuality, error) {
 		for _, pkt := range packets {
 			if len(pkt) > 29 && pkt[0] == 0x01 && string(pkt[1:7]) == "vorbis" {
 				quality.SampleRate = int(binary.LittleEndian.Uint32(pkt[12:16]))
-				quality.BitDepth = 16
 				break
 			}
 		}
 	}
 
+	// Read granule position from the last Ogg page for accurate duration
 	stat, err := file.Stat()
-	if err == nil {
-		// Very rough duration estimate based on file size
-		// Assume ~128kbps average for Opus, ~160kbps for Vorbis
-		avgBitrate := 128000
-		if !isOpus {
-			avgBitrate = 160000
+	if err != nil {
+		return quality, nil
+	}
+	fileSize := stat.Size()
+
+	granule := readLastOggGranulePosition(file, fileSize)
+	if granule > 0 {
+		if isOpus {
+			// Opus always uses 48kHz granule position internally
+			totalSamples := granule - int64(preSkip)
+			if totalSamples > 0 {
+				quality.Duration = int(totalSamples / 48000)
+			}
+		} else if quality.SampleRate > 0 {
+			quality.Duration = int(granule / int64(quality.SampleRate))
 		}
-		quality.Duration = int(stat.Size() * 8 / int64(avgBitrate))
+	}
+
+	// Calculate average bitrate from file size and actual duration
+	if quality.Duration > 0 {
+		quality.Bitrate = int(fileSize * 8 / int64(quality.Duration))
 	}
 
 	return quality, nil
+}
+
+// readLastOggGranulePosition seeks to the end of the file and scans backwards
+// to find the last Ogg page, then reads its granule position (bytes 6-13).
+func readLastOggGranulePosition(file *os.File, fileSize int64) int64 {
+	// Read the last chunk of the file to find the last OggS sync
+	searchSize := int64(65536)
+	if searchSize > fileSize {
+		searchSize = fileSize
+	}
+
+	buf := make([]byte, searchSize)
+	offset := fileSize - searchSize
+	if offset < 0 {
+		offset = 0
+	}
+	n, err := file.ReadAt(buf, offset)
+	if err != nil && n == 0 {
+		return 0
+	}
+	buf = buf[:n]
+
+	// Scan backwards for "OggS" magic
+	lastPageOffset := -1
+	for i := n - 4; i >= 0; i-- {
+		if buf[i] == 'O' && buf[i+1] == 'g' && buf[i+2] == 'g' && buf[i+3] == 'S' {
+			lastPageOffset = i
+			break
+		}
+	}
+
+	if lastPageOffset < 0 || lastPageOffset+14 > n {
+		return 0
+	}
+
+	// Granule position is at bytes 6-13 of the Ogg page header (little-endian int64)
+	return int64(binary.LittleEndian.Uint64(buf[lastPageOffset+6 : lastPageOffset+14]))
 }
 
 // =============================================================================

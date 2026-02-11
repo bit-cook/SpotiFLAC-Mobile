@@ -323,7 +323,10 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
       if (item.downloadTreeUri == null || item.downloadTreeUri!.isEmpty) {
         continue;
       }
-      if (item.filePath.isEmpty || !isContentUri(item.filePath)) {
+      final hasFilePath = item.filePath.trim().isNotEmpty;
+      final hasSafFileName =
+          item.safFileName != null && item.safFileName!.trim().isNotEmpty;
+      if (!hasFilePath && !hasSafFileName) {
         continue;
       }
       candidateIndexes.add(i);
@@ -344,52 +347,59 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
       for (var c = 0; c < candidateIndexes.length; c++) {
         final i = candidateIndexes[c];
         final item = items[i];
+        final rawPath = item.filePath.trim();
+        final isDirectSafUri = rawPath.isNotEmpty && isContentUri(rawPath);
 
-        final exists = await fileExists(item.filePath);
-        if (exists) {
-          final verified = item.copyWith(
-            safRepaired: true,
-            safFileName: item.safFileName ?? _fileNameFromUri(item.filePath),
-          );
-          updatedItems[i] = verified;
-          changed = true;
-          verifiedCount++;
-          await _db.upsert(verified.toJson());
-        } else {
-          final fallbackName =
-              item.safFileName ?? _fileNameFromUri(item.filePath);
-          if (fallbackName.isEmpty) {
-            _historyLog.w('Missing SAF filename for history item: ${item.id}');
+        if (isDirectSafUri) {
+          final exists = await fileExists(rawPath);
+          if (exists) {
+            final verified = item.copyWith(
+              safRepaired: true,
+              safFileName: item.safFileName ?? _fileNameFromUri(rawPath),
+            );
+            updatedItems[i] = verified;
+            changed = true;
+            verifiedCount++;
+            await _db.upsert(verified.toJson());
             continue;
           }
+        }
 
-          try {
-            final resolved = await PlatformBridge.resolveSafFile(
-              treeUri: item.downloadTreeUri!,
-              relativeDir: item.safRelativeDir ?? '',
-              fileName: fallbackName,
-            );
-            final newUri = resolved['uri'] as String? ?? '';
-            if (newUri.isEmpty) continue;
+        var fallbackName = (item.safFileName ?? '').trim();
+        if (fallbackName.isEmpty && isDirectSafUri) {
+          fallbackName = _fileNameFromUri(rawPath);
+        }
+        if (fallbackName.isEmpty) {
+          _historyLog.w('Missing SAF filename for history item: ${item.id}');
+          continue;
+        }
 
-            final newRelativeDir = resolved['relative_dir'] as String?;
-            final updated = item.copyWith(
-              filePath: newUri,
-              safRelativeDir:
-                  (newRelativeDir != null && newRelativeDir.isNotEmpty)
-                  ? newRelativeDir
-                  : item.safRelativeDir,
-              safFileName: fallbackName,
-              safRepaired: true,
-            );
+        try {
+          final resolved = await PlatformBridge.resolveSafFile(
+            treeUri: item.downloadTreeUri!,
+            relativeDir: item.safRelativeDir ?? '',
+            fileName: fallbackName,
+          );
+          final newUri = (resolved['uri'] as String? ?? '').trim();
+          if (newUri.isEmpty) continue;
 
-            updatedItems[i] = updated;
-            changed = true;
-            repairedCount++;
-            await _db.upsert(updated.toJson());
-          } catch (e) {
-            _historyLog.w('Failed to repair SAF URI: $e');
-          }
+          final newRelativeDir = resolved['relative_dir'] as String?;
+          final updated = item.copyWith(
+            filePath: newUri,
+            safRelativeDir:
+                (newRelativeDir != null && newRelativeDir.isNotEmpty)
+                ? newRelativeDir
+                : item.safRelativeDir,
+            safFileName: fallbackName,
+            safRepaired: true,
+          );
+
+          updatedItems[i] = updated;
+          changed = true;
+          repairedCount++;
+          await _db.upsert(updated.toJson());
+        } catch (e) {
+          _historyLog.w('Failed to repair SAF URI: $e');
         }
 
         if ((c + 1) % _safRepairBatchSize == 0) {
@@ -421,19 +431,33 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
       existing = state.getByIsrc(item.isrc!);
     }
 
+    final mergedItem = existing == null
+        ? item
+        : item.copyWith(
+            genre:
+                _normalizeOptionalString(item.genre) ??
+                _normalizeOptionalString(existing.genre),
+            label:
+                _normalizeOptionalString(item.label) ??
+                _normalizeOptionalString(existing.label),
+            copyright:
+                _normalizeOptionalString(item.copyright) ??
+                _normalizeOptionalString(existing.copyright),
+          );
+
     if (existing != null) {
       final updatedItems = state.items
           .where((i) => i.id != existing!.id)
           .toList();
-      updatedItems.insert(0, item);
+      updatedItems.insert(0, mergedItem);
       state = state.copyWith(items: updatedItems);
-      _historyLog.d('Updated existing history entry: ${item.trackName}');
+      _historyLog.d('Updated existing history entry: ${mergedItem.trackName}');
     } else {
-      state = state.copyWith(items: [item, ...state.items]);
-      _historyLog.d('Added new history entry: ${item.trackName}');
+      state = state.copyWith(items: [mergedItem, ...state.items]);
+      _historyLog.d('Added new history entry: ${mergedItem.trackName}');
     }
 
-    _db.upsert(item.toJson()).catchError((e) {
+    _db.upsert(mergedItem.toJson()).catchError((e) {
       _historyLog.e('Failed to save to database: $e');
     });
   }
@@ -2768,6 +2792,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
       String? genre;
       String? label;
+      String? copyright;
 
       String? deezerTrackId = trackToDownload.deezerId;
       if (deezerTrackId == null && trackToDownload.id.startsWith('deezer:')) {
@@ -2889,8 +2914,11 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           if (extendedMetadata != null) {
             genre = extendedMetadata['genre'];
             label = extendedMetadata['label'];
+            copyright = extendedMetadata['copyright'];
             if (genre != null && genre.isNotEmpty) {
-              _log.d('Extended metadata - Genre: $genre, Label: $label');
+              _log.d(
+                'Extended metadata - Genre: $genre, Label: $label, Copyright: $copyright',
+              );
             }
           }
         } catch (e) {
@@ -2960,6 +2988,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           source: trackToDownload.source ?? '',
           genre: genre ?? '',
           label: label ?? '',
+          copyright: copyright ?? '',
           deezerId: deezerTrackId ?? '',
           lyricsMode: settings.lyricsMode,
           storageMode: storageMode,
@@ -3748,6 +3777,47 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           return;
         }
 
+        // SAF downloads should end with content URI. If we still have a
+        // transient FD path, recover URI from SAF metadata to keep history
+        // dedup/exclusion stable.
+        if (effectiveSafMode &&
+            filePath != null &&
+            filePath.isNotEmpty &&
+            !isContentUri(filePath) &&
+            settings.downloadTreeUri.isNotEmpty) {
+          final fallbackName = (finalSafFileName ?? safFileName ?? '').trim();
+          if (fallbackName.isNotEmpty) {
+            try {
+              final resolved = await PlatformBridge.resolveSafFile(
+                treeUri: settings.downloadTreeUri,
+                relativeDir: effectiveOutputDir,
+                fileName: fallbackName,
+              );
+              final resolvedUri = (resolved['uri'] as String? ?? '').trim();
+              final resolvedRelativeDir =
+                  (resolved['relative_dir'] as String? ?? '').trim();
+              if (resolvedUri.isNotEmpty && isContentUri(resolvedUri)) {
+                _log.w('Recovered SAF URI from transient path: $filePath');
+                filePath = resolvedUri;
+                finalSafFileName = fallbackName;
+                if (resolvedRelativeDir.isNotEmpty) {
+                  effectiveOutputDir = resolvedRelativeDir;
+                }
+              } else {
+                _log.w(
+                  'Failed to recover SAF URI (fileName=$fallbackName, dir=$effectiveOutputDir)',
+                );
+              }
+            } catch (e) {
+              _log.w('SAF URI recovery failed: $e');
+            }
+          } else {
+            _log.w(
+              'SAF download returned non-URI path without filename metadata: $filePath',
+            );
+          }
+        }
+
         updateItemStatus(
           item.id,
           DownloadStatus.completed,
@@ -3840,6 +3910,18 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           final backendGenre = result['genre'] as String?;
           final backendLabel = result['label'] as String?;
           final backendCopyright = result['copyright'] as String?;
+          final effectiveGenre =
+              _normalizeOptionalString(backendGenre) ??
+              _normalizeOptionalString(genre) ??
+              _normalizeOptionalString(existingInHistory?.genre);
+          final effectiveLabel =
+              _normalizeOptionalString(backendLabel) ??
+              _normalizeOptionalString(label) ??
+              _normalizeOptionalString(existingInHistory?.label);
+          final effectiveCopyright =
+              _normalizeOptionalString(backendCopyright) ??
+              _normalizeOptionalString(copyright) ??
+              _normalizeOptionalString(existingInHistory?.copyright);
 
           _log.d('Saving to history - coverUrl: ${trackToDownload.coverUrl}');
 
@@ -3899,9 +3981,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                   quality: actualQuality,
                   bitDepth: historyBitDepth,
                   sampleRate: historySampleRate,
-                  genre: backendGenre,
-                  label: backendLabel,
-                  copyright: backendCopyright,
+                  genre: effectiveGenre,
+                  label: effectiveLabel,
+                  copyright: effectiveCopyright,
                 ),
               );
 

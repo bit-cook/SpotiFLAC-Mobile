@@ -103,8 +103,6 @@ class PlatformBridge {
     return response;
   }
 
-
-
   static Future<Map<String, dynamic>> getDownloadProgress() async {
     final result = await _channel.invokeMethod('getDownloadProgress');
     return jsonDecode(result as String) as Map<String, dynamic>;
@@ -509,6 +507,7 @@ class PlatformBridge {
       return {
         'genre': data['genre'] as String? ?? '',
         'label': data['label'] as String? ?? '',
+        'copyright': data['copyright'] as String? ?? '',
       };
     } catch (e) {
       _log.w('Failed to get Deezer extended metadata for $trackId: $e');
@@ -718,8 +717,6 @@ class PlatformBridge {
     final list = jsonDecode(result as String) as List<dynamic>;
     return list.map((e) => e as Map<String, dynamic>).toList();
   }
-
-
 
   static Future<void> cleanupExtensions() async {
     _log.d('cleanupExtensions');
@@ -1130,5 +1127,4 @@ class PlatformBridge {
   }
 
   // ==================== YOUTUBE / COBALT ====================
-
 }

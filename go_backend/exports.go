@@ -213,6 +213,9 @@ type DownloadResult struct {
 	TrackNumber   int
 	DiscNumber    int
 	ISRC          string
+	Genre         string
+	Label         string
+	Copyright     string
 	LyricsLRC     string
 	DecryptionKey string
 }
@@ -260,6 +263,21 @@ func buildDownloadSuccessResponse(
 		isrc = req.ISRC
 	}
 
+	genre := result.Genre
+	if genre == "" {
+		genre = req.Genre
+	}
+
+	label := result.Label
+	if label == "" {
+		label = req.Label
+	}
+
+	copyright := result.Copyright
+	if copyright == "" {
+		copyright = req.Copyright
+	}
+
 	return DownloadResponse{
 		Success:          true,
 		Message:          message,
@@ -277,11 +295,82 @@ func buildDownloadSuccessResponse(
 		DiscNumber:       discNumber,
 		ISRC:             isrc,
 		CoverURL:         req.CoverURL,
-		Genre:            req.Genre,
-		Label:            req.Label,
-		Copyright:        req.Copyright,
+		Genre:            genre,
+		Label:            label,
+		Copyright:        copyright,
 		LyricsLRC:        result.LyricsLRC,
 		DecryptionKey:    result.DecryptionKey,
+	}
+}
+
+func shouldSkipQualityProbe(filePath string) bool {
+	path := strings.TrimSpace(filePath)
+	if path == "" {
+		return true
+	}
+	if strings.HasPrefix(path, "/proc/self/fd/") {
+		return true
+	}
+	// Content URI and other non-filesystem schemes cannot be read directly by os.Open.
+	if strings.Contains(path, "://") {
+		return true
+	}
+	return false
+}
+
+func enrichResultQualityFromFile(result *DownloadResult) {
+	if result == nil {
+		return
+	}
+
+	path := strings.TrimSpace(result.FilePath)
+	if shouldSkipQualityProbe(path) {
+		if strings.HasPrefix(path, "/proc/self/fd/") {
+			LogDebug("Download", "Skipping quality probe for ephemeral SAF FD output: %s", path)
+		}
+		return
+	}
+
+	quality, qErr := GetAudioQuality(path)
+	if qErr == nil {
+		result.BitDepth = quality.BitDepth
+		result.SampleRate = quality.SampleRate
+		GoLog("[Download] Actual quality from file: %d-bit/%dHz\n", quality.BitDepth, quality.SampleRate)
+		return
+	}
+
+	LogDebug("Download", "Post-download quality probe unavailable for %s: %v", path, qErr)
+}
+
+func enrichRequestExtendedMetadata(req *DownloadRequest) {
+	if req == nil {
+		return
+	}
+
+	if req.ISRC == "" || (req.Genre != "" && req.Label != "") {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	deezerClient := GetDeezerClient()
+	extMeta, err := deezerClient.GetExtendedMetadataByISRC(ctx, req.ISRC)
+	if err != nil || extMeta == nil {
+		if err != nil {
+			GoLog("[DownloadWithFallback] Failed to get extended metadata from Deezer: %v\n", err)
+		}
+		return
+	}
+
+	if req.Genre == "" && extMeta.Genre != "" {
+		req.Genre = extMeta.Genre
+	}
+	if req.Label == "" && extMeta.Label != "" {
+		req.Label = extMeta.Label
+	}
+	if req.Genre != "" || req.Label != "" {
+		GoLog("[DownloadWithFallback] Extended metadata ready: genre=%s, label=%s\n", req.Genre, req.Label)
 	}
 }
 
@@ -302,6 +391,8 @@ func DownloadTrack(requestJSON string) (string, error) {
 	if req.OutputPath == "" && req.OutputFD <= 0 && req.OutputDir != "" {
 		AddAllowedDownloadDir(req.OutputDir)
 	}
+
+	enrichRequestExtendedMetadata(&req)
 
 	var result DownloadResult
 	var err error
@@ -390,11 +481,8 @@ func DownloadTrack(requestJSON string) (string, error) {
 
 	if len(result.FilePath) > 7 && result.FilePath[:7] == "EXISTS:" {
 		actualPath := result.FilePath[7:]
-		quality, qErr := GetAudioQuality(actualPath)
-		if qErr == nil {
-			result.BitDepth = quality.BitDepth
-			result.SampleRate = quality.SampleRate
-		}
+		result.FilePath = actualPath
+		enrichResultQualityFromFile(&result)
 		resp := buildDownloadSuccessResponse(
 			req,
 			result,
@@ -407,14 +495,7 @@ func DownloadTrack(requestJSON string) (string, error) {
 		return string(jsonBytes), nil
 	}
 
-	quality, qErr := GetAudioQuality(result.FilePath)
-	if qErr == nil {
-		result.BitDepth = quality.BitDepth
-		result.SampleRate = quality.SampleRate
-		GoLog("[Download] Actual quality from file: %d-bit/%dHz\n", quality.BitDepth, quality.SampleRate)
-	} else {
-		GoLog("[Download] Could not read quality from file: %v\n", qErr)
-	}
+	enrichResultQualityFromFile(&result)
 
 	resp := buildDownloadSuccessResponse(
 		req,
@@ -487,6 +568,8 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 	if req.OutputPath == "" && req.OutputFD <= 0 && req.OutputDir != "" {
 		AddAllowedDownloadDir(req.OutputDir)
 	}
+
+	enrichRequestExtendedMetadata(&req)
 
 	allServices := []string{"tidal", "qobuz", "amazon"}
 	preferredService := req.Service
@@ -585,11 +668,8 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 		if err == nil {
 			if len(result.FilePath) > 7 && result.FilePath[:7] == "EXISTS:" {
 				actualPath := result.FilePath[7:]
-				quality, qErr := GetAudioQuality(actualPath)
-				if qErr == nil {
-					result.BitDepth = quality.BitDepth
-					result.SampleRate = quality.SampleRate
-				}
+				result.FilePath = actualPath
+				enrichResultQualityFromFile(&result)
 				resp := buildDownloadSuccessResponse(
 					req,
 					result,
@@ -602,14 +682,7 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 				return string(jsonBytes), nil
 			}
 
-			quality, qErr := GetAudioQuality(result.FilePath)
-			if qErr == nil {
-				result.BitDepth = quality.BitDepth
-				result.SampleRate = quality.SampleRate
-				GoLog("[Download] Actual quality from file: %d-bit/%dHz\n", quality.BitDepth, quality.SampleRate)
-			} else {
-				GoLog("[Download] Could not read quality from file: %v\n", qErr)
-			}
+			enrichResultQualityFromFile(&result)
 
 			resp := buildDownloadSuccessResponse(
 				req,

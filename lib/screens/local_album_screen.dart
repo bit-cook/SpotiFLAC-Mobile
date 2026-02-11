@@ -560,7 +560,21 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
   String? _computeCommonQuality(List<LocalLibraryItem> tracks) {
     if (tracks.isEmpty) return null;
     final first = tracks.first;
-    if (first.bitDepth == null || first.sampleRate == null) return null;
+
+    // For lossy formats, use bitrate
+    if (first.bitrate != null && first.bitrate! > 0) {
+      final fmt = first.format?.toUpperCase() ?? '';
+      final firstBitrate = first.bitrate;
+      for (final track in tracks) {
+        if (track.bitrate != firstBitrate) {
+          return null;
+        }
+      }
+      return '$fmt ${firstBitrate}kbps'.trim();
+    }
+
+    // For lossless formats, use bit depth / sample rate
+    if (first.bitDepth == null || first.bitDepth == 0 || first.sampleRate == null) return null;
 
     final firstQuality =
         '${first.bitDepth}/${(first.sampleRate! / 1000).round()}kHz';

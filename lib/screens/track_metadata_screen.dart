@@ -416,6 +416,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
       _isLocalItem ? _localLibraryItem!.bitDepth : _downloadItem!.bitDepth;
   int? get sampleRate =>
       _isLocalItem ? _localLibraryItem!.sampleRate : _downloadItem!.sampleRate;
+  int? get _localBitrate => _isLocalItem ? _localLibraryItem!.bitrate : null;
 
   String get _filePath =>
       _isLocalItem ? _localLibraryItem!.filePath : _downloadItem!.filePath;
@@ -424,8 +425,17 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
       _isLocalItem ? _localLibraryItem!.coverPath : null;
   String? get _spotifyId => _isLocalItem ? null : _downloadItem!.spotifyId;
   String get _service => _isLocalItem ? 'local' : _downloadItem!.service;
-  DateTime get _addedAt =>
-      _isLocalItem ? _localLibraryItem!.scannedAt : _downloadItem!.downloadedAt;
+  DateTime get _addedAt {
+    if (_isLocalItem) {
+      // Use file modification time if available, otherwise fall back to scannedAt
+      final modTime = _localLibraryItem!.fileModTime;
+      if (modTime != null && modTime > 0) {
+        return DateTime.fromMillisecondsSinceEpoch(modTime);
+      }
+      return _localLibraryItem!.scannedAt;
+    }
+    return _downloadItem!.downloadedAt;
+  }
   String? get _quality => _isLocalItem ? null : _downloadItem!.quality;
 
   String get cleanFilePath {
@@ -921,8 +931,12 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
     // Use stored quality from download history if available
     if (_quality != null && _quality!.isNotEmpty) {
       audioQualityStr = _quality;
-    } else if (bitDepth != null && sampleRate != null) {
-      // Fallback for FLAC files without stored quality
+    } else if (_isLocalItem && _localBitrate != null && _localBitrate! > 0) {
+      // Lossy local file with bitrate info
+      final fmt = _localLibraryItem!.format?.toUpperCase() ?? fileExt;
+      audioQualityStr = '$fmt ${_localBitrate}kbps';
+    } else if (bitDepth != null && bitDepth! > 0 && sampleRate != null) {
+      // Lossless file with actual bit depth (FLAC, ALAC)
       final sampleRateKHz = (sampleRate! / 1000).toStringAsFixed(1);
       audioQualityStr = '$bitDepth-bit/${sampleRateKHz}kHz';
     } else {
@@ -1128,7 +1142,31 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
                       ),
                     ),
                   )
-                else if (bitDepth != null && sampleRate != null)
+                else if (_isLocalItem &&
+                    _localBitrate != null &&
+                    _localBitrate! > 0 &&
+                    (fileExtension == 'MP3' ||
+                        fileExtension == 'OPUS' ||
+                        fileExtension == 'OGG'))
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.tertiaryContainer,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_localBitrate}kbps',
+                      style: TextStyle(
+                        color: colorScheme.onTertiaryContainer,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  )
+                else if (bitDepth != null && bitDepth! > 0 && sampleRate != null)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
