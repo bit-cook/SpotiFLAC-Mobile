@@ -2,6 +2,12 @@
 
 ## [3.6.6] - 2026-02-12
 
+### Added
+
+- "Filter Contributing Artists in Album Artist" setting - strips featured/contributing artists from Album Artist metadata tag
+- Library scan notifications (Android) - shows progress, completion, failure, and cancellation status
+- Collapsible "Artist Name Filters" section in download settings UI
+
 ### Fixed
 
 - Fixed downloads not working on iOS - missing `downloadByStrategy` and `downloadFromYouTube` method channel handlers in AppDelegate.swift
@@ -11,7 +17,11 @@
 - Fixed MP3 duration/bitrate inaccuracy for VBR files - added Xing/Info and VBRI header parsing with MPEG2/2.5 bitrate table support
 - Fixed Track Metadata screen showing scan date instead of file date for local library items
 - Fixed SAF content URI paths displayed as raw `content://` strings in Track Metadata - now shows human-readable paths
-- Added legacy download method fallback in PlatformBridge for platforms that haven't implemented `downloadByStrategy` yet
+
+### Changed
+
+- Removed legacy iOS download handlers (`downloadTrack`, `downloadWithFallback`, `downloadFromYouTube`) - iOS now uses `downloadByStrategy` only
+- Updated translations from Crowdin (all 14 languages)
 
 ---
 
