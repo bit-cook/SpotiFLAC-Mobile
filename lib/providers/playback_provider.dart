@@ -1727,6 +1727,16 @@ class PlaybackController extends Notifier<PlaybackState> {
     state = state.copyWith(lyricsLoading: true, clearLyrics: true);
 
     try {
+      final localLyrics = await _tryLoadLocalLyricsForItem(item);
+      if (generation != _lyricsGeneration) return;
+      if (localLyrics != null) {
+        _log.d(
+          'Lyrics loaded from local source: ${localLyrics.source} (sync=${localLyrics.syncType}, lines=${localLyrics.lines.length}, wordSync=${localLyrics.isWordSynced})',
+        );
+        state = state.copyWith(lyricsLoading: false, lyrics: localLyrics);
+        return;
+      }
+
       final result = await PlatformBridge.fetchLyrics(
         item.id,
         item.title,
@@ -1808,6 +1818,75 @@ class PlaybackController extends Notifier<PlaybackState> {
     await _fetchLyricsForItem(item);
   }
 
+  Future<LyricsData?> _tryLoadLocalLyricsForItem(PlaybackItem item) async {
+    final localPath = _resolveLocalLyricsLookupPath(item);
+    if (localPath == null) return null;
+
+    try {
+      final result = await PlatformBridge.getLyricsLRCWithSource(
+        item.id,
+        item.title,
+        item.artist,
+        filePath: localPath,
+        durationMs: item.durationMs,
+      );
+      return _lyricsDataFromLrcLookupResult(result);
+    } catch (e) {
+      _log.d('Local lyrics lookup skipped for ${item.id}: $e');
+      return null;
+    }
+  }
+
+  String? _resolveLocalLyricsLookupPath(PlaybackItem item) {
+    if (!item.isLocal) return null;
+    final sourceUri = item.sourceUri.trim();
+    if (sourceUri.isEmpty) return null;
+    if (sourceUri.startsWith('content://')) return sourceUri;
+    if (sourceUri.startsWith('/')) return sourceUri;
+
+    final uri = Uri.tryParse(sourceUri);
+    if (uri == null) return null;
+    if (uri.scheme == 'content') return sourceUri;
+    if (uri.scheme == 'file') {
+      try {
+        return uri.toFilePath();
+      } catch (_) {
+        return uri.path.isNotEmpty ? uri.path : null;
+      }
+    }
+    return null;
+  }
+
+  LyricsData? _lyricsDataFromLrcLookupResult(Map<String, dynamic> result) {
+    final rawLyrics = (result['lyrics'] as String?)?.trim() ?? '';
+    final sourceRaw = (result['source'] as String?)?.trim() ?? '';
+    final syncTypeRaw = (result['sync_type'] as String?)?.trim().toUpperCase();
+    final instrumental =
+        result['instrumental'] == true || rawLyrics == '[instrumental:true]';
+    final source = sourceRaw.isNotEmpty ? sourceRaw : 'Embedded';
+
+    if (instrumental) {
+      final syncType = syncTypeRaw == 'LINE_SYNCED' || syncTypeRaw == 'UNSYNCED'
+          ? syncTypeRaw!
+          : 'UNSYNCED';
+      return LyricsData(instrumental: true, source: source, syncType: syncType);
+    }
+    if (rawLyrics.isEmpty) return null;
+
+    final parsed = _parseLrcLyrics(rawLyrics);
+    if (parsed.lines.isEmpty) return null;
+    final effectiveSyncType = parsed.hasTimedLines ? 'LINE_SYNCED' : 'UNSYNCED';
+    final syncType = syncTypeRaw == 'LINE_SYNCED' || syncTypeRaw == 'UNSYNCED'
+        ? syncTypeRaw!
+        : effectiveSyncType;
+    return LyricsData(
+      lines: parsed.lines,
+      syncType: syncType,
+      source: source,
+      isWordSynced: parsed.hasWordSync,
+    );
+  }
+
   /// Parse raw lines from Go backend into [LyricsLine] list.
   static ({List<LyricsLine> lines, bool hasWordSync}) _parseLyricsLines(
     List<dynamic> rawLines,
@@ -1855,6 +1934,96 @@ class PlaybackController extends Notifier<PlaybackState> {
     }
 
     return (lines: lines, hasWordSync: hasAnyWordSync);
+  }
+
+  static final RegExp _lrcLineTimestampPattern = RegExp(
+    r'\[(\d{2}):(\d{2})\.(\d{2,3})\]',
+  );
+  static final RegExp _lrcMetadataPattern = RegExp(r'^\[[a-zA-Z]+:.*\]$');
+  static final RegExp _lrcSpeakerPrefixPattern = RegExp(
+    r'^(v1|v2):\s*',
+    caseSensitive: false,
+  );
+
+  static ({List<LyricsLine> lines, bool hasWordSync, bool hasTimedLines})
+  _parseLrcLyrics(String lrcText) {
+    final timed = <LyricsLine>[];
+    final unsyncedTexts = <String>[];
+    var hasAnyWordSync = false;
+
+    for (final rawLine in lrcText.split('\n')) {
+      final trimmed = rawLine.trim();
+      if (trimmed.isEmpty || trimmed == '[instrumental:true]') continue;
+
+      final timestamps = _lrcLineTimestampPattern.allMatches(trimmed).toList();
+      if (timestamps.isEmpty) {
+        if (_lrcMetadataPattern.hasMatch(trimmed)) continue;
+        final unsynced = _stripInlineTimestamps(
+          trimmed.replaceFirst(_lrcSpeakerPrefixPattern, ''),
+        );
+        if (unsynced.isNotEmpty) {
+          unsyncedTexts.add(unsynced);
+        }
+        continue;
+      }
+
+      final timedText = trimmed
+          .replaceAll(_lrcLineTimestampPattern, '')
+          .replaceFirst(_lrcSpeakerPrefixPattern, '')
+          .trim();
+      final displayText = _stripInlineTimestamps(timedText);
+      if (displayText.isEmpty) continue;
+
+      for (final match in timestamps) {
+        final startMs = _lrcInlineToMs(
+          match.group(1)!,
+          match.group(2)!,
+          match.group(3)!,
+        );
+        final words = _parseInlineWordTimestamps(timedText, startMs);
+        if (words.isNotEmpty) hasAnyWordSync = true;
+        timed.add(
+          LyricsLine(
+            startMs: startMs,
+            endMs: startMs + 5000,
+            text: displayText,
+            words: words,
+          ),
+        );
+      }
+    }
+
+    if (timed.isNotEmpty) {
+      timed.sort((a, b) => a.startMs.compareTo(b.startMs));
+      final normalized = <LyricsLine>[];
+      for (var i = 0; i < timed.length; i++) {
+        final current = timed[i];
+        final nextStart = i + 1 < timed.length
+            ? timed[i + 1].startMs
+            : current.startMs + 5000;
+        final endMs = nextStart > current.startMs
+            ? nextStart
+            : current.startMs + 5000;
+        normalized.add(
+          LyricsLine(
+            startMs: current.startMs,
+            endMs: endMs,
+            text: current.text,
+            words: current.words,
+          ),
+        );
+      }
+      return (
+        lines: normalized,
+        hasWordSync: hasAnyWordSync,
+        hasTimedLines: true,
+      );
+    }
+
+    final unsynced = unsyncedTexts
+        .map((text) => LyricsLine(startMs: 0, endMs: 0, text: text))
+        .toList(growable: false);
+    return (lines: unsynced, hasWordSync: false, hasTimedLines: false);
   }
 
   /// Parse inline `<mm:ss.cs>` timestamps in enhanced LRC word-by-word format.
