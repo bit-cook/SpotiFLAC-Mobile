@@ -20,6 +20,22 @@ final _iosLegacyRelativeDocumentsPattern = RegExp(
   r'^Data/Application/[A-F0-9\-]+/Documents(?:/(.*))?$',
   caseSensitive: false,
 );
+final _iosNestedLegacyDocumentsPattern = RegExp(
+  r'/Documents/Data/Application/[A-F0-9\-]+/Documents(?:/(.*))?$',
+  caseSensitive: false,
+);
+
+String _normalizeRecoveredIosSuffix(String suffix) {
+  final trimmed = suffix.trim();
+  if (trimmed.isEmpty) return '';
+  return trimmed.startsWith('/') ? trimmed.substring(1) : trimmed;
+}
+
+String _joinRecoveredIosPath(String documentsPath, String suffix) {
+  final normalizedSuffix = _normalizeRecoveredIosSuffix(suffix);
+  if (normalizedSuffix.isEmpty) return documentsPath;
+  return '$documentsPath/$normalizedSuffix';
+}
 
 /// Checks if a path is a valid writable directory on iOS.
 /// Returns false if:
@@ -40,6 +56,12 @@ bool isValidIosWritablePath(String path) {
   if (path.contains('Mobile Documents') ||
       path.contains('CloudDocs') ||
       path.contains('com~apple~CloudDocs')) {
+    return false;
+  }
+
+  // Reject stale paths where an old sandbox container path has been embedded
+  // inside the current Documents directory.
+  if (_iosNestedLegacyDocumentsPattern.hasMatch(path)) {
     return false;
   }
 
@@ -70,11 +92,19 @@ Future<String> validateOrFixIosPath(
   if (!Platform.isIOS) return path;
 
   final trimmed = path.trim();
+  final docDir = await getApplicationDocumentsDirectory();
+
+  final nestedLegacyMatch = _iosNestedLegacyDocumentsPattern.firstMatch(
+    trimmed,
+  );
+  if (nestedLegacyMatch != null) {
+    return _joinRecoveredIosPath(docDir.path, nestedLegacyMatch.group(1) ?? '');
+  }
+
   if (isValidIosWritablePath(trimmed)) {
     return trimmed;
   }
 
-  final docDir = await getApplicationDocumentsDirectory();
   final candidates = <String>[];
 
   if (trimmed.isNotEmpty) {
@@ -92,14 +122,8 @@ Future<String> validateOrFixIosPath(
     trimmed,
   );
   if (legacyRelativeMatch != null) {
-    final suffix = (legacyRelativeMatch.group(1) ?? '').trim();
-    final normalizedSuffix = suffix.startsWith('/')
-        ? suffix.substring(1)
-        : suffix;
     candidates.add(
-      normalizedSuffix.isEmpty
-          ? docDir.path
-          : '${docDir.path}/$normalizedSuffix',
+      _joinRecoveredIosPath(docDir.path, legacyRelativeMatch.group(1) ?? ''),
     );
   }
 
@@ -109,7 +133,7 @@ Future<String> validateOrFixIosPath(
     final index = trimmed.indexOf(documentsMarker);
     if (index >= 0) {
       final suffix = trimmed.substring(index + documentsMarker.length).trim();
-      candidates.add(suffix.isEmpty ? docDir.path : '${docDir.path}/$suffix');
+      candidates.add(_joinRecoveredIosPath(docDir.path, suffix));
     }
   }
 
@@ -178,6 +202,14 @@ IosPathValidationResult validateIosPath(String path) {
       isValid: false,
       errorReason:
           'iCloud Drive is not supported. Please choose a local folder.',
+    );
+  }
+
+  if (_iosNestedLegacyDocumentsPattern.hasMatch(path)) {
+    return const IosPathValidationResult(
+      isValid: false,
+      errorReason:
+          'Invalid iOS app folder path. Please choose App Documents or another local folder.',
     );
   }
 
