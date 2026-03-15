@@ -1378,8 +1378,11 @@ class FFmpegService {
   }
 
   /// Convert any audio format to FLAC.
-  /// Metadata (Vorbis comments) and cover art (METADATA_BLOCK_PICTURE) are
-  /// embedded in a single FFmpeg pass.
+  /// Source metadata is preserved via -map_metadata 0 (FFmpeg auto-remaps
+  /// tag names between container formats), then explicit Vorbis comment
+  /// overrides are applied from the [metadata] map.
+  /// Cover art is embedded via a second input stream (same approach as
+  /// [embedMetadata] and [_convertToAlac]).
   static Future<String?> _convertToFlac({
     required String inputPath,
     required Map<String, String> metadata,
@@ -1390,35 +1393,32 @@ class FFmpegService {
 
     final cmdBuffer = StringBuffer();
     cmdBuffer.write('-i "$inputPath" ');
-    cmdBuffer.write('-map 0:a ');
-    cmdBuffer.write('-c:a flac -compression_level 8 ');
-    cmdBuffer.write('-map_metadata -1 ');
 
-    // Embed Vorbis comments
-    for (final entry in metadata.entries) {
-      if (entry.value.trim().isEmpty) continue;
-      final sanitized = entry.value.replaceAll('"', '\\"');
-      cmdBuffer.write('-metadata ${entry.key}="$sanitized" ');
+    // Cover art as second input for attached picture
+    final hasCover = coverPath != null &&
+        coverPath.trim().isNotEmpty &&
+        await File(coverPath).exists();
+    if (hasCover) {
+      cmdBuffer.write('-i "$coverPath" ');
     }
 
-    // Embed cover art via METADATA_BLOCK_PICTURE (same approach as Opus)
-    if (coverPath != null && coverPath.trim().isNotEmpty) {
-      try {
-        if (await File(coverPath).exists()) {
-          final pictureBlock = await _createMetadataBlockPicture(coverPath);
-          if (pictureBlock != null) {
-            final escapedBlock = pictureBlock.replaceAll('"', '\\"');
-            cmdBuffer.write(
-              '-metadata METADATA_BLOCK_PICTURE="$escapedBlock" ',
-            );
-            _log.d(
-              'Created METADATA_BLOCK_PICTURE for FLAC (${pictureBlock.length} chars)',
-            );
-          }
-        }
-      } catch (e) {
-        _log.e('Error creating METADATA_BLOCK_PICTURE for FLAC: $e');
-      }
+    cmdBuffer.write('-map 0:a ');
+    if (hasCover) {
+      cmdBuffer.write('-map 1:v -c:v copy -disposition:v:0 attached_pic ');
+      cmdBuffer.write('-metadata:s:v title="Album cover" ');
+      cmdBuffer.write('-metadata:s:v comment="Cover (front)" ');
+    }
+    cmdBuffer.write('-c:a flac -compression_level 8 ');
+
+    // Copy source metadata as base (FFmpeg auto-remaps M4A/ID3 tags to
+    // Vorbis comment names), then override with our explicit values.
+    cmdBuffer.write('-map_metadata 0 ');
+
+    // Apply normalized Vorbis comment overrides
+    final vorbisComments = _normalizeToVorbisComments(metadata);
+    for (final entry in vorbisComments.entries) {
+      final sanitized = entry.value.replaceAll('"', '\\"');
+      cmdBuffer.write('-metadata ${entry.key}="$sanitized" ');
     }
 
     cmdBuffer.write('"$outputPath" -y');
@@ -1445,6 +1445,79 @@ class FFmpegService {
     }
 
     return outputPath;
+  }
+
+  /// Normalize metadata keys to standard Vorbis comment names and filter out
+  /// technical/non-tag fields (bit_depth, sample_rate, duration, etc.).
+  static Map<String, String> _normalizeToVorbisComments(
+    Map<String, String> metadata,
+  ) {
+    final vorbis = <String, String>{};
+
+    for (final entry in metadata.entries) {
+      final key = entry.key.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+      final value = entry.value;
+      if (value.trim().isEmpty) continue;
+
+      switch (key) {
+        case 'TITLE':
+          vorbis['TITLE'] = value;
+          break;
+        case 'ARTIST':
+          vorbis['ARTIST'] = value;
+          break;
+        case 'ALBUM':
+          vorbis['ALBUM'] = value;
+          break;
+        case 'ALBUMARTIST':
+          vorbis['ALBUMARTIST'] = value;
+          break;
+        case 'TRACKNUMBER':
+        case 'TRACKNBR':
+        case 'TRACK':
+        case 'TRCK':
+          if (value != '0') vorbis['TRACKNUMBER'] = value;
+          break;
+        case 'DISCNUMBER':
+        case 'DISC':
+        case 'TPOS':
+          if (value != '0') vorbis['DISCNUMBER'] = value;
+          break;
+        case 'DATE':
+        case 'YEAR':
+          vorbis['DATE'] = value;
+          break;
+        case 'GENRE':
+          vorbis['GENRE'] = value;
+          break;
+        case 'ISRC':
+          vorbis['ISRC'] = value;
+          break;
+        case 'LABEL':
+        case 'ORGANIZATION':
+          vorbis['ORGANIZATION'] = value;
+          break;
+        case 'COPYRIGHT':
+          vorbis['COPYRIGHT'] = value;
+          break;
+        case 'COMPOSER':
+          vorbis['COMPOSER'] = value;
+          break;
+        case 'COMMENT':
+          vorbis['COMMENT'] = value;
+          break;
+        case 'LYRICS':
+        case 'UNSYNCEDLYRICS':
+          // Write both keys for compatibility with different FLAC readers
+          vorbis['LYRICS'] = value;
+          vorbis['UNSYNCEDLYRICS'] = value;
+          break;
+        // Technical fields (BIT_DEPTH, SAMPLE_RATE, DURATION, etc.) are
+        // intentionally dropped — they are not Vorbis comment tags.
+      }
+    }
+
+    return vorbis;
   }
 
   /// Map Vorbis comment keys to M4A/MP4 metadata tag names for FFmpeg.
