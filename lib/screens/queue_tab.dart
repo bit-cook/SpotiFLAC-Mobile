@@ -4757,6 +4757,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   ) async {
     String selectedFormat = 'MP3';
     String selectedBitrate = '320k';
+    bool isLosslessTarget = false;
     var didStartConversion = false;
 
     _hideSelectionOverlay();
@@ -4772,7 +4773,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             final colorScheme = Theme.of(context).colorScheme;
-            final formats = ['MP3', 'Opus'];
+            final formats = ['ALAC', 'FLAC', 'MP3', 'Opus'];
             final bitrates = ['128k', '192k', '256k', '320k'];
 
             return SafeArea(
@@ -4809,51 +4810,75 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: formats.map((format) {
-                        final isSelected = format == selectedFormat;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Text(format),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              if (selected) {
-                                setSheetState(() {
-                                  selectedFormat = format;
-                                  selectedBitrate = format == 'Opus'
-                                      ? '128k'
-                                      : '320k';
-                                });
-                              }
-                            },
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      context.l10n.trackConvertBitrate,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
-                      children: bitrates.map((br) {
-                        final isSelected = br == selectedBitrate;
+                      children: formats.map((format) {
+                        final isSelected = format == selectedFormat;
                         return ChoiceChip(
-                          label: Text(br),
+                          label: Text(format),
                           selected: isSelected,
                           onSelected: (selected) {
                             if (selected) {
-                              setSheetState(() => selectedBitrate = br);
+                              setSheetState(() {
+                                selectedFormat = format;
+                                isLosslessTarget =
+                                    format == 'ALAC' || format == 'FLAC';
+                                if (!isLosslessTarget) {
+                                  selectedBitrate =
+                                      format == 'Opus' ? '128k' : '320k';
+                                }
+                              });
                             }
                           },
                         );
                       }).toList(),
                     ),
+                    if (!isLosslessTarget) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        context.l10n.trackConvertBitrate,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: bitrates.map((br) {
+                          final isSelected = br == selectedBitrate;
+                          return ChoiceChip(
+                            label: Text(br),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              if (selected) {
+                                setSheetState(() => selectedBitrate = br);
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                    if (isLosslessTarget) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.verified,
+                            size: 16,
+                            color: colorScheme.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            context.l10n.trackConvertLosslessHint,
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.copyWith(
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
@@ -4929,14 +4954,19 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       }
       final ext = nameToCheck.endsWith('.flac')
           ? 'FLAC'
+          : nameToCheck.endsWith('.m4a')
+          ? 'M4A'
           : nameToCheck.endsWith('.mp3')
           ? 'MP3'
           : (nameToCheck.endsWith('.opus') || nameToCheck.endsWith('.ogg'))
           ? 'Opus'
           : null;
-      if (ext != null && ext != targetFormat) {
-        selectedItems.add(item);
-      }
+      if (ext == null || ext == targetFormat) continue;
+      // Skip lossy sources when target is lossless (pointless re-encoding)
+      final isLosslessTarget = targetFormat == 'ALAC' || targetFormat == 'FLAC';
+      final isLosslessSource = ext == 'FLAC' || ext == 'M4A';
+      if (isLosslessTarget && !isLosslessSource) continue;
+      selectedItems.add(item);
     }
 
     if (selectedItems.isEmpty) {
@@ -4949,16 +4979,22 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     }
 
     // Confirm
+    final isLossless = targetFormat == 'ALAC' || targetFormat == 'FLAC';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(context.l10n.selectionBatchConvertConfirmTitle),
         content: Text(
-          context.l10n.selectionBatchConvertConfirmMessage(
-            selectedItems.length,
-            targetFormat,
-            bitrate,
-          ),
+          isLossless
+              ? context.l10n.selectionBatchConvertConfirmMessageLossless(
+                  selectedItems.length,
+                  targetFormat,
+                )
+              : context.l10n.selectionBatchConvertConfirmMessage(
+                  selectedItems.length,
+                  targetFormat,
+                  bitrate,
+                ),
         ),
         actions: [
           TextButton(
@@ -4978,8 +5014,10 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     int successCount = 0;
     final total = selectedItems.length;
     final historyDb = HistoryDatabase.instance;
-    final newQuality =
-        '${targetFormat.toUpperCase()} ${bitrate.trim().toLowerCase()}';
+    final newQuality = (targetFormat.toUpperCase() == 'ALAC' ||
+            targetFormat.toUpperCase() == 'FLAC')
+        ? '${targetFormat.toUpperCase()} Lossless'
+        : '${targetFormat.toUpperCase()} ${bitrate.trim().toLowerCase()}';
     final settings = ref.read(settingsProvider);
     final shouldEmbedLyrics =
         settings.embedLyrics && settings.lyricsMode != 'external';
@@ -5093,13 +5131,27 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             final baseName = dotIdx > 0
                 ? oldFileName.substring(0, dotIdx)
                 : oldFileName;
-            final newExt = targetFormat.toLowerCase() == 'opus'
-                ? '.opus'
-                : '.mp3';
+            String newExt;
+            String mimeType;
+            switch (targetFormat.toLowerCase()) {
+              case 'opus':
+                newExt = '.opus';
+                mimeType = 'audio/opus';
+                break;
+              case 'alac':
+                newExt = '.m4a';
+                mimeType = 'audio/mp4';
+                break;
+              case 'flac':
+                newExt = '.flac';
+                mimeType = 'audio/flac';
+                break;
+              default:
+                newExt = '.mp3';
+                mimeType = 'audio/mpeg';
+                break;
+            }
             final newFileName = '$baseName$newExt';
-            final mimeType = targetFormat.toLowerCase() == 'opus'
-                ? 'audio/opus'
-                : 'audio/mpeg';
 
             final safUri = await PlatformBridge.createSafFileFromPath(
               treeUri: treeUri,

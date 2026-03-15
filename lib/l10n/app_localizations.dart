@@ -3883,7 +3883,7 @@ abstract class AppLocalizations {
   /// Subtitle for convert format menu item
   ///
   /// In en, this message translates to:
-  /// **'Convert to MP3 or Opus'**
+  /// **'Convert to MP3, Opus, ALAC, or FLAC'**
   String get trackConvertFormatSubtitle;
 
   /// Title of convert bottom sheet
@@ -3919,6 +3919,21 @@ abstract class AppLocalizations {
     String targetFormat,
     String bitrate,
   );
+
+  /// Confirmation dialog message for lossless-to-lossless conversion
+  ///
+  /// In en, this message translates to:
+  /// **'Convert from {sourceFormat} to {targetFormat}? (Lossless — no quality loss)\n\nThe original file will be deleted after conversion.'**
+  String trackConvertConfirmMessageLossless(
+    String sourceFormat,
+    String targetFormat,
+  );
+
+  /// Hint shown when converting between lossless formats
+  ///
+  /// In en, this message translates to:
+  /// **'Lossless conversion — no quality loss'**
+  String get trackConvertLosslessHint;
 
   /// Snackbar while converting
   ///
@@ -4289,6 +4304,12 @@ abstract class AppLocalizations {
     String format,
     String bitrate,
   );
+
+  /// Confirmation dialog message for lossless batch conversion
+  ///
+  /// In en, this message translates to:
+  /// **'Convert {count} {count, plural, =1{track} other{tracks}} to {format}? (Lossless — no quality loss)\n\nOriginal files will be deleted after conversion.'**
+  String selectionBatchConvertConfirmMessageLossless(int count, String format);
 
   /// Snackbar during batch conversion progress
   ///

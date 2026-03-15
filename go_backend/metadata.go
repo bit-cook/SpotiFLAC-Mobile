@@ -743,15 +743,28 @@ func GetM4AQuality(filePath string) (AudioQuality, error) {
 		return AudioQuality{}, err
 	}
 
-	buf := make([]byte, 24)
+	buf := make([]byte, 32)
 	if _, err := f.ReadAt(buf, sampleOffset); err != nil {
 		return AudioQuality{}, fmt.Errorf("failed to read audio sample entry: %w", err)
 	}
 
-	sampleRate := int(buf[22])<<8 | int(buf[23])
-	bitDepth := 16
-	if atomType == "alac" {
-		bitDepth = 24
+	// AudioSampleEntry layout from the box type field:
+	//   [0:4]   type ("mp4a"/"alac")
+	//   [4:10]  SampleEntry.reserved
+	//   [10:12] data_reference_index
+	//   [12:20] reserved[8]
+	//   [20:22] channelcount
+	//   [22:24] samplesize (bit depth)
+	//   [24:26] pre_defined
+	//   [26:28] reserved
+	//   [28:32] samplerate (16.16 fixed-point)
+	sampleRate := int(buf[28])<<8 | int(buf[29])
+	bitDepth := int(buf[22])<<8 | int(buf[23])
+	if bitDepth <= 0 {
+		bitDepth = 16
+		if atomType == "alac" {
+			bitDepth = 24
+		}
 	}
 
 	return AudioQuality{BitDepth: bitDepth, SampleRate: sampleRate}, nil
@@ -874,7 +887,7 @@ func findAudioSampleEntry(f *os.File, start, end, fileSize int64) (int64, string
 
 		if bestIdx >= 0 {
 			absolute := readPos - int64(len(tail)) + int64(bestIdx)
-			if absolute+24 > fileSize {
+			if absolute+32 > fileSize {
 				return 0, "", fmt.Errorf("audio info not found in M4A file")
 			}
 			return absolute, bestType, nil

@@ -2662,6 +2662,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   bool get _isConvertibleFormat {
     final lower = cleanFilePath.toLowerCase();
     return lower.endsWith('.flac') ||
+        lower.endsWith('.m4a') ||
         lower.endsWith('.mp3') ||
         lower.endsWith('.opus') ||
         lower.endsWith('.ogg');
@@ -2692,6 +2693,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
     }
     final lower = cleanFilePath.toLowerCase();
     if (lower.endsWith('.flac')) return 'FLAC';
+    if (lower.endsWith('.m4a')) return 'M4A';
     if (lower.endsWith('.mp3')) return 'MP3';
     if (lower.endsWith('.opus') || lower.endsWith('.ogg')) return 'Opus';
     if (lower.endsWith('.cue')) return 'CUE';
@@ -2749,8 +2751,12 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   }
 
   String _buildConvertedQualityLabel(String targetFormat, String bitrate) {
+    final upper = targetFormat.toUpperCase();
+    if (upper == 'ALAC' || upper == 'FLAC') {
+      return '$upper Lossless';
+    }
     final normalizedBitrate = bitrate.trim().toLowerCase();
-    return '${targetFormat.toUpperCase()} $normalizedBitrate';
+    return '$upper $normalizedBitrate';
   }
 
   String? _extractLossyBitrateLabel(String? quality) {
@@ -2790,17 +2796,27 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
 
   void _showConvertSheet(BuildContext context) {
     final currentFormat = _currentFileFormat;
-    // Available target formats (exclude current)
-    final formats = <String>[
-      'MP3',
-      'Opus',
-    ].where((f) => f != currentFormat).toList();
+    final isLosslessSource =
+        currentFormat == 'FLAC' || currentFormat == 'M4A';
+
+    // Build available target formats based on source
+    final formats = <String>[];
     if (currentFormat == 'FLAC') {
-      // FLAC can convert to both
+      formats.addAll(['ALAC', 'MP3', 'Opus']);
+    } else if (currentFormat == 'M4A') {
+      formats.addAll(['FLAC', 'MP3', 'Opus']);
+    } else if (currentFormat == 'MP3') {
+      formats.add('Opus');
+    } else if (currentFormat == 'Opus') {
+      formats.add('MP3');
+    } else {
+      formats.addAll(['MP3', 'Opus']);
     }
 
     String selectedFormat = formats.first;
     String selectedBitrate = selectedFormat == 'Opus' ? '128k' : '320k';
+    bool isLosslessTarget =
+        selectedFormat == 'ALAC' || selectedFormat == 'FLAC';
 
     showModalBottomSheet(
       context: context,
@@ -2849,53 +2865,79 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: formats.map((format) {
-                        final isSelected = format == selectedFormat;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Text(format),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              if (selected) {
-                                setSheetState(() {
-                                  selectedFormat = format;
-                                  // Reset bitrate to default for format
-                                  selectedBitrate = format == 'Opus'
-                                      ? '128k'
-                                      : '320k';
-                                });
-                              }
-                            },
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 16),
-
-                    Text(
-                      context.l10n.trackConvertBitrate,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
-                      children: bitrates.map((br) {
-                        final isSelected = br == selectedBitrate;
+                      children: formats.map((format) {
+                        final isSelected = format == selectedFormat;
                         return ChoiceChip(
-                          label: Text(br),
+                          label: Text(format),
                           selected: isSelected,
                           onSelected: (selected) {
                             if (selected) {
-                              setSheetState(() => selectedBitrate = br);
+                              setSheetState(() {
+                                selectedFormat = format;
+                                isLosslessTarget =
+                                    format == 'ALAC' || format == 'FLAC';
+                                if (!isLosslessTarget) {
+                                  selectedBitrate =
+                                      format == 'Opus' ? '128k' : '320k';
+                                }
+                              });
                             }
                           },
                         );
                       }).toList(),
                     ),
+
+                    // Only show bitrate for lossy targets
+                    if (!isLosslessTarget) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        context.l10n.trackConvertBitrate,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: bitrates.map((br) {
+                          final isSelected = br == selectedBitrate;
+                          return ChoiceChip(
+                            label: Text(br),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              if (selected) {
+                                setSheetState(() => selectedBitrate = br);
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ],
+
+                    // Show lossless indicator
+                    if (isLosslessTarget && isLosslessSource) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.verified,
+                            size: 16,
+                            color: colorScheme.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            context.l10n.trackConvertLosslessHint,
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.copyWith(
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 24),
 
                     SizedBox(
@@ -2917,7 +2959,9 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
                           ),
                         ),
                         child: Text(
-                          '$currentFormat  ->  $selectedFormat @ $selectedBitrate',
+                          isLosslessTarget
+                              ? '$currentFormat  ->  $selectedFormat (Lossless)'
+                              : '$currentFormat  ->  $selectedFormat @ $selectedBitrate',
                         ),
                       ),
                     ),
@@ -3402,17 +3446,25 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
     required String targetFormat,
     required String bitrate,
   }) {
+    final isLossless =
+        targetFormat.toUpperCase() == 'ALAC' ||
+        targetFormat.toUpperCase() == 'FLAC';
     showDialog(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           title: Text(dialogContext.l10n.trackConvertConfirmTitle),
           content: Text(
-            dialogContext.l10n.trackConvertConfirmMessage(
-              sourceFormat,
-              targetFormat,
-              bitrate,
-            ),
+            isLossless
+                ? dialogContext.l10n.trackConvertConfirmMessageLossless(
+                    sourceFormat,
+                    targetFormat,
+                  )
+                : dialogContext.l10n.trackConvertConfirmMessage(
+                    sourceFormat,
+                    targetFormat,
+                    bitrate,
+                  ),
           ),
           actions: [
             TextButton(
@@ -3561,11 +3613,27 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
         final baseName = dotIdx > 0
             ? oldFileName.substring(0, dotIdx)
             : oldFileName;
-        final newExt = targetFormat.toLowerCase() == 'opus' ? '.opus' : '.mp3';
+        String newExt;
+        String mimeType;
+        switch (targetFormat.toLowerCase()) {
+          case 'opus':
+            newExt = '.opus';
+            mimeType = 'audio/opus';
+            break;
+          case 'alac':
+            newExt = '.m4a';
+            mimeType = 'audio/mp4';
+            break;
+          case 'flac':
+            newExt = '.flac';
+            mimeType = 'audio/flac';
+            break;
+          default: // mp3
+            newExt = '.mp3';
+            mimeType = 'audio/mpeg';
+            break;
+        }
         final newFileName = '$baseName$newExt';
-        final mimeType = targetFormat.toLowerCase() == 'opus'
-            ? 'audio/opus'
-            : 'audio/mpeg';
 
         final safUri = await PlatformBridge.createSafFileFromPath(
           treeUri: treeUri,

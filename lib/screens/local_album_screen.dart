@@ -1131,6 +1131,7 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
   ) {
     String selectedFormat = 'MP3';
     String selectedBitrate = '320k';
+    bool isLosslessTarget = false;
 
     showModalBottomSheet(
       context: context,
@@ -1142,7 +1143,7 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             final colorScheme = Theme.of(context).colorScheme;
-            final formats = ['MP3', 'Opus'];
+            final formats = ['ALAC', 'FLAC', 'MP3', 'Opus'];
             final bitrates = ['128k', '192k', '256k', '320k'];
 
             return SafeArea(
@@ -1179,51 +1180,75 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: formats.map((format) {
-                        final isSelected = format == selectedFormat;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Text(format),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              if (selected) {
-                                setSheetState(() {
-                                  selectedFormat = format;
-                                  selectedBitrate = format == 'Opus'
-                                      ? '128k'
-                                      : '320k';
-                                });
-                              }
-                            },
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      context.l10n.trackConvertBitrate,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
-                      children: bitrates.map((br) {
-                        final isSelected = br == selectedBitrate;
+                      children: formats.map((format) {
+                        final isSelected = format == selectedFormat;
                         return ChoiceChip(
-                          label: Text(br),
+                          label: Text(format),
                           selected: isSelected,
                           onSelected: (selected) {
                             if (selected) {
-                              setSheetState(() => selectedBitrate = br);
+                              setSheetState(() {
+                                selectedFormat = format;
+                                isLosslessTarget =
+                                    format == 'ALAC' || format == 'FLAC';
+                                if (!isLosslessTarget) {
+                                  selectedBitrate =
+                                      format == 'Opus' ? '128k' : '320k';
+                                }
+                              });
                             }
                           },
                         );
                       }).toList(),
                     ),
+                    if (!isLosslessTarget) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        context.l10n.trackConvertBitrate,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: bitrates.map((br) {
+                          final isSelected = br == selectedBitrate;
+                          return ChoiceChip(
+                            label: Text(br),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              if (selected) {
+                                setSheetState(() => selectedBitrate = br);
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                    if (isLosslessTarget) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.verified,
+                            size: 16,
+                            color: colorScheme.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            context.l10n.trackConvertLosslessHint,
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.copyWith(
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
@@ -1276,6 +1301,8 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
         final fmt = item.format!.toLowerCase();
         if (fmt == 'flac') {
           currentFormat = 'FLAC';
+        } else if (fmt == 'm4a') {
+          currentFormat = 'M4A';
         } else if (fmt == 'mp3') {
           currentFormat = 'MP3';
         } else if (fmt == 'opus' || fmt == 'ogg') {
@@ -1287,15 +1314,20 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
         final lower = item.filePath.toLowerCase();
         if (lower.endsWith('.flac')) {
           currentFormat = 'FLAC';
+        } else if (lower.endsWith('.m4a')) {
+          currentFormat = 'M4A';
         } else if (lower.endsWith('.mp3')) {
           currentFormat = 'MP3';
         } else if (lower.endsWith('.opus') || lower.endsWith('.ogg')) {
           currentFormat = 'Opus';
         }
       }
-      if (currentFormat != null && currentFormat != targetFormat) {
-        selected.add(item);
-      }
+      if (currentFormat == null || currentFormat == targetFormat) continue;
+      // Skip lossy sources when target is lossless (pointless re-encoding)
+      final isLosslessTarget = targetFormat == 'ALAC' || targetFormat == 'FLAC';
+      final isLosslessSource = currentFormat == 'FLAC' || currentFormat == 'M4A';
+      if (isLosslessTarget && !isLosslessSource) continue;
+      selected.add(item);
     }
 
     if (selected.isEmpty) {
@@ -1307,16 +1339,22 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
       return;
     }
 
+    final isLossless = targetFormat == 'ALAC' || targetFormat == 'FLAC';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(context.l10n.selectionBatchConvertConfirmTitle),
         content: Text(
-          context.l10n.selectionBatchConvertConfirmMessage(
-            selected.length,
-            targetFormat,
-            bitrate,
-          ),
+          isLossless
+              ? context.l10n.selectionBatchConvertConfirmMessageLossless(
+                  selected.length,
+                  targetFormat,
+                )
+              : context.l10n.selectionBatchConvertConfirmMessage(
+                  selected.length,
+                  targetFormat,
+                  bitrate,
+                ),
         ),
         actions: [
           TextButton(
@@ -1481,13 +1519,27 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
             final baseName = dotIdx > 0
                 ? oldFileName.substring(0, dotIdx)
                 : oldFileName;
-            final newExt = targetFormat.toLowerCase() == 'opus'
-                ? '.opus'
-                : '.mp3';
+            String newExt;
+            String mimeType;
+            switch (targetFormat.toLowerCase()) {
+              case 'opus':
+                newExt = '.opus';
+                mimeType = 'audio/opus';
+                break;
+              case 'alac':
+                newExt = '.m4a';
+                mimeType = 'audio/mp4';
+                break;
+              case 'flac':
+                newExt = '.flac';
+                mimeType = 'audio/flac';
+                break;
+              default:
+                newExt = '.mp3';
+                mimeType = 'audio/mpeg';
+                break;
+            }
             final newFileName = '$baseName$newExt';
-            final mimeType = targetFormat.toLowerCase() == 'opus'
-                ? 'audio/opus'
-                : 'audio/mpeg';
 
             final safUri = await PlatformBridge.createSafFileFromPath(
               treeUri: treeUri,

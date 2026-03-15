@@ -2873,7 +2873,7 @@
   "@trackConvertFormat": {
     "description": "Menu item - convert audio format"
   },
-  "trackConvertFormatSubtitle": "Convert to MP3 or Opus",
+  "trackConvertFormatSubtitle": "Convert to MP3, Opus, ALAC, or FLAC",
   "@trackConvertFormatSubtitle": {
     "description": "Subtitle for convert format menu item"
   },
@@ -2907,6 +2907,22 @@
         "type": "String"
       }
     }
+  },
+  "trackConvertConfirmMessageLossless": "Convert from {sourceFormat} to {targetFormat}? (Lossless — no quality loss)\n\nThe original file will be deleted after conversion.",
+  "@trackConvertConfirmMessageLossless": {
+    "description": "Confirmation dialog message for lossless-to-lossless conversion",
+    "placeholders": {
+      "sourceFormat": {
+        "type": "String"
+      },
+      "targetFormat": {
+        "type": "String"
+      }
+    }
+  },
+  "trackConvertLosslessHint": "Lossless conversion — no quality loss",
+  "@trackConvertLosslessHint": {
+    "description": "Hint shown when converting between lossless formats"
   },
   "trackConvertConverting": "Converting audio...",
   "@trackConvertConverting": {
@@ -3255,6 +3271,18 @@
         "type": "String"
       },
       "bitrate": {
+        "type": "String"
+      }
+    }
+  },
+  "selectionBatchConvertConfirmMessageLossless": "Convert {count} {count, plural, =1{track} other{tracks}} to {format}? (Lossless — no quality loss)\n\nOriginal files will be deleted after conversion.",
+  "@selectionBatchConvertConfirmMessageLossless": {
+    "description": "Confirmation dialog message for lossless batch conversion",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "format": {
         "type": "String"
       }
     }

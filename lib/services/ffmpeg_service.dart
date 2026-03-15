@@ -1209,7 +1209,8 @@ class FFmpegService {
   }
 
   /// Unified audio format conversion with full metadata + cover preservation.
-  /// Supports: FLAC/MP3/Opus -> MP3/Opus (any direction except same format).
+  /// Supports: FLAC/M4A/MP3/Opus -> MP3/Opus/ALAC/FLAC.
+  /// ALAC and FLAC targets are lossless (bitrate parameter is ignored).
   /// Returns the new file path on success, null on failure.
   static Future<String?> convertAudioFormat({
     required String inputPath,
@@ -1220,11 +1221,30 @@ class FFmpegService {
     bool deleteOriginal = true,
   }) async {
     final format = targetFormat.toLowerCase();
-    if (format != 'mp3' && format != 'opus') {
+    if (!const {'mp3', 'opus', 'alac', 'flac'}.contains(format)) {
       _log.e('Unsupported target format: $targetFormat');
       return null;
     }
 
+    // Lossless targets: dedicated single-pass methods
+    if (format == 'alac') {
+      return _convertToAlac(
+        inputPath: inputPath,
+        metadata: metadata,
+        coverPath: coverPath,
+        deleteOriginal: deleteOriginal,
+      );
+    }
+    if (format == 'flac') {
+      return _convertToFlac(
+        inputPath: inputPath,
+        metadata: metadata,
+        coverPath: coverPath,
+        deleteOriginal: deleteOriginal,
+      );
+    }
+
+    // Lossy targets: MP3 / Opus
     final extension = format == 'opus' ? '.opus' : '.mp3';
     final outputPath = _buildOutputPath(inputPath, extension);
 
@@ -1294,6 +1314,197 @@ class FFmpegService {
     }
 
     return outputPath;
+  }
+
+  /// Convert any audio format to ALAC (Apple Lossless) in an M4A container.
+  /// Metadata and cover art are embedded in a single FFmpeg pass.
+  static Future<String?> _convertToAlac({
+    required String inputPath,
+    required Map<String, String> metadata,
+    String? coverPath,
+    bool deleteOriginal = true,
+  }) async {
+    final outputPath = _buildOutputPath(inputPath, '.m4a');
+
+    final cmdBuffer = StringBuffer();
+    cmdBuffer.write('-i "$inputPath" ');
+
+    // Cover art as second input for M4A attached picture
+    final hasCover = coverPath != null &&
+        coverPath.trim().isNotEmpty &&
+        await File(coverPath).exists();
+    if (hasCover) {
+      cmdBuffer.write('-i "$coverPath" ');
+    }
+
+    cmdBuffer.write('-map 0:a ');
+    if (hasCover) {
+      cmdBuffer.write('-map 1:v -c:v copy -disposition:v:0 attached_pic ');
+    }
+    cmdBuffer.write('-c:a alac ');
+    cmdBuffer.write('-map_metadata -1 ');
+
+    // Embed M4A metadata tags
+    final m4aTags = _convertToM4aTags(metadata);
+    for (final entry in m4aTags.entries) {
+      final sanitized = entry.value.replaceAll('"', '\\"');
+      cmdBuffer.write('-metadata ${entry.key}="$sanitized" ');
+    }
+
+    cmdBuffer.write('"$outputPath" -y');
+
+    _log.i(
+      'Converting ${inputPath.split(Platform.pathSeparator).last} to ALAC',
+    );
+    final result = await _execute(cmdBuffer.toString());
+
+    if (!result.success) {
+      _log.e('ALAC conversion failed: ${result.output}');
+      return null;
+    }
+
+    if (deleteOriginal) {
+      try {
+        await File(inputPath).delete();
+        _log.i(
+          'Deleted original: ${inputPath.split(Platform.pathSeparator).last}',
+        );
+      } catch (e) {
+        _log.w('Failed to delete original: $e');
+      }
+    }
+
+    return outputPath;
+  }
+
+  /// Convert any audio format to FLAC.
+  /// Metadata (Vorbis comments) and cover art (METADATA_BLOCK_PICTURE) are
+  /// embedded in a single FFmpeg pass.
+  static Future<String?> _convertToFlac({
+    required String inputPath,
+    required Map<String, String> metadata,
+    String? coverPath,
+    bool deleteOriginal = true,
+  }) async {
+    final outputPath = _buildOutputPath(inputPath, '.flac');
+
+    final cmdBuffer = StringBuffer();
+    cmdBuffer.write('-i "$inputPath" ');
+    cmdBuffer.write('-map 0:a ');
+    cmdBuffer.write('-c:a flac -compression_level 8 ');
+    cmdBuffer.write('-map_metadata -1 ');
+
+    // Embed Vorbis comments
+    for (final entry in metadata.entries) {
+      if (entry.value.trim().isEmpty) continue;
+      final sanitized = entry.value.replaceAll('"', '\\"');
+      cmdBuffer.write('-metadata ${entry.key}="$sanitized" ');
+    }
+
+    // Embed cover art via METADATA_BLOCK_PICTURE (same approach as Opus)
+    if (coverPath != null && coverPath.trim().isNotEmpty) {
+      try {
+        if (await File(coverPath).exists()) {
+          final pictureBlock = await _createMetadataBlockPicture(coverPath);
+          if (pictureBlock != null) {
+            final escapedBlock = pictureBlock.replaceAll('"', '\\"');
+            cmdBuffer.write(
+              '-metadata METADATA_BLOCK_PICTURE="$escapedBlock" ',
+            );
+            _log.d(
+              'Created METADATA_BLOCK_PICTURE for FLAC (${pictureBlock.length} chars)',
+            );
+          }
+        }
+      } catch (e) {
+        _log.e('Error creating METADATA_BLOCK_PICTURE for FLAC: $e');
+      }
+    }
+
+    cmdBuffer.write('"$outputPath" -y');
+
+    _log.i(
+      'Converting ${inputPath.split(Platform.pathSeparator).last} to FLAC',
+    );
+    final result = await _execute(cmdBuffer.toString());
+
+    if (!result.success) {
+      _log.e('FLAC conversion failed: ${result.output}');
+      return null;
+    }
+
+    if (deleteOriginal) {
+      try {
+        await File(inputPath).delete();
+        _log.i(
+          'Deleted original: ${inputPath.split(Platform.pathSeparator).last}',
+        );
+      } catch (e) {
+        _log.w('Failed to delete original: $e');
+      }
+    }
+
+    return outputPath;
+  }
+
+  /// Map Vorbis comment keys to M4A/MP4 metadata tag names for FFmpeg.
+  static Map<String, String> _convertToM4aTags(
+    Map<String, String> metadata,
+  ) {
+    final m4aMap = <String, String>{};
+
+    for (final entry in metadata.entries) {
+      final key = entry.key.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+      final value = entry.value;
+      if (value.trim().isEmpty) continue;
+
+      switch (key) {
+        case 'TITLE':
+          m4aMap['title'] = value;
+          break;
+        case 'ARTIST':
+          m4aMap['artist'] = value;
+          break;
+        case 'ALBUM':
+          m4aMap['album'] = value;
+          break;
+        case 'ALBUMARTIST':
+          m4aMap['album_artist'] = value;
+          break;
+        case 'TRACKNUMBER':
+        case 'TRACK':
+        case 'TRCK':
+          m4aMap['track'] = value;
+          break;
+        case 'DISCNUMBER':
+        case 'DISC':
+        case 'TPOS':
+          m4aMap['disc'] = value;
+          break;
+        case 'DATE':
+        case 'YEAR':
+          m4aMap['date'] = value;
+          break;
+        case 'GENRE':
+          m4aMap['genre'] = value;
+          break;
+        case 'COMPOSER':
+          m4aMap['composer'] = value;
+          break;
+        case 'COMMENT':
+          m4aMap['comment'] = value;
+          break;
+        case 'COPYRIGHT':
+          m4aMap['copyright'] = value;
+          break;
+        case 'LYRICS':
+        case 'UNSYNCEDLYRICS':
+          m4aMap['lyrics'] = value;
+          break;
+      }
+    }
+
+    return m4aMap;
   }
 
   static Map<String, String> _convertToId3Tags(

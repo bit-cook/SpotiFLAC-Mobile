@@ -2809,7 +2809,7 @@
   "@trackConvertFormat": {
     "description": "Menu item - convert audio format"
   },
-  "trackConvertFormatSubtitle": "Convert to MP3 or Opus",
+  "trackConvertFormatSubtitle": "Konversi ke MP3, Opus, ALAC, atau FLAC",
   "@trackConvertFormatSubtitle": {
     "description": "Subtitle for convert format menu item"
   },
@@ -2843,6 +2843,22 @@
         "type": "String"
       }
     }
+  },
+  "trackConvertConfirmMessageLossless": "Konversi dari {sourceFormat} ke {targetFormat}? (Lossless — tanpa kehilangan kualitas)\n\nFile asli akan dihapus setelah konversi.",
+  "@trackConvertConfirmMessageLossless": {
+    "description": "Confirmation dialog message for lossless-to-lossless conversion",
+    "placeholders": {
+      "sourceFormat": {
+        "type": "String"
+      },
+      "targetFormat": {
+        "type": "String"
+      }
+    }
+  },
+  "trackConvertLosslessHint": "Konversi lossless — tanpa kehilangan kualitas",
+  "@trackConvertLosslessHint": {
+    "description": "Hint shown when converting between lossless formats"
   },
   "trackConvertConverting": "Converting audio...",
   "@trackConvertConverting": {

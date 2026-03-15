@@ -2180,6 +2180,18 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String trackConvertConfirmMessageLossless(
+    String sourceFormat,
+    String targetFormat,
+  ) {
+    return 'Convert from $sourceFormat to $targetFormat? (Lossless — no quality loss)\n\nThe original file will be deleted after conversion.';
+  }
+
+  @override
+  String get trackConvertLosslessHint =>
+      'Lossless conversion — no quality loss';
+
+  @override
   String get trackConvertConverting => 'Converting audio...';
 
   @override
@@ -2430,6 +2442,17 @@ class AppLocalizationsKo extends AppLocalizations {
       one: 'track',
     );
     return 'Convert $count $_temp0 to $format at $bitrate?\n\nOriginal files will be deleted after conversion.';
+  }
+
+  @override
+  String selectionBatchConvertConfirmMessageLossless(int count, String format) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'tracks',
+      one: 'track',
+    );
+    return 'Convert $count $_temp0 to $format? (Lossless — no quality loss)\n\nOriginal files will be deleted after conversion.';
   }
 
   @override

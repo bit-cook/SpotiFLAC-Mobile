@@ -2176,7 +2176,8 @@ class AppLocalizationsPt extends AppLocalizations {
   String get trackConvertFormat => 'Convert Format';
 
   @override
-  String get trackConvertFormatSubtitle => 'Convert to MP3 or Opus';
+  String get trackConvertFormatSubtitle =>
+      'Convert to MP3, Opus, ALAC, or FLAC';
 
   @override
   String get trackConvertTitle => 'Convert Audio';
@@ -2198,6 +2199,18 @@ class AppLocalizationsPt extends AppLocalizations {
   ) {
     return 'Convert from $sourceFormat to $targetFormat at $bitrate?\n\nThe original file will be deleted after conversion.';
   }
+
+  @override
+  String trackConvertConfirmMessageLossless(
+    String sourceFormat,
+    String targetFormat,
+  ) {
+    return 'Convert from $sourceFormat to $targetFormat? (Lossless — no quality loss)\n\nThe original file will be deleted after conversion.';
+  }
+
+  @override
+  String get trackConvertLosslessHint =>
+      'Lossless conversion — no quality loss';
 
   @override
   String get trackConvertConverting => 'Converting audio...';
@@ -2450,6 +2463,17 @@ class AppLocalizationsPt extends AppLocalizations {
       one: 'track',
     );
     return 'Convert $count $_temp0 to $format at $bitrate?\n\nOriginal files will be deleted after conversion.';
+  }
+
+  @override
+  String selectionBatchConvertConfirmMessageLossless(int count, String format) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'tracks',
+      one: 'track',
+    );
+    return 'Convert $count $_temp0 to $format? (Lossless — no quality loss)\n\nOriginal files will be deleted after conversion.';
   }
 
   @override
