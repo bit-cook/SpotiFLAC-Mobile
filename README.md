@@ -40,10 +40,15 @@ Extensions allow the community to add new music sources and features without wai
 
 ### Installing Extensions
 1. Go to **Store** tab in the app
-2. Browse and install extensions with one tap
-3. Or download a `.spotiflac-ext` file and install manually via **Settings > Extensions**
-4. Configure extension settings if needed
-5. Set provider priority in **Settings > Extensions > Provider Priority**
+2. When opening the Store for the first time, you will be asked to enter an **Extension Repository URL**. You can use this community repository:
+   ```
+   https://github.com/zarzet/SpotiFLAC-Extension
+   ```
+   > **Why is this needed?** SpotiFLAC uses a decentralized extension system — extensions are hosted on GitHub repositories rather than a built-in server. This allows anyone to create and host their own extension repository. You only need to enter this URL once; the app will remember it.
+3. Browse and install extensions with one tap
+4. Or download a `.spotiflac-ext` file and install manually via **Settings > Extensions**
+5. Configure extension settings if needed
+6. Set provider priority in **Settings > Extensions > Provider Priority**
 
 ### Developing Extensions
 Want to create your own extension? Check out the [Extension Development Guide](https://zarzet.github.io/SpotiFLAC-Mobile/docs) for complete documentation.
@@ -54,6 +59,11 @@ Want to create your own extension? Check out the [Extension Development Guide](h
 Download music in true lossless FLAC from Tidal, Qobuz & Amazon Music for Windows, macOS & Linux
 
 ## FAQ
+
+**Q: Why does the Store tab ask me to enter a URL?**  
+A: Starting from version 3.8.0, SpotiFLAC uses a decentralized extension system. Extensions (like Amazon Music, YouTube Music, etc.) are hosted on GitHub repositories instead of a built-in server. On first launch, enter an extension repository URL in the Store tab, for example:  
+`https://github.com/zarzet/SpotiFLAC-Extension`  
+You only need to do this once — the app will save it and load extensions automatically on future launches.
 
 **Q: Why is my download failing with "Song not found"?**  
 A: The track may not be available on the streaming services. Try enabling more download services in Settings > Download > Provider Priority, or install additional extensions like Amazon Music from the Store.
