@@ -73,6 +73,11 @@ A: Yes, the app is open source and you can verify the code yourself. Each releas
 **Q: Why is download not working in my country?**  
 A: Some countries have restricted access to certain streaming service APIs. If downloads are failing, try using a VPN to connect through a different region.
 
+**Q: Can I add SpotiFLAC to AltStore or SideStore?**
+A: Yes! You can add the official source to receive updates directly within the app. Just copy this link:
+https://raw.githubusercontent.com/zarzet/SpotiFLAC-Mobile/refs/heads/main/apps.json
+In AltStore/SideStore, go to the Browse tab, tap Sources at the top, then tap the + icon and paste the link.
+
 
 ### Want to support SpotiFLAC-Mobile?
 
@@ -87,4 +92,4 @@ _If this software is useful and brings you value, consider supporting the projec
 
 > [!TIP]
 >
-> **Star Us**, You will receive all release notifications from GitHub without any delay ~
+> **Star Us**, You will receive all release notifications from GitHub without any delay 
