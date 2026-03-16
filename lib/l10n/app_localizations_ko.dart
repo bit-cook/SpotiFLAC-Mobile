@@ -1676,6 +1676,25 @@ class AppLocalizationsKo extends AppLocalizations {
       'Show when searching for existing tracks';
 
   @override
+  String get libraryAutoScan => 'Auto Scan';
+
+  @override
+  String get libraryAutoScanSubtitle =>
+      'Automatically scan your library for new files';
+
+  @override
+  String get libraryAutoScanOff => 'Off';
+
+  @override
+  String get libraryAutoScanOnOpen => 'Every app open';
+
+  @override
+  String get libraryAutoScanDaily => 'Daily';
+
+  @override
+  String get libraryAutoScanWeekly => 'Weekly';
+
+  @override
   String get libraryActions => 'Actions';
 
   @override

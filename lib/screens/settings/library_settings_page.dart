@@ -241,6 +241,99 @@ class _LibrarySettingsPageState extends ConsumerState<LibrarySettingsPage> {
     }
   }
 
+  String _getAutoScanLabel(BuildContext context, String mode) {
+    switch (mode) {
+      case 'on_open':
+        return context.l10n.libraryAutoScanOnOpen;
+      case 'daily':
+        return context.l10n.libraryAutoScanDaily;
+      case 'weekly':
+        return context.l10n.libraryAutoScanWeekly;
+      default:
+        return context.l10n.libraryAutoScanOff;
+    }
+  }
+
+  void _showAutoScanPicker(BuildContext context, String current) {
+    final colorScheme = Theme.of(context).colorScheme;
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      backgroundColor: colorScheme.surfaceContainerHigh,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+              child: Text(
+                context.l10n.libraryAutoScan,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+              child: Text(
+                context.l10n.libraryAutoScanSubtitle,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            _AutoScanOption(
+              icon: Icons.block,
+              title: context.l10n.libraryAutoScanOff,
+              selected: current == 'off',
+              colorScheme: colorScheme,
+              onTap: () {
+                ref.read(settingsProvider.notifier).setLocalLibraryAutoScan('off');
+                Navigator.pop(context);
+              },
+            ),
+            _AutoScanOption(
+              icon: Icons.open_in_new,
+              title: context.l10n.libraryAutoScanOnOpen,
+              selected: current == 'on_open',
+              colorScheme: colorScheme,
+              onTap: () {
+                ref.read(settingsProvider.notifier).setLocalLibraryAutoScan('on_open');
+                Navigator.pop(context);
+              },
+            ),
+            _AutoScanOption(
+              icon: Icons.today,
+              title: context.l10n.libraryAutoScanDaily,
+              selected: current == 'daily',
+              colorScheme: colorScheme,
+              onTap: () {
+                ref.read(settingsProvider.notifier).setLocalLibraryAutoScan('daily');
+                Navigator.pop(context);
+              },
+            ),
+            _AutoScanOption(
+              icon: Icons.date_range,
+              title: context.l10n.libraryAutoScanWeekly,
+              selected: current == 'weekly',
+              colorScheme: colorScheme,
+              onTap: () {
+                ref.read(settingsProvider.notifier).setLocalLibraryAutoScan('weekly');
+                Navigator.pop(context);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
@@ -344,7 +437,18 @@ class _LibrarySettingsPageState extends ConsumerState<LibrarySettingsPage> {
                   onChanged: (value) => ref
                       .read(settingsProvider.notifier)
                       .setLocalLibraryShowDuplicates(value),
-                  showDivider: false,
+                ),
+                Opacity(
+                  opacity: settings.localLibraryEnabled ? 1.0 : 0.5,
+                  child: SettingsItem(
+                    icon: Icons.autorenew_rounded,
+                    title: context.l10n.libraryAutoScan,
+                    subtitle: _getAutoScanLabel(context, settings.localLibraryAutoScan),
+                    onTap: settings.localLibraryEnabled
+                        ? () => _showAutoScanPicker(context, settings.localLibraryAutoScan)
+                        : null,
+                    showDivider: false,
+                  ),
                 ),
               ],
             ),
@@ -822,6 +926,34 @@ class _ScanProgressTile extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _AutoScanOption extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final bool selected;
+  final ColorScheme colorScheme;
+  final VoidCallback onTap;
+
+  const _AutoScanOption({
+    required this.icon,
+    required this.title,
+    required this.selected,
+    required this.colorScheme,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      trailing: selected
+          ? Icon(Icons.check, color: colorScheme.primary)
+          : null,
+      onTap: onTap,
     );
   }
 }

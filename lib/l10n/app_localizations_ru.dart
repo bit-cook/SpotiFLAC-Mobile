@@ -1732,6 +1732,25 @@ class AppLocalizationsRu extends AppLocalizations {
       'Показать при поиске существующих треков';
 
   @override
+  String get libraryAutoScan => 'Auto Scan';
+
+  @override
+  String get libraryAutoScanSubtitle =>
+      'Automatically scan your library for new files';
+
+  @override
+  String get libraryAutoScanOff => 'Off';
+
+  @override
+  String get libraryAutoScanOnOpen => 'Every app open';
+
+  @override
+  String get libraryAutoScanDaily => 'Daily';
+
+  @override
+  String get libraryAutoScanWeekly => 'Weekly';
+
+  @override
   String get libraryActions => 'Действия';
 
   @override

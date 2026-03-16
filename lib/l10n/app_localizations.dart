@@ -3106,6 +3106,42 @@ abstract class AppLocalizations {
   /// **'Show when searching for existing tracks'**
   String get libraryShowDuplicateIndicatorSubtitle;
 
+  /// Setting for automatic library scanning
+  ///
+  /// In en, this message translates to:
+  /// **'Auto Scan'**
+  String get libraryAutoScan;
+
+  /// Subtitle for auto scan setting
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically scan your library for new files'**
+  String get libraryAutoScanSubtitle;
+
+  /// Auto scan disabled
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get libraryAutoScanOff;
+
+  /// Auto scan when app opens
+  ///
+  /// In en, this message translates to:
+  /// **'Every app open'**
+  String get libraryAutoScanOnOpen;
+
+  /// Auto scan once per day
+  ///
+  /// In en, this message translates to:
+  /// **'Daily'**
+  String get libraryAutoScanDaily;
+
+  /// Auto scan once per week
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly'**
+  String get libraryAutoScanWeekly;
+
   /// Section header for library actions
   ///
   /// In en, this message translates to:

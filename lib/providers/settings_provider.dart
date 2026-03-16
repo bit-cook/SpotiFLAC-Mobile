@@ -518,6 +518,11 @@ class SettingsNotifier extends Notifier<AppSettings> {
     _saveSettings();
   }
 
+  void setLocalLibraryAutoScan(String mode) {
+    state = state.copyWith(localLibraryAutoScan: mode);
+    _saveSettings();
+  }
+
   void setTutorialComplete() {
     state = state.copyWith(hasCompletedTutorial: true);
     _saveSettings();

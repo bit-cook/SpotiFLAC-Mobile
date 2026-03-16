@@ -57,6 +57,7 @@ AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => AppSettings(
   localLibraryBookmark: json['localLibraryBookmark'] as String? ?? '',
   localLibraryShowDuplicates:
       json['localLibraryShowDuplicates'] as bool? ?? true,
+  localLibraryAutoScan: json['localLibraryAutoScan'] as String? ?? 'off',
   hasCompletedTutorial: json['hasCompletedTutorial'] as bool? ?? false,
   lyricsProviders:
       (json['lyricsProviders'] as List<dynamic>?)
@@ -129,6 +130,7 @@ Map<String, dynamic> _$AppSettingsToJson(
   'localLibraryPath': instance.localLibraryPath,
   'localLibraryBookmark': instance.localLibraryBookmark,
   'localLibraryShowDuplicates': instance.localLibraryShowDuplicates,
+  'localLibraryAutoScan': instance.localLibraryAutoScan,
   'hasCompletedTutorial': instance.hasCompletedTutorial,
   'lyricsProviders': instance.lyricsProviders,
   'lyricsIncludeTranslationNetease': instance.lyricsIncludeTranslationNetease,

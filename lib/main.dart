@@ -4,6 +4,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotiflac_android/app.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
@@ -90,16 +91,21 @@ class _EagerInitialization extends ConsumerStatefulWidget {
       _EagerInitializationState();
 }
 
-class _EagerInitializationState extends ConsumerState<_EagerInitialization> {
+class _EagerInitializationState extends ConsumerState<_EagerInitialization>
+    with WidgetsBindingObserver {
   ProviderSubscription<bool>? _localLibraryEnabledSub;
   Timer? _downloadHistoryWarmupTimer;
   Timer? _libraryCollectionsWarmupTimer;
   Timer? _localLibraryWarmupTimer;
   bool _localLibraryWarmupScheduled = false;
+  bool _autoScanTriggeredOnLaunch = false;
+
+  static const _lastScannedAtKey = 'local_library_last_scanned_at';
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _initializeAppServices();
@@ -110,11 +116,19 @@ class _EagerInitializationState extends ConsumerState<_EagerInitialization> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _localLibraryEnabledSub?.close();
     _downloadHistoryWarmupTimer?.cancel();
     _libraryCollectionsWarmupTimer?.cancel();
     _localLibraryWarmupTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _maybeAutoScanLocalLibrary();
+    }
   }
 
   void _initializeDeferredProviders() {
@@ -155,7 +169,64 @@ class _EagerInitializationState extends ConsumerState<_EagerInitialization> {
     _localLibraryWarmupScheduled = true;
     _localLibraryWarmupTimer = _scheduleProviderWarmup(
       const Duration(milliseconds: 1600),
-      () => ref.read(localLibraryProvider),
+      () {
+        ref.read(localLibraryProvider);
+        // Trigger auto-scan after initial warmup on first app launch.
+        if (!_autoScanTriggeredOnLaunch) {
+          _autoScanTriggeredOnLaunch = true;
+          // Give the provider a moment to load existing data before scanning.
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) _maybeAutoScanLocalLibrary();
+          });
+        }
+      },
+    );
+  }
+
+  /// Checks whether an automatic incremental scan should be triggered based on
+  /// the user's auto-scan preference and the time since the last scan.
+  Future<void> _maybeAutoScanLocalLibrary() async {
+    if (!mounted) return;
+
+    final settings = ref.read(settingsProvider);
+    if (!settings.localLibraryEnabled) return;
+    if (settings.localLibraryPath.isEmpty) return;
+    if (settings.localLibraryAutoScan == 'off') return;
+
+    // Don't start a scan if one is already running.
+    final libraryState = ref.read(localLibraryProvider);
+    if (libraryState.isScanning) return;
+
+    // Determine cooldown based on auto-scan mode.
+    final now = DateTime.now();
+    final prefs = await SharedPreferences.getInstance();
+    final lastScannedMs = prefs.getInt(_lastScannedAtKey);
+
+    if (lastScannedMs != null) {
+      final lastScanned = DateTime.fromMillisecondsSinceEpoch(lastScannedMs);
+      final elapsed = now.difference(lastScanned);
+
+      switch (settings.localLibraryAutoScan) {
+        case 'on_open':
+          // Cooldown of 10 minutes to prevent rapid re-scans.
+          if (elapsed.inMinutes < 10) return;
+          break;
+        case 'daily':
+          if (elapsed.inHours < 24) return;
+          break;
+        case 'weekly':
+          if (elapsed.inDays < 7) return;
+          break;
+        default:
+          return;
+      }
+    }
+
+    // All checks passed -- start an incremental scan.
+    final iosBookmark = settings.localLibraryBookmark;
+    ref.read(localLibraryProvider.notifier).startScan(
+      settings.localLibraryPath,
+      iosBookmark: iosBookmark.isNotEmpty ? iosBookmark : null,
     );
   }
 

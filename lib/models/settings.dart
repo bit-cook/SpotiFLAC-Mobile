@@ -59,6 +59,8 @@ class AppSettings {
   localLibraryBookmark; // Base64-encoded iOS security-scoped bookmark
   final bool
   localLibraryShowDuplicates; // Show indicator when searching for existing tracks
+  final String
+  localLibraryAutoScan; // Auto-scan mode: 'off', 'on_open', 'daily', 'weekly'
 
   final bool
   hasCompletedTutorial; // Track if user has completed the app tutorial
@@ -123,6 +125,7 @@ class AppSettings {
     this.localLibraryPath = '',
     this.localLibraryBookmark = '',
     this.localLibraryShowDuplicates = true,
+    this.localLibraryAutoScan = 'off',
     this.hasCompletedTutorial = false,
     this.lyricsProviders = const [
       'lrclib',
@@ -186,6 +189,7 @@ class AppSettings {
     String? localLibraryPath,
     String? localLibraryBookmark,
     bool? localLibraryShowDuplicates,
+    String? localLibraryAutoScan,
     bool? hasCompletedTutorial,
     List<String>? lyricsProviders,
     bool? lyricsIncludeTranslationNetease,
@@ -251,6 +255,8 @@ class AppSettings {
       localLibraryBookmark: localLibraryBookmark ?? this.localLibraryBookmark,
       localLibraryShowDuplicates:
           localLibraryShowDuplicates ?? this.localLibraryShowDuplicates,
+      localLibraryAutoScan:
+          localLibraryAutoScan ?? this.localLibraryAutoScan,
       hasCompletedTutorial: hasCompletedTutorial ?? this.hasCompletedTutorial,
       lyricsProviders: lyricsProviders ?? this.lyricsProviders,
       lyricsIncludeTranslationNetease:
