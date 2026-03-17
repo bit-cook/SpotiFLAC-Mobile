@@ -3248,6 +3248,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
     _log.d('Concurrent downloads: ${state.concurrentDownloads}');
     await _processQueueParallel();
+    final stoppedWhilePaused = state.isPaused;
 
     _stopProgressPolling();
 
@@ -3273,7 +3274,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     _log.i(
       'Queue stats - completed: $_completedInSession, failed: $_failedInSession, totalAtStart: $_totalQueuedAtStart',
     );
-    if (_totalQueuedAtStart > 0) {
+    if (!stoppedWhilePaused && _totalQueuedAtStart > 0) {
       await _notificationService.showQueueComplete(
         completedCount: _completedInSession,
         failedCount: _failedInSession,
@@ -3288,13 +3289,17 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       }
     }
 
-    _log.i('Queue processing finished');
+    if (stoppedWhilePaused) {
+      _log.i('Queue processing paused');
+    } else {
+      _log.i('Queue processing finished');
+    }
     state = state.copyWith(isProcessing: false, currentDownload: null);
 
     final hasQueuedItems = state.items.any(
       (item) => item.status == DownloadStatus.queued,
     );
-    if (hasQueuedItems) {
+    if (hasQueuedItems && !state.isPaused) {
       _log.i(
         'Found queued items after processing finished, restarting queue...',
       );
@@ -3310,8 +3315,15 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
     while (true) {
       if (state.isPaused) {
+        if (activeDownloads.isEmpty) {
+          _log.d('Queue is paused and no active downloads remain');
+          break;
+        }
         _log.d('Queue is paused, waiting for active downloads...');
-        await Future.delayed(_queueSchedulingInterval);
+        await Future.any([
+          Future.wait(activeDownloads.values),
+          Future.delayed(_queueSchedulingInterval),
+        ]);
         continue;
       }
 

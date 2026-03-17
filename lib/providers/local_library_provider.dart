@@ -329,6 +329,11 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
         if (items.isNotEmpty) {
           await _db.upsertBatch(items.map((e) => e.toJson()).toList());
         }
+        final persistedItems =
+            (await _db.getAll())
+                .map(LocalLibraryItem.fromJson)
+                .toList(growable: false)
+              ..sort(_compareLibraryItems);
 
         final now = DateTime.now();
         try {
@@ -341,7 +346,7 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
         }
 
         state = state.copyWith(
-          items: items,
+          items: persistedItems,
           isScanning: false,
           scanProgress: 100,
           lastScannedAt: now,
@@ -350,11 +355,11 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
         );
 
         _log.i(
-          'Full scan complete: ${items.length} tracks found, '
+          'Full scan complete: ${persistedItems.length} tracks found, '
           '$skippedDownloads already in downloads',
         );
         await _showScanCompleteNotification(
-          totalTracks: items.length,
+          totalTracks: persistedItems.length,
           excludedDownloadedCount: skippedDownloads,
           errorCount: state.scanErrorCount,
         );
@@ -439,8 +444,14 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
           '$skippedCount skipped, ${deletedPaths.length} deleted, $totalFiles total',
         );
 
+        // Build the incremental merge base from SQLite, not the current
+        // provider state. Startup auto-scan can fire before `state.items` has
+        // finished loading, which would otherwise drop unchanged rows from the
+        // in-memory library until a manual full rescan.
+        final existingJson = await _db.getAll();
         final currentByPath = <String, LocalLibraryItem>{
-          for (final item in state.items) item.filePath: item,
+          for (final item in existingJson.map(LocalLibraryItem.fromJson))
+            item.filePath: item,
         };
         final existingDownloadedPaths = <String>[];
         currentByPath.removeWhere((path, _) {
@@ -491,8 +502,11 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
           _log.i('Deleted $deleteCount items from database');
         }
 
-        final items = currentByPath.values.toList(growable: false)
-          ..sort(_compareLibraryItems);
+        final items =
+            (await _db.getAll())
+                .map(LocalLibraryItem.fromJson)
+                .toList(growable: false)
+              ..sort(_compareLibraryItems);
 
         final now = DateTime.now();
         try {

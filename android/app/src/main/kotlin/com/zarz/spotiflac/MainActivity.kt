@@ -30,6 +30,7 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.security.MessageDigest
 import java.util.Locale
 
 class MainActivity: FlutterFragmentActivity() {
@@ -109,6 +110,13 @@ class MainActivity: FlutterFragmentActivity() {
             android.util.Log.w("SpotiFLAC", "Failed to resolve SAF display path: ${e.message}")
             return treeUri.toString()
         }
+    }
+
+    private fun buildStableLibraryId(filePath: String): String {
+        val digest = MessageDigest.getInstance("SHA-1")
+        val bytes = digest.digest(filePath.toByteArray(Charsets.UTF_8))
+        val hex = bytes.joinToString("") { "%02x".format(it) }
+        return "lib_$hex"
     }
 
     data class SafScanProgress(
@@ -1263,7 +1271,9 @@ class MainActivity: FlutterFragmentActivity() {
             } else {
                 try {
                     val lastModified = try { doc.lastModified() } catch (_: Exception) { 0L }
-                    metadataObj.put("filePath", doc.uri.toString())
+                    val stableUri = doc.uri.toString()
+                    metadataObj.put("id", buildStableLibraryId(stableUri))
+                    metadataObj.put("filePath", stableUri)
                     metadataObj.put("fileModTime", lastModified)
                     results.put(metadataObj)
                 } catch (_: Exception) {
@@ -1680,7 +1690,9 @@ class MainActivity: FlutterFragmentActivity() {
             } else {
                 try {
                     val safeLastModified = try { doc.lastModified() } catch (_: Exception) { lastModified }
-                    metadataObj.put("filePath", doc.uri.toString())
+                    val stableUri = doc.uri.toString()
+                    metadataObj.put("id", buildStableLibraryId(stableUri))
+                    metadataObj.put("filePath", stableUri)
                     metadataObj.put("fileModTime", safeLastModified)
                     metadataObj.put("lastModified", safeLastModified)
                     results.put(metadataObj)
