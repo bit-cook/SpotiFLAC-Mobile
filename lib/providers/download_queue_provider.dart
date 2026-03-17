@@ -1005,6 +1005,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   int _lastNotifPercent = -1;
   int _lastNotifQueueCount = -1;
   final Set<String> _locallyCancelledItemIds = {};
+  final Set<String> _pausePendingItemIds = {};
 
   double _normalizeProgressForUi(double value) {
     final clamped = value.clamp(0.0, 1.0).toDouble();
@@ -1322,6 +1323,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       final itemId = entry.key;
       final localItem = itemsById[itemId];
       if (localItem == null) {
+        continue;
+      }
+      if (_isPausePending(itemId)) {
+        PlatformBridge.clearItemProgress(itemId).catchError((_) {});
         continue;
       }
       if (localItem.status == DownloadStatus.skipped) {
@@ -2123,12 +2128,42 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     return resolved?.status == DownloadStatus.skipped;
   }
 
+  bool _isPausePending(String id) => _pausePendingItemIds.contains(id);
+
+  void _requeueItemForPause(String id) {
+    final updatedItems = state.items
+        .map((item) {
+          if (item.id != id) return item;
+          if (item.status == DownloadStatus.completed ||
+              item.status == DownloadStatus.failed ||
+              item.status == DownloadStatus.skipped) {
+            return item;
+          }
+          return item.copyWith(
+            status: DownloadStatus.queued,
+            progress: 0,
+            speedMBps: 0,
+            bytesReceived: 0,
+          );
+        })
+        .toList(growable: false);
+
+    final currentDownload = state.currentDownload?.id == id
+        ? null
+        : state.currentDownload;
+    state = state.copyWith(
+      items: updatedItems,
+      currentDownload: currentDownload,
+    );
+  }
+
   void _requestNativeCancel(String id) {
     PlatformBridge.cancelDownload(id).catchError((_) {});
     PlatformBridge.clearItemProgress(id).catchError((_) {});
   }
 
   void cancelItem(String id) {
+    _pausePendingItemIds.remove(id);
     _locallyCancelledItemIds.add(id);
     updateItemStatus(id, DownloadStatus.skipped);
     _requestNativeCancel(id);
@@ -2161,6 +2196,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         .toList(growable: false);
 
     if (activeIds.isNotEmpty) {
+      _pausePendingItemIds.addAll(activeIds);
       _locallyCancelledItemIds.addAll(activeIds);
       for (final id in activeIds) {
         _requestNativeCancel(id);
@@ -2173,11 +2209,29 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     if (!wasProcessing) {
       _locallyCancelledItemIds.clear();
     }
+    _pausePendingItemIds.clear();
   }
 
   void pauseQueue() {
     if (state.isProcessing && !state.isPaused) {
-      state = state.copyWith(isPaused: true);
+      final activeIds = state.items
+          .where(
+            (item) =>
+                item.status == DownloadStatus.downloading ||
+                item.status == DownloadStatus.finalizing,
+          )
+          .map((item) => item.id)
+          .toSet();
+
+      if (activeIds.isNotEmpty) {
+        _pausePendingItemIds.addAll(activeIds);
+        for (final id in activeIds) {
+          _requestNativeCancel(id);
+          _requeueItemForPause(id);
+        }
+      }
+
+      state = state.copyWith(isPaused: true, currentDownload: null);
       _notificationService.cancelDownloadNotification();
       _log.i('Queue paused');
     }
@@ -3268,7 +3322,11 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       }
 
       final queuedItems = state.items
-          .where((item) => item.status == DownloadStatus.queued)
+          .where(
+            (item) =>
+                item.status == DownloadStatus.queued &&
+                !_pausePendingItemIds.contains(item.id),
+          )
           .toList();
 
       if (queuedItems.isEmpty && activeDownloads.isEmpty) {
@@ -3313,15 +3371,24 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     _stopProgressPolling();
     final remainingIds = state.items.map((item) => item.id).toSet();
     _locallyCancelledItemIds.removeWhere((id) => !remainingIds.contains(id));
+    _pausePendingItemIds.removeWhere((id) => !remainingIds.contains(id));
   }
 
   Future<void> _downloadSingleItem(DownloadItem item) async {
     _log.d('Processing: ${item.track.name} by ${item.track.artistName}');
     _log.d('Cover URL: ${item.track.coverUrl}');
+    var pausedDuringThisRun = false;
 
     final currentItem = _findItemById(item.id) ?? item;
     if (_isLocallyCancelled(item.id, item: currentItem)) {
       _log.i('Download was cancelled before start, skipping');
+      return;
+    }
+
+    if (_isPausePending(item.id)) {
+      pausedDuringThisRun = true;
+      _requeueItemForPause(item.id);
+      _log.i('Download is pause-pending before start, skipping');
       return;
     }
 
@@ -3330,6 +3397,21 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     updateItemStatus(item.id, DownloadStatus.downloading);
 
     try {
+      bool shouldAbortWork(String stage) {
+        final current = _findItemById(item.id);
+        if (_isLocallyCancelled(item.id, item: current)) {
+          _log.i('Download was cancelled $stage, skipping');
+          return true;
+        }
+        if (_isPausePending(item.id)) {
+          pausedDuringThisRun = true;
+          _requeueItemForPause(item.id);
+          _log.i('Download pause requested $stage, re-queueing');
+          return true;
+        }
+        return false;
+      }
+
       final settings = ref.read(settingsProvider);
       final metadataEmbeddingEnabled = settings.embedMetadata;
 
@@ -3409,6 +3491,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         } catch (e, stack) {
           _log.w('Failed to enrich metadata: $e');
           _log.w('Stack trace: $stack');
+        }
+
+        if (shouldAbortWork('during metadata enrichment')) {
+          return;
         }
       }
 
@@ -3523,6 +3609,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         } catch (e) {
           _log.w('Failed to search Deezer by ISRC: $e');
         }
+
+        if (shouldAbortWork('during Deezer ISRC lookup')) {
+          return;
+        }
       }
 
       // Fallback: Use SongLink to convert Spotify ID to Deezer ID
@@ -3623,6 +3713,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         } catch (e) {
           _log.w('Failed to convert Spotify to Deezer via SongLink: $e');
         }
+
+        if (shouldAbortWork('during SongLink availability lookup')) {
+          return;
+        }
       }
 
       if (deezerTrackId != null && deezerTrackId.isNotEmpty) {
@@ -3641,6 +3735,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           }
         } catch (e) {
           _log.w('Failed to fetch extended metadata from Deezer: $e');
+        }
+
+        if (shouldAbortWork('during extended metadata lookup')) {
+          return;
         }
       }
 
@@ -3760,8 +3858,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         );
       }
 
-      if (_isLocallyCancelled(item.id)) {
-        _log.i('Download was cancelled before native download start, skipping');
+      if (shouldAbortWork('before native download start')) {
         return;
       }
 
@@ -3803,16 +3900,26 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       _log.d('Result: $result');
 
       final itemAfterResult = _findItemById(item.id);
-      final cancelledAfterResult =
-          itemAfterResult == null ||
-          _isLocallyCancelled(item.id, item: itemAfterResult);
-      if (cancelledAfterResult) {
+      if (itemAfterResult == null ||
+          _isLocallyCancelled(item.id, item: itemAfterResult)) {
         _log.i('Download was cancelled, skipping result processing');
         final filePath = result['file_path'] as String?;
         if (filePath != null && result['success'] == true) {
           await deleteFile(filePath);
           _log.d('Deleted cancelled download file: $filePath');
         }
+        return;
+      }
+
+      if (_isPausePending(item.id)) {
+        pausedDuringThisRun = true;
+        final filePath = result['file_path'] as String?;
+        if (filePath != null && result['success'] == true) {
+          await deleteFile(filePath);
+          _log.d('Deleted paused download file: $filePath');
+        }
+        _requeueItemForPause(item.id);
+        _log.i('Download pause requested after result, re-queueing');
         return;
       }
 
@@ -4349,6 +4456,19 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           return;
         }
 
+        if (_isPausePending(item.id)) {
+          pausedDuringThisRun = true;
+          if (filePath != null) {
+            await deleteFile(filePath);
+            _log.d(
+              'Deleted paused download file during finalization: $filePath',
+            );
+          }
+          _requeueItemForPause(item.id);
+          _log.i('Download pause requested during finalization, re-queueing');
+          return;
+        }
+
         // SAF downloads should end with content URI. If we still have a
         // transient FD path, recover URI from SAF metadata to keep history
         // dedup/exclusion stable.
@@ -4616,11 +4736,26 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           return;
         }
 
+        if (_isPausePending(item.id)) {
+          pausedDuringThisRun = true;
+          _requeueItemForPause(item.id);
+          _log.i('Download pause requested after backend failure, re-queueing');
+          return;
+        }
+
         final errorMsg = result['error'] as String? ?? 'Download failed';
         final errorTypeStr = result['error_type'] as String? ?? 'unknown';
         if (errorTypeStr == 'cancelled') {
-          _log.i('Download was cancelled by backend, skipping error handling');
-          updateItemStatus(item.id, DownloadStatus.skipped);
+          if (_isPausePending(item.id)) {
+            pausedDuringThisRun = true;
+            _requeueItemForPause(item.id);
+            _log.i('Download was paused by backend cancellation, re-queueing');
+          } else {
+            _log.i(
+              'Download was cancelled by backend, skipping error handling',
+            );
+            updateItemStatus(item.id, DownloadStatus.skipped);
+          }
           return;
         }
 
@@ -4679,6 +4814,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         return;
       }
 
+      if (_isPausePending(item.id)) {
+        pausedDuringThisRun = true;
+        _requeueItemForPause(item.id);
+        _log.i('Download pause requested after exception, re-queueing');
+        return;
+      }
+
       _log.e('Exception: $e', e, stackTrace);
 
       String errorMsg = e.toString();
@@ -4703,6 +4845,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         await PlatformBridge.cleanupConnections();
       } catch (cleanupErr) {
         _log.e('Post-exception connection cleanup failed: $cleanupErr');
+      }
+    } finally {
+      if (pausedDuringThisRun) {
+        _pausePendingItemIds.remove(item.id);
       }
     }
   }
