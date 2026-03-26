@@ -2080,6 +2080,14 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         return _joinRelativePath(playlistPrefix, '$artistName/$albumName');
       }
 
+      if (albumFolderStructure == 'artist_album_flat') {
+        if (isSingle) {
+          return _joinRelativePath(playlistPrefix, artistName);
+        }
+        final albumName = _sanitizeFolderName(track.albumName);
+        return _joinRelativePath(playlistPrefix, '$artistName/$albumName');
+      }
+
       if (isSingle) {
         return _joinRelativePath(playlistPrefix, 'Singles');
       }
