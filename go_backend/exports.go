@@ -698,29 +698,57 @@ func ReadFileMetadata(filePath string) (string, error) {
 	if isFlac {
 		metadata, err := ReadMetadata(filePath)
 		if err != nil {
-			return "", fmt.Errorf("failed to read metadata: %w", err)
-		}
-		result["title"] = metadata.Title
-		result["artist"] = metadata.Artist
-		result["album"] = metadata.Album
-		result["album_artist"] = metadata.AlbumArtist
-		result["date"] = metadata.Date
-		result["track_number"] = metadata.TrackNumber
-		result["disc_number"] = metadata.DiscNumber
-		result["isrc"] = metadata.ISRC
-		result["lyrics"] = metadata.Lyrics
-		result["genre"] = metadata.Genre
-		result["label"] = metadata.Label
-		result["copyright"] = metadata.Copyright
-		result["composer"] = metadata.Composer
-		result["comment"] = metadata.Comment
+			// File may have wrong extension (e.g. opus saved as .flac).
+			// Try Ogg/Opus parser as fallback before giving up.
+			GoLog("[ReadFileMetadata] FLAC parse failed for %s, trying Ogg fallback: %v\n", filePath, err)
+			oggMeta, oggErr := ReadOggVorbisComments(filePath)
+			if oggErr == nil && oggMeta != nil {
+				result["title"] = oggMeta.Title
+				result["artist"] = oggMeta.Artist
+				result["album"] = oggMeta.Album
+				result["album_artist"] = oggMeta.AlbumArtist
+				result["date"] = oggMeta.Date
+				if oggMeta.Date == "" {
+					result["date"] = oggMeta.Year
+				}
+				result["track_number"] = oggMeta.TrackNumber
+				result["disc_number"] = oggMeta.DiscNumber
+				result["isrc"] = oggMeta.ISRC
+				result["lyrics"] = oggMeta.Lyrics
+				result["genre"] = oggMeta.Genre
+				result["composer"] = oggMeta.Composer
+				result["comment"] = oggMeta.Comment
+				quality, qualityErr := GetOggQuality(filePath)
+				if qualityErr == nil {
+					result["sample_rate"] = quality.SampleRate
+					result["duration"] = quality.Duration
+				}
+			} else {
+				return "", fmt.Errorf("failed to read metadata: %w", err)
+			}
+		} else {
+			result["title"] = metadata.Title
+			result["artist"] = metadata.Artist
+			result["album"] = metadata.Album
+			result["album_artist"] = metadata.AlbumArtist
+			result["date"] = metadata.Date
+			result["track_number"] = metadata.TrackNumber
+			result["disc_number"] = metadata.DiscNumber
+			result["isrc"] = metadata.ISRC
+			result["lyrics"] = metadata.Lyrics
+			result["genre"] = metadata.Genre
+			result["label"] = metadata.Label
+			result["copyright"] = metadata.Copyright
+			result["composer"] = metadata.Composer
+			result["comment"] = metadata.Comment
 
-		quality, qualityErr := GetAudioQuality(filePath)
-		if qualityErr == nil {
-			result["bit_depth"] = quality.BitDepth
-			result["sample_rate"] = quality.SampleRate
-			if quality.SampleRate > 0 && quality.TotalSamples > 0 {
-				result["duration"] = int(quality.TotalSamples / int64(quality.SampleRate))
+			quality, qualityErr := GetAudioQuality(filePath)
+			if qualityErr == nil {
+				result["bit_depth"] = quality.BitDepth
+				result["sample_rate"] = quality.SampleRate
+				if quality.SampleRate > 0 && quality.TotalSamples > 0 {
+					result["duration"] = int(quality.TotalSamples / int64(quality.SampleRate))
+				}
 			}
 		}
 	} else if isM4A {

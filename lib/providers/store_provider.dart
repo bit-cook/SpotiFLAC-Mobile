@@ -12,13 +12,13 @@ const _registryUrlPrefKey = 'store_registry_url';
 int compareVersions(String v1, String v2) {
   final parts1 = v1.replaceAll(_leadingVersionPrefix, '').split('.');
   final parts2 = v2.replaceAll(_leadingVersionPrefix, '').split('.');
-  
+
   final maxLen = parts1.length > parts2.length ? parts1.length : parts2.length;
-  
+
   for (var i = 0; i < maxLen; i++) {
     final n1 = i < parts1.length ? (int.tryParse(parts1[i]) ?? 0) : 0;
     final n2 = i < parts2.length ? (int.tryParse(parts2[i]) ?? 0) : 0;
-    
+
     if (n1 < n2) return -1;
     if (n1 > n2) return 1;
   }
@@ -26,14 +26,19 @@ int compareVersions(String v1, String v2) {
 }
 
 class StoreCategory {
-
   static const String metadata = 'metadata';
   static const String download = 'download';
   static const String utility = 'utility';
   static const String lyrics = 'lyrics';
   static const String integration = 'integration';
 
-  static const List<String> all = [metadata, download, utility, lyrics, integration];
+  static const List<String> all = [
+    metadata,
+    download,
+    utility,
+    lyrics,
+    integration,
+  ];
 
   static String getDisplayName(String category) {
     switch (category) {
@@ -94,7 +99,8 @@ class StoreExtension {
     return StoreExtension(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
-      displayName: json['display_name'] as String? ?? json['name'] as String? ?? '',
+      displayName:
+          json['display_name'] as String? ?? json['name'] as String? ?? '',
       version: json['version'] as String? ?? '0.0.0',
       author: json['author'] as String? ?? 'Unknown',
       description: json['description'] as String? ?? '',
@@ -116,7 +122,6 @@ class StoreExtension {
     return compareVersions(minAppVersion!, AppInfo.version) > 0;
   }
 }
-
 
 class StoreState {
   final List<StoreExtension> extensions;
@@ -160,11 +165,15 @@ class StoreState {
   }) {
     return StoreState(
       extensions: extensions ?? this.extensions,
-      selectedCategory: clearCategory ? null : (selectedCategory ?? this.selectedCategory),
+      selectedCategory: clearCategory
+          ? null
+          : (selectedCategory ?? this.selectedCategory),
       searchQuery: searchQuery ?? this.searchQuery,
       isLoading: isLoading ?? this.isLoading,
       isDownloading: isDownloading ?? this.isDownloading,
-      downloadingId: clearDownloadingId ? null : (downloadingId ?? this.downloadingId),
+      downloadingId: clearDownloadingId
+          ? null
+          : (downloadingId ?? this.downloadingId),
       error: clearError ? null : (error ?? this.error),
       isInitialized: isInitialized ?? this.isInitialized,
       registryUrl: registryUrl ?? this.registryUrl,
@@ -180,13 +189,16 @@ class StoreState {
 
     if (searchQuery.isNotEmpty) {
       final query = searchQuery.toLowerCase();
-      result = result.where((e) =>
-        e.name.toLowerCase().contains(query) ||
-        e.displayName.toLowerCase().contains(query) ||
-        e.description.toLowerCase().contains(query) ||
-        e.author.toLowerCase().contains(query) ||
-        e.tags.any((t) => t.toLowerCase().contains(query))
-      ).toList();
+      result = result
+          .where(
+            (e) =>
+                e.name.toLowerCase().contains(query) ||
+                e.displayName.toLowerCase().contains(query) ||
+                e.description.toLowerCase().contains(query) ||
+                e.author.toLowerCase().contains(query) ||
+                e.tags.any((t) => t.toLowerCase().contains(query)),
+          )
+          .toList();
     }
 
     return result;
@@ -206,23 +218,28 @@ class StoreNotifier extends Notifier<StoreState> {
   Future<void> initialize(String cacheDir) async {
     if (state.isInitialized) return;
 
-    state = state.copyWith(isLoading: true, clearError: true);
+    // Load saved registry URL early to avoid UI flash (empty → setup screen)
+    final prefs = await SharedPreferences.getInstance();
+    final savedUrl = prefs.getString(_registryUrlPrefKey) ?? '';
+
+    state = state.copyWith(
+      isLoading: true,
+      clearError: true,
+      registryUrl: savedUrl,
+    );
 
     try {
       await PlatformBridge.initExtensionStore(cacheDir);
 
-      // Load saved registry URL from SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      final savedUrl = prefs.getString(_registryUrlPrefKey) ?? '';
-
       if (savedUrl.isNotEmpty) {
         await PlatformBridge.setStoreRegistryUrl(savedUrl);
-        state = state.copyWith(registryUrl: savedUrl);
         await refresh();
       }
 
       state = state.copyWith(isInitialized: true, isLoading: false);
-      _log.i('Extension store initialized (registryUrl: ${savedUrl.isEmpty ? "not set" : savedUrl})');
+      _log.i(
+        'Extension store initialized (registryUrl: ${savedUrl.isEmpty ? "not set" : savedUrl})',
+      );
     } catch (e) {
       _log.e('Failed to initialize store: $e');
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -292,7 +309,9 @@ class StoreNotifier extends Notifier<StoreState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
-      final extensions = await PlatformBridge.getStoreExtensions(forceRefresh: forceRefresh);
+      final extensions = await PlatformBridge.getStoreExtensions(
+        forceRefresh: forceRefresh,
+      );
       state = state.copyWith(
         extensions: extensions.map((e) => StoreExtension.fromJson(e)).toList(),
         isLoading: false,
@@ -320,12 +339,23 @@ class StoreNotifier extends Notifier<StoreState> {
     state = state.copyWith(searchQuery: '', clearCategory: true);
   }
 
-  Future<bool> installExtension(String extensionId, String tempDir, String extensionsDir) async {
-    state = state.copyWith(isDownloading: true, downloadingId: extensionId, clearError: true);
+  Future<bool> installExtension(
+    String extensionId,
+    String tempDir,
+    String extensionsDir,
+  ) async {
+    state = state.copyWith(
+      isDownloading: true,
+      downloadingId: extensionId,
+      clearError: true,
+    );
 
     try {
       _log.i('Downloading extension: $extensionId');
-      final downloadPath = await PlatformBridge.downloadStoreExtension(extensionId, tempDir);
+      final downloadPath = await PlatformBridge.downloadStoreExtension(
+        extensionId,
+        tempDir,
+      );
 
       _log.i('Installing extension from: $downloadPath');
       final extNotifier = ref.read(extensionProvider.notifier);
@@ -340,18 +370,28 @@ class StoreNotifier extends Notifier<StoreState> {
       return success;
     } catch (e) {
       _log.e('Failed to install extension: $e');
-      state = state.copyWith(isDownloading: false, clearDownloadingId: true, error: e.toString());
+      state = state.copyWith(
+        isDownloading: false,
+        clearDownloadingId: true,
+        error: e.toString(),
+      );
       return false;
     }
   }
 
-
   Future<bool> updateExtension(String extensionId, String tempDir) async {
-    state = state.copyWith(isDownloading: true, downloadingId: extensionId, clearError: true);
+    state = state.copyWith(
+      isDownloading: true,
+      downloadingId: extensionId,
+      clearError: true,
+    );
 
     try {
       _log.i('Downloading update for: $extensionId');
-      final downloadPath = await PlatformBridge.downloadStoreExtension(extensionId, tempDir);
+      final downloadPath = await PlatformBridge.downloadStoreExtension(
+        extensionId,
+        tempDir,
+      );
 
       _log.i('Upgrading extension from: $downloadPath');
       final extNotifier = ref.read(extensionProvider.notifier);
@@ -366,7 +406,11 @@ class StoreNotifier extends Notifier<StoreState> {
       return success;
     } catch (e) {
       _log.e('Failed to update extension: $e');
-      state = state.copyWith(isDownloading: false, clearDownloadingId: true, error: e.toString());
+      state = state.copyWith(
+        isDownloading: false,
+        clearDownloadingId: true,
+        error: e.toString(),
+      );
       return false;
     }
   }
