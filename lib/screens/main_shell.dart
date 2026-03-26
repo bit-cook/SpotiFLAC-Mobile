@@ -162,7 +162,6 @@ class _MainShellState extends ConsumerState<MainShell>
     if (!Platform.isAndroid) return;
 
     final settings = ref.read(settingsProvider);
-    // Only show if user is still on legacy storage mode with a download dir set
     if (settings.storageMode == 'saf') return;
     if (settings.downloadDirectory.isEmpty) return;
 

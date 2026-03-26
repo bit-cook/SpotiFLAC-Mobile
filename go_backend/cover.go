@@ -42,7 +42,6 @@ func downloadCoverToMemory(coverURL string, maxQuality bool) ([]byte, error) {
 		maxURL := upgradeToMaxQuality(downloadURL)
 		if maxURL != downloadURL {
 			downloadURL = maxURL
-			// Log already printed by upgradeToMaxQuality for Deezer
 			if strings.Contains(coverURL, "scdn.co") || strings.Contains(coverURL, "spotifycdn") {
 				GoLog("[Cover] Spotify: upgraded to max resolution (~2000x2000)")
 			}
@@ -88,22 +87,18 @@ func downloadCoverToMemory(coverURL string, maxQuality bool) ([]byte, error) {
 }
 
 func upgradeToMaxQuality(coverURL string) string {
-	// Spotify CDN upgrade
 	if strings.Contains(coverURL, spotifySize640) {
 		return strings.Replace(coverURL, spotifySize640, spotifySizeMax, 1)
 	}
 
-	// Deezer CDN upgrade
 	if strings.Contains(coverURL, "cdn-images.dzcdn.net") {
 		return upgradeDeezerCover(coverURL)
 	}
 
-	// Tidal CDN upgrade: 1280x1280 → origin
 	if strings.Contains(coverURL, "resources.tidal.com") {
 		return upgradeTidalCover(coverURL)
 	}
 
-	// Qobuz CDN upgrade: _600 → _max
 	if strings.Contains(coverURL, "static.qobuz.com") {
 		return upgradeQobuzCover(coverURL)
 	}
@@ -152,7 +147,6 @@ func GetCoverFromSpotify(imageURL string, maxQuality bool) string {
 		return ""
 	}
 
-	// Always upgrade small to medium first
 	result := convertSmallToMedium(imageURL)
 
 	if maxQuality {

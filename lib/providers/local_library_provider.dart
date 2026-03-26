@@ -252,8 +252,6 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
 
     _startProgressPolling();
 
-    // On iOS, start accessing the security-scoped bookmark so the Go backend
-    // can read files outside the app sandbox.
     String? resolvedPath;
     bool didStartSecurityAccess = false;
     if (Platform.isIOS && iosBookmark != null && iosBookmark.isNotEmpty) {
@@ -275,9 +273,6 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
     try {
       final isSaf = effectiveFolderPath.startsWith('content://');
 
-      // Get all file paths from download history to exclude them.
-      // Merge DB + in-memory state to avoid race when a fresh download has not
-      // been flushed to SQLite yet.
       final downloadedPaths = await _historyDb.getAllFilePaths();
       final inMemoryHistoryPaths = ref
           .read(downloadHistoryProvider)
@@ -298,7 +293,6 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
       );
 
       if (forceFullScan) {
-        // Full scan path - ignores existing data
         final results = isSaf
             ? await PlatformBridge.scanSafTree(effectiveFolderPath)
             : await PlatformBridge.scanLibraryFolder(effectiveFolderPath);
@@ -324,7 +318,6 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
           _log.i('Skipped $skippedDownloads files already in download history');
         }
 
-        // Full scan should replace library index atomically.
         await _db.replaceAll(items.map((e) => e.toJson()).toList());
         final persistedItems = [...items]..sort(_compareLibraryItems);
 
@@ -357,7 +350,6 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
           errorCount: state.scanErrorCount,
         );
       } else {
-        // Incremental scan path - only scans new/modified files
         final existingFiles = await _db.getFileModTimes();
         _log.i(
           'Incremental scan: ${existingFiles.length} existing files in database',
@@ -416,7 +408,6 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
           return;
         }
 
-        // SAF returns 'files' and 'removedUris', non-SAF returns 'scanned' and 'deletedPaths'
         final scannedList =
             (result['files'] as List<dynamic>?) ??
             (result['scanned'] as List<dynamic>?) ??
@@ -437,10 +428,6 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
           '$skippedCount skipped, ${deletedPaths.length} deleted, $totalFiles total',
         );
 
-        // Build the incremental merge base from SQLite, not the current
-        // provider state. Startup auto-scan can fire before `state.items` has
-        // finished loading, which would otherwise drop unchanged rows from the
-        // in-memory library until a manual full rescan.
         final existingJson = await _db.getAll();
         final currentByPath = <String, LocalLibraryItem>{
           for (final item in existingJson.map(LocalLibraryItem.fromJson))
@@ -461,7 +448,6 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
           );
         }
 
-        // Upsert new/modified items (excluding downloaded files)
         final updatedItems = <LocalLibraryItem>[];
         int skippedDownloads = existingDownloadedPaths.length;
         if (scannedList.isNotEmpty) {

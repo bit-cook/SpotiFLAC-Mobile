@@ -236,7 +236,6 @@ func (s *ExtensionStore) FetchRegistry(forceRefresh bool) (*StoreRegistry, error
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()
 
-	// Check if a registry URL has been configured
 	if s.registryURL == "" {
 		return nil, fmt.Errorf("no registry URL configured. Please add a repository URL first")
 	}
@@ -396,7 +395,6 @@ func ResolveRegistryURL(input string) (string, error) {
 		return input, nil
 	}
 
-	// Try to match https://github.com/<owner>/<repo>[/...]
 	const ghPrefix = "https://github.com/"
 	if !strings.HasPrefix(input, ghPrefix) {
 		// Also accept http:// and upgrade silently.
@@ -500,7 +498,6 @@ func (s *ExtensionStore) SearchExtensions(query string, category string) ([]*Sto
 				!containsIgnoreCase(ext.DisplayName, queryLower) &&
 				!containsIgnoreCase(ext.Description, queryLower) &&
 				!containsIgnoreCase(ext.Author, queryLower) {
-				// Check tags
 				found := false
 				for _, tag := range ext.Tags {
 					if containsIgnoreCase(tag, queryLower) {

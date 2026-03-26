@@ -61,7 +61,7 @@ class _ExtensionsPageState extends ConsumerState<ExtensionsPage> {
     final topPadding = normalizedHeaderTopPadding(context);
 
     return PopScope(
-      canPop: true, // Always allow back gesture
+      canPop: true,
       child: Scaffold(
         body: CustomScrollView(
           slivers: [
@@ -600,14 +600,12 @@ class _SearchProviderSelector extends ConsumerWidget {
         .where((e) => e.enabled && e.hasCustomSearch)
         .toList();
 
-    // Always allow tapping: built-in providers are always available
     final hasAnyProvider =
         searchProviders.isNotEmpty || _builtInProviders.isNotEmpty;
 
     String currentProviderName = context.l10n.extensionDefaultProvider;
     if (settings.searchProvider != null &&
         settings.searchProvider!.isNotEmpty) {
-      // Check built-in first
       if (_builtInProviders.containsKey(settings.searchProvider)) {
         currentProviderName = _builtInProviders[settings.searchProvider]!;
       } else {

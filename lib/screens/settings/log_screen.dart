@@ -136,7 +136,7 @@ class _LogScreenState extends State<LogScreen> {
     final logs = _filteredLogs;
 
     return PopScope(
-      canPop: true, // Always allow back gesture
+      canPop: true,
       child: Scaffold(
         body: CustomScrollView(
           controller: _scrollController,

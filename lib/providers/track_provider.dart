@@ -18,21 +18,18 @@ class TrackState {
   final String? artistId;
   final String? artistName;
   final String? coverUrl;
-  final String? headerImageUrl; // Artist header image for background
+  final String? headerImageUrl;
   final int? monthlyListeners;
-  final List<ArtistAlbum>? artistAlbums; // For artist page
-  final List<Track>? artistTopTracks; // Artist's popular tracks
-  final List<SearchArtist>? searchArtists; // For search results
-  final List<SearchAlbum>? searchAlbums; // For search results (albums)
-  final List<SearchPlaylist>? searchPlaylists; // For search results (playlists)
-  final bool hasSearchText; // For back button handling
-  final bool isShowingRecentAccess; // For recent access mode
-  final String?
-  searchExtensionId; // Extension ID used for current search results
-  final String?
-  selectedSearchFilter; // Currently selected search filter (e.g., "track", "album", "artist", "playlist")
-  final String?
-  searchSource; // Built-in search provider used for current results (e.g., "deezer", "tidal", "qobuz")
+  final List<ArtistAlbum>? artistAlbums;
+  final List<Track>? artistTopTracks;
+  final List<SearchArtist>? searchArtists;
+  final List<SearchAlbum>? searchAlbums;
+  final List<SearchPlaylist>? searchPlaylists;
+  final bool hasSearchText;
+  final bool isShowingRecentAccess;
+  final String? searchExtensionId;
+  final String? selectedSearchFilter;
+  final String? searchSource;
 
   const TrackState({
     this.tracks = const [],
@@ -127,9 +124,9 @@ class ArtistAlbum {
   final String releaseDate;
   final int totalTracks;
   final String? coverUrl;
-  final String albumType; // album, single, compilation
+  final String albumType;
   final String artists;
-  final String? providerId; // Extension ID if from extension
+  final String? providerId;
 
   const ArtistAlbum({
     required this.id,
@@ -204,7 +201,6 @@ class TrackNotifier extends Notifier<TrackState> {
     return const TrackState();
   }
 
-  /// Check if request is still valid (not cancelled by newer request)
   bool _isRequestValid(int requestId) => requestId == _currentRequestId;
 
   Future<void> fetchFromUrl(String url, {bool useDeezerFallback = true}) async {
@@ -217,7 +213,6 @@ class TrackNotifier extends Notifier<TrackState> {
       if (extensionHandler != null) {
         _log.i('Found extension URL handler: $extensionHandler for URL: $url');
 
-        // Retry logic for extension URL handlers (up to 3 attempts)
         Map<String, dynamic>? result;
         for (int attempt = 1; attempt <= 3; attempt++) {
           result = await PlatformBridge.handleURLWithExtension(url);
@@ -541,7 +536,6 @@ class TrackNotifier extends Notifier<TrackState> {
         return;
       }
 
-      // If URL doesn't match any known service, it's unrecognized
       final isSpotifyUrl =
           url.contains('open.spotify.com') ||
           url.contains('spotify.link') ||
@@ -643,7 +637,6 @@ class TrackNotifier extends Notifier<TrackState> {
   }) async {
     final requestId = ++_currentRequestId;
 
-    // Preserve selected filter during loading
     final currentFilter = filterOverride ?? state.selectedSearchFilter;
 
     state = TrackState(
@@ -662,7 +655,6 @@ class TrackNotifier extends Notifier<TrackState> {
       final includeExtensions =
           settings.useExtensionProviders && hasActiveMetadataExtensions;
 
-      // Determine the effective search provider
       final effectiveProvider = builtInSearchProvider ?? 'deezer';
 
       _log.i(
@@ -672,7 +664,6 @@ class TrackNotifier extends Notifier<TrackState> {
       Map<String, dynamic> results;
       List<Map<String, dynamic>> metadataTrackResults = [];
 
-      // Only use metadata providers for Deezer search (default behavior)
       if (effectiveProvider == 'deezer') {
         try {
           _log.d('Calling metadata provider search API...');
@@ -692,7 +683,6 @@ class TrackNotifier extends Notifier<TrackState> {
         }
       }
 
-      // Call the appropriate search API
       switch (effectiveProvider) {
         case 'tidal':
           _log.d('Calling Tidal search API...');
@@ -808,9 +798,8 @@ class TrackNotifier extends Notifier<TrackState> {
         isLoading: false,
         hasSearchText: state.hasSearchText,
         isShowingRecentAccess: state.isShowingRecentAccess,
-        selectedSearchFilter: currentFilter, // Preserve filter in results
-        searchSource:
-            effectiveProvider, // Track which service was used for search
+        selectedSearchFilter: currentFilter,
+        searchSource: effectiveProvider,
       );
     } catch (e, stackTrace) {
       if (!_isRequestValid(requestId)) return;
@@ -837,7 +826,7 @@ class TrackNotifier extends Notifier<TrackState> {
       hasSearchText: state.hasSearchText,
       isShowingRecentAccess: state.isShowingRecentAccess,
       selectedSearchFilter:
-          state.selectedSearchFilter, // Preserve filter during loading
+          state.selectedSearchFilter,
     );
 
     try {
@@ -876,9 +865,8 @@ class TrackNotifier extends Notifier<TrackState> {
         isLoading: false,
         hasSearchText: state.hasSearchText,
         isShowingRecentAccess: state.isShowingRecentAccess,
-        searchExtensionId: extensionId, // Store which extension was used
-        selectedSearchFilter:
-            state.selectedSearchFilter, // Preserve selected filter
+        searchExtensionId: extensionId,
+        selectedSearchFilter: state.selectedSearchFilter,
       );
     } catch (e, stackTrace) {
       if (!_isRequestValid(requestId)) return;
@@ -934,7 +922,6 @@ class TrackNotifier extends Notifier<TrackState> {
       tracks[index] = updatedTrack;
       state = state.copyWith(tracks: tracks);
     } catch (_) {
-      // Silently ignore update failures - track may have been removed
     }
   }
 
@@ -942,7 +929,6 @@ class TrackNotifier extends Notifier<TrackState> {
     state = const TrackState();
   }
 
-  /// Set selected search filter for extension search
   void setSearchFilter(String? filter) {
     if (state.selectedSearchFilter == filter) return;
     state = state.copyWith(
@@ -951,7 +937,6 @@ class TrackNotifier extends Notifier<TrackState> {
     );
   }
 
-  /// Set search text state for back button handling
   void setSearchText(bool hasText) {
     if (state.hasSearchText == hasText) {
       return;
@@ -966,7 +951,6 @@ class TrackNotifier extends Notifier<TrackState> {
     state = state.copyWith(isShowingRecentAccess: showing);
   }
 
-  /// Set tracks from a collection (album/playlist) opened from search results
   void setTracksFromCollection({
     required List<Track> tracks,
     String? albumName,
@@ -1127,7 +1111,7 @@ class TrackNotifier extends Notifier<TrackState> {
         'isrc': isrc,
         'track_name': track.name,
         'artist_name': track.artistName,
-        'spotify_id': track.id, // Include Spotify ID for Amazon lookup
+        'spotify_id': track.id,
         'service': 'tidal',
       });
       if (cacheRequests.length >= _maxPreWarmTracksPerRequest) {

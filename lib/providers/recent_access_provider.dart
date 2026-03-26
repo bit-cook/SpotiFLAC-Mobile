@@ -5,18 +5,16 @@ import 'package:spotiflac_android/services/app_state_database.dart';
 
 const _maxRecentItems = 20;
 
-/// Types of items that can be accessed
 enum RecentAccessType { artist, album, track, playlist }
 
-/// Represents a recently accessed item
 class RecentAccessItem {
   final String id;
   final String name;
-  final String? subtitle; // Artist name for tracks/albums, null for artists
+  final String? subtitle;
   final String? imageUrl;
   final RecentAccessType type;
   final DateTime accessedAt;
-  final String? providerId; // Extension ID or 'deezer' for built-in
+  final String? providerId;
 
   const RecentAccessItem({
     required this.id,
@@ -53,7 +51,6 @@ class RecentAccessItem {
     );
   }
 
-  /// Create a unique key for deduplication
   String get uniqueKey => '${type.name}:${providerId ?? 'default'}:$id';
 
   @override
@@ -67,7 +64,6 @@ class RecentAccessItem {
   int get hashCode => uniqueKey.hashCode;
 }
 
-/// State for recent access history
 class RecentAccessState {
   final List<RecentAccessItem> items;
   final Set<String> hiddenDownloadIds;
@@ -92,7 +88,6 @@ class RecentAccessState {
   }
 }
 
-/// Provider for managing recent access history
 class RecentAccessNotifier extends Notifier<RecentAccessState> {
   final AppStateDatabase _appStateDb = AppStateDatabase.instance;
 
@@ -135,7 +130,6 @@ class RecentAccessNotifier extends Notifier<RecentAccessState> {
     }
   }
 
-  /// Record an access to an artist
   void recordArtistAccess({
     required String id,
     required String name,
@@ -154,7 +148,6 @@ class RecentAccessNotifier extends Notifier<RecentAccessState> {
     );
   }
 
-  /// Record an access to an album
   void recordAlbumAccess({
     required String id,
     required String name,
@@ -175,7 +168,6 @@ class RecentAccessNotifier extends Notifier<RecentAccessState> {
     );
   }
 
-  /// Record an access to a track
   void recordTrackAccess({
     required String id,
     required String name,
@@ -196,7 +188,6 @@ class RecentAccessNotifier extends Notifier<RecentAccessState> {
     );
   }
 
-  /// Record an access to a playlist
   void recordPlaylistAccess({
     required String id,
     required String name,
@@ -242,7 +233,6 @@ class RecentAccessNotifier extends Notifier<RecentAccessState> {
     }
   }
 
-  /// Remove a specific item from history
   void removeItem(RecentAccessItem item) {
     final updatedItems = state.items
         .where((e) => e.uniqueKey != item.uniqueKey)
@@ -251,25 +241,21 @@ class RecentAccessNotifier extends Notifier<RecentAccessState> {
     unawaited(_appStateDb.deleteRecentAccessRow(item.uniqueKey));
   }
 
-  /// Hide a download item from recents (without deleting the actual download)
   void hideDownloadFromRecents(String downloadId) {
     final updatedHidden = {...state.hiddenDownloadIds, downloadId};
     state = state.copyWith(hiddenDownloadIds: updatedHidden);
     unawaited(_appStateDb.addHiddenRecentDownloadId(downloadId));
   }
 
-  /// Check if a download is hidden from recents
   bool isDownloadHidden(String downloadId) {
     return state.hiddenDownloadIds.contains(downloadId);
   }
 
-  /// Clear all history
   void clearHistory() {
     state = state.copyWith(items: []);
     unawaited(_appStateDb.clearRecentAccessRows());
   }
 
-  /// Clear hidden downloads (show all again)
   void clearHiddenDownloads() {
     state = state.copyWith(hiddenDownloadIds: {});
     unawaited(_appStateDb.clearHiddenRecentDownloadIds());

@@ -60,19 +60,19 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   bool _fileExists = false;
   bool _hasCheckedFile = false;
   int? _fileSize;
-  String? _lyrics; // Cleaned lyrics for display (no timestamps)
-  String? _rawLyrics; // Raw LRC with timestamps for embedding
+  String? _lyrics;
+  String? _rawLyrics;
   bool _lyricsLoading = false;
   String? _lyricsError;
   String? _lyricsSource;
   bool _showTitleInAppBar = false;
   bool _lyricsEmbedded = false;
-  bool _isEmbedding = false; // Track embed operation in progress
+  bool _isEmbedding = false;
   bool _isInstrumental = false;
-  bool _isConverting = false; // Track convert operation in progress
+  bool _isConverting = false;
   bool _hasMetadataChanges = false;
   bool _hasLoadedResolvedAudioMetadata = false;
-  Map<String, dynamic>? _editedMetadata; // Overrides after metadata edit
+  Map<String, dynamic>? _editedMetadata;
   String? _embeddedCoverPreviewPath;
   final ScrollController _scrollController = ScrollController();
   static final RegExp _lrcTimestampPattern = RegExp(
@@ -577,7 +577,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   String get cleanFilePath {
     var path = _filePath;
     if (path.startsWith('EXISTS:')) path = path.substring(7);
-    // Strip CUE virtual path suffix for filesystem operations
     if (isCueVirtualPath(path)) path = stripCueTrackSuffix(path);
     return path;
   }
@@ -1707,7 +1706,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
         _spotifyId ?? '',
         trackName,
         artistName,
-        filePath: null, // Don't check file again
+        filePath: null,
         durationMs: durationMs,
       ).timeout(const Duration(seconds: 20));
 
@@ -1733,9 +1732,9 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
           final cleanLyrics = _cleanLrcForDisplay(lrcText);
           setState(() {
             _lyrics = cleanLyrics;
-            _rawLyrics = lrcText; // Keep raw LRC with timestamps for embedding
+            _rawLyrics = lrcText;
             _lyricsSource = source.isNotEmpty ? source : null;
-            _lyricsEmbedded = false; // Lyrics from online, not embedded
+            _lyricsEmbedded = false;
             _lyricsLoading = false;
           });
         }
@@ -1762,7 +1761,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
 
     setState(() => _isEmbedding = true);
 
-    // Capture l10n strings before async gaps to avoid use_build_context_synchronously
     final l10nFailedToWriteStorage = context.l10n.snackbarFailedToWriteStorage;
     final l10nFailedToEmbedLyrics = context.l10n.snackbarFailedToEmbedLyrics;
     final l10nUnsupportedFormat = context.l10n.snackbarUnsupportedAudioFormat;
@@ -3556,7 +3554,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
         bitrate: bitrate,
         metadata: metadata,
         coverPath: coverPath,
-        deleteOriginal: !isSaf, // Don't delete temp copy for SAF, we handle it
+        deleteOriginal: !isSaf,
       );
 
       if (coverPath != null) {
@@ -3627,7 +3625,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
             newExt = '.flac';
             mimeType = 'audio/flac';
             break;
-          default: // mp3
+          default:
             newExt = '.mp3';
             mimeType = 'audio/mpeg';
             break;

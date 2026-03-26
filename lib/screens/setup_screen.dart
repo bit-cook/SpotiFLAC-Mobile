@@ -441,14 +441,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 
   void _nextPage() {
     bool canProceed = false;
-    // Step 0 is Welcome, always can proceed
     if (_currentStep == 0) {
       canProceed = true;
     } else {
-      // Logic for other steps (offset by 1 because of welcome step)
-      // Step 1: Storage
-      // Step 2: Notification (if android 13+) OR Directory
-      // etc.
       canProceed = _isStepCompleted(_currentStep);
     }
 
@@ -470,9 +465,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   }
 
   bool _isStepCompleted(int step) {
-    if (step == 0) return true; // Welcome
+    if (step == 0) return true;
 
-    // Adjust step index for logic because we added Welcome at 0
     final logicStep = step - 1;
 
     if (_androidSdkVersion >= 33) {

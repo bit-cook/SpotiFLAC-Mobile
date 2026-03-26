@@ -112,7 +112,6 @@ func DoRequestWithCloudflareBypass(req *http.Request) (*http.Response, error) {
 
 	resp, err := sharedClient.Do(req)
 	if err == nil {
-		// Check for Cloudflare challenge page (403 with specific markers)
 		if resp.StatusCode == 403 || resp.StatusCode == 503 {
 			body, readErr := io.ReadAll(resp.Body)
 			resp.Body.Close()
@@ -154,7 +153,6 @@ func DoRequestWithCloudflareBypass(req *http.Request) (*http.Response, error) {
 		return resp, nil
 	}
 
-	// Check if error might be TLS-related (Cloudflare blocking)
 	errStr := strings.ToLower(err.Error())
 	tlsRelated := strings.Contains(errStr, "tls") ||
 		strings.Contains(errStr, "handshake") ||

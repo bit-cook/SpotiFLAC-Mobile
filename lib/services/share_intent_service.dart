@@ -80,7 +80,6 @@ class ShareIntentService {
     bool isInitial = false,
   }) {
     for (final file in files) {
-      // Check both path and message - apps may share URL in either field
       final textsToCheck = [file.path, if (file.message != null) file.message!];
 
       for (final textToCheck in textsToCheck) {
@@ -100,13 +99,11 @@ class ShareIntentService {
   String? _extractMusicUrl(String text) {
     if (text.isEmpty) return null;
 
-    // Try Spotify URI first
     final uriMatch = _spotifyUriPattern.firstMatch(text);
     if (uriMatch != null) {
       return uriMatch.group(0);
     }
 
-    // Try all URL patterns
     final patterns = [
       _spotifyUrlPattern,
       _deezerUrlPattern,

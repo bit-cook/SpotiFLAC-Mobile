@@ -14,8 +14,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 
-// Data models
-
 class AudioAnalysisData {
   final String filePath;
   final int fileSize;
@@ -98,8 +96,6 @@ class SpectrogramData {
   });
 }
 
-// Audio Analysis Card Widget
-
 class AudioAnalysisCard extends StatefulWidget {
   final String filePath;
 
@@ -179,7 +175,6 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
     });
 
     try {
-      // Try loading from cache first
       final cached = await _loadFromCache(widget.filePath);
       AudioAnalysisData data;
 
@@ -187,7 +182,6 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
         data = cached;
       } else {
         data = await _runAnalysis(widget.filePath);
-        // Save to cache (fire-and-forget)
         _saveToCache(widget.filePath, data);
       }
 
@@ -213,8 +207,6 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
       }
     }
   }
-
-  // Analysis cache
 
   static String _cacheKey(String filePath) {
     var hash = 0xcbf29ce484222325;
@@ -267,8 +259,6 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
     } catch (_) {}
   }
 
-  // Analysis pipeline
-
   Future<AudioAnalysisData> _runAnalysis(String filePath) async {
     await FFmpegKitConfig.setLogLevel(Level.avLogError);
 
@@ -302,7 +292,6 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
           ),
         );
 
-        // Total samples from file metadata (not truncated PCM)
         final trueTotalSamples =
             (info.duration * info.sampleRate * info.channels).round();
 
@@ -468,7 +457,6 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
     final cs = Theme.of(context).colorScheme;
     final l10n = context.l10n;
 
-    // Still checking cache, show nothing yet
     if (_checkingCache) return const SizedBox.shrink();
 
     if (_analyzing) {
@@ -575,8 +563,6 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
   }
 }
 
-// Internal types
-
 class _MediaInfo {
   final int fileSize;
   final int sampleRate;
@@ -622,8 +608,6 @@ class _AnalysisResult {
     this.spectrum,
   });
 }
-
-// Isolate: PCM analysis + FFT spectrogram
 
 _AnalysisResult _analyzeInIsolate(_AnalysisParams params) {
   final byteData = ByteData.sublistView(params.pcmBytes);
@@ -766,8 +750,6 @@ Float64List _fft(Float64List realInput) {
 
   return data;
 }
-
-// Audio Info Card
 
 class _AudioInfoCard extends StatelessWidget {
   final AudioAnalysisData data;
@@ -945,8 +927,6 @@ class _MetricChip extends StatelessWidget {
   }
 }
 
-// Spectrogram View
-
 class _SpectrogramView extends StatelessWidget {
   final ui.Image image;
   final SpectrogramData spectrum;
@@ -1011,8 +991,6 @@ class _ImagePainter extends CustomPainter {
   bool shouldRepaint(covariant _ImagePainter old) => old.image != image;
 }
 
-// Spectrogram pixel-buffer rendering (runs in isolate)
-
 class _SpectrogramRenderParams {
   final SpectrogramData spectrum;
   final int width;
@@ -1031,7 +1009,6 @@ Uint8List _renderSpectrogramPixels(_SpectrogramRenderParams params) {
   final spectrum = params.spectrum;
   final pixels = Uint8List(w * h * 4);
 
-  // Fill black
   for (int i = 3; i < pixels.length; i += 4) {
     pixels[i] = 255;
   }
@@ -1041,7 +1018,6 @@ Uint8List _renderSpectrogramPixels(_SpectrogramRenderParams params) {
 
   final freqBins = spectrum.freqBins;
 
-  // dB range
   double minDB = 0;
   double maxDB = -200;
   for (final slice in slices) {

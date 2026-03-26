@@ -1906,7 +1906,6 @@ func ReEnrichFile(requestJSON string) (string, error) {
 		}
 	}
 
-	// Log metadata summary before embedding
 	GoLog("[ReEnrich] Metadata to embed: title=%s, artist=%s, album=%s, albumArtist=%s\n",
 		req.TrackName, req.ArtistName, req.AlbumName, req.AlbumArtist)
 	GoLog("[ReEnrich] track=%d, disc=%d, date=%s, isrc=%s, genre=%s, label=%s\n",
@@ -1989,7 +1988,6 @@ func ReEnrichFile(requestJSON string) (string, error) {
 		}
 	}
 
-	// Build enriched metadata response for Dart (includes online search results)
 	enrichedMeta := map[string]interface{}{
 		"track_name":   req.TrackName,
 		"artist_name":  req.ArtistName,

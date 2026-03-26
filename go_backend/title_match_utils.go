@@ -24,11 +24,9 @@ func normalizeLooseTitle(title string) string {
 			b.WriteRune(r)
 		case unicode.IsSpace(r):
 			b.WriteByte(' ')
-		// Treat common separators as spaces.
 		case r == '/', r == '\\', r == '_', r == '-', r == '|', r == '.', r == '&', r == '+':
 			b.WriteByte(' ')
 		default:
-			// Drop other punctuation/symbols (including emoji) for loose matching.
 		}
 	}
 
@@ -59,7 +57,6 @@ func normalizeLooseArtistName(name string) string {
 		case r == '/', r == '\\', r == '_', r == '-', r == '|', r == '.', r == '&', r == '+':
 			b.WriteByte(' ')
 		default:
-			// Drop remaining punctuation/symbols for loose artist matching.
 		}
 	}
 
@@ -102,13 +99,11 @@ func normalizeSymbolOnlyTitle(title string) string {
 	return b.String()
 }
 
-// ==================== Shared Track Verification ====================
-
 // resolvedTrackInfo holds the metadata fetched from a provider for verification.
 type resolvedTrackInfo struct {
 	Title      string
 	ArtistName string
-	Duration   int // seconds
+	Duration   int
 }
 
 // trackMatchesRequest checks whether a resolved track from a provider matches

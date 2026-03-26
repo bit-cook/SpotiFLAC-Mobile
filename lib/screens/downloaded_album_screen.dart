@@ -1105,7 +1105,6 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
           ? 'Opus'
           : null;
       if (ext == null || ext == targetFormat) continue;
-      // Skip lossy sources when target is lossless (pointless re-encoding)
       final isLosslessTarget = targetFormat == 'ALAC' || targetFormat == 'FLAC';
       final isLosslessSource = ext == 'FLAC' || ext == 'M4A';
       if (isLosslessTarget && !isLosslessSource) continue;

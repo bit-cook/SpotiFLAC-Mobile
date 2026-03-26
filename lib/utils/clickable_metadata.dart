@@ -27,7 +27,6 @@ Future<void> navigateToArtist(
 
   final normalizedArtistId = _normalizeArtistId(artistId);
 
-  // If we have a valid artist ID already, navigate directly
   if (normalizedArtistId != null &&
       _canNavigateArtistDirectly(
         artistId: normalizedArtistId,
@@ -43,7 +42,6 @@ Future<void> navigateToArtist(
     return;
   }
 
-  // Search Deezer to resolve the artist ID
   _showLoadingSnackBar(context, 'Looking up artist...');
   try {
     final results = await PlatformBridge.searchDeezerAll(
@@ -60,7 +58,6 @@ Future<void> navigateToArtist(
       return;
     }
 
-    // Find best match - prefer exact name match (case-insensitive)
     Map<String, dynamic>? bestMatch;
     final lowerName = artistName.toLowerCase().trim();
     for (final a in artistList) {
@@ -113,7 +110,6 @@ Future<void> navigateToAlbum(
 }) async {
   if (albumName.isEmpty) return;
 
-  // If we have a valid album ID already, navigate directly
   if (albumId != null &&
       albumId.isNotEmpty &&
       albumId != 'unknown' &&
@@ -128,16 +124,13 @@ Future<void> navigateToAlbum(
     return;
   }
 
-  // If it's extension-based content without an ID, can't search Deezer for it
   if (extensionId != null) {
     _showUnavailable(context, 'Album');
     return;
   }
 
-  // Search Deezer to resolve the album ID
   _showLoadingSnackBar(context, 'Looking up album...');
   try {
-    // Build search query: "albumName artistName" for better accuracy
     final query = artistName != null && artistName.isNotEmpty
         ? '$albumName $artistName'
         : albumName;
@@ -156,7 +149,6 @@ Future<void> navigateToAlbum(
       return;
     }
 
-    // Find best match - prefer exact name match (case-insensitive)
     Map<String, dynamic>? bestMatch;
     final lowerName = albumName.toLowerCase().trim();
     for (final a in albumList) {

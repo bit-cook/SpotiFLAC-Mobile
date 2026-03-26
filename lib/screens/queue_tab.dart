@@ -97,7 +97,6 @@ class UnifiedLibraryItem {
     } else if (item.bitDepth != null &&
         item.bitDepth! > 0 &&
         item.sampleRate != null) {
-      // Lossless format with actual bit depth
       quality = buildDisplayAudioQuality(
         bitDepth: item.bitDepth,
         sampleRate: item.sampleRate,
@@ -108,7 +107,7 @@ class UnifiedLibraryItem {
       trackName: item.trackName,
       artistName: item.artistName,
       albumName: item.albumName,
-      coverUrl: null, // Local library doesn't have cover URLs
+      coverUrl: null,
       localCoverPath: item.coverPath,
       filePath: item.filePath,
       quality: quality,
@@ -170,9 +169,6 @@ class UnifiedLibraryItem {
     }
     if (localItem != null) {
       final l = localItem!;
-      // Store coverPath (even local file paths) in coverUrl so playlist
-      // entries retain the cover.  All renderers must check whether the
-      // value is a URL or a local path and use the appropriate widget.
       return Track(
         id: l.id,
         name: l.trackName,
@@ -188,7 +184,6 @@ class UnifiedLibraryItem {
         source: 'local',
       );
     }
-    // Fallback — should not happen
     return Track(
       id: id,
       name: trackName,
@@ -4889,15 +4884,12 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     for (final id in _selectedIds) {
       final item = itemsById[id];
       if (item == null) continue;
-      // Detect format: use safFileName for download history SAF items,
-      // item.localItem?.format for local library items, file extension as fallback
       String nameToCheck;
       if (item.historyItem?.safFileName != null &&
           item.historyItem!.safFileName!.isNotEmpty) {
         nameToCheck = item.historyItem!.safFileName!.toLowerCase();
       } else if (item.localItem?.format != null &&
           item.localItem!.format!.isNotEmpty) {
-        // Synthesize a fake extension to keep detection unified
         nameToCheck = '.${item.localItem!.format!.toLowerCase()}';
       } else {
         nameToCheck = item.filePath.toLowerCase();
@@ -4912,7 +4904,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
           ? 'Opus'
           : null;
       if (ext == null || ext == targetFormat) continue;
-      // Skip lossy sources when target is lossless (pointless re-encoding)
       final isLosslessTarget = targetFormat == 'ALAC' || targetFormat == 'FLAC';
       final isLosslessSource = ext == 'FLAC' || ext == 'M4A';
       if (isLosslessTarget && !isLosslessSource) continue;
@@ -5060,7 +5051,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
           continue;
         }
 
-        // Handle SAF write-back
         if (isSaf && item.historyItem != null) {
           final hi = item.historyItem!;
           final treeUri = hi.downloadTreeUri;
@@ -5113,12 +5103,10 @@ class _QueueTabState extends ConsumerState<QueueTab> {
               continue;
             }
 
-            // Delete old SAF file
             try {
               await PlatformBridge.safDelete(item.filePath);
             } catch (_) {}
 
-            // Update history
             await historyDb.updateFilePath(
               hi.id,
               safUri,
@@ -5127,7 +5115,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
               clearAudioSpecs: true,
             );
           }
-          // Cleanup temp files
           try {
             await File(newPath).delete();
           } catch (_) {}
@@ -5137,7 +5124,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             } catch (_) {}
           }
         } else if (isSaf && item.localItem != null) {
-          // Local library SAF item: parse content URI to derive tree and dir
           final uri = Uri.parse(item.filePath);
           final pathSegments = uri.pathSegments;
 
@@ -5214,7 +5200,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             await LibraryDatabase.instance.deleteByPath(item.filePath);
           }
 
-          // Cleanup temp files
           try {
             await File(newPath).delete();
           } catch (_) {}
@@ -5224,7 +5209,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             } catch (_) {}
           }
         } else if (item.historyItem != null) {
-          // Regular file - update history path
           await historyDb.updateFilePath(
             item.historyItem!.id,
             newPath,
@@ -5232,17 +5216,13 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             clearAudioSpecs: true,
           );
         } else if (item.localItem != null) {
-          // Regular local library file - delete old db entry, rescan picks up new file
           await LibraryDatabase.instance.deleteByPath(item.filePath);
         }
 
         successCount++;
-      } catch (_) {
-        // Continue to next item on error
-      }
+      } catch (_) {}
     }
 
-    // Reload history and local library to reflect path changes in UI
     ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
     ref.read(localLibraryProvider.notifier).reloadFromStorage();
 
@@ -5264,7 +5244,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     }
   }
 
-  /// Bottom action bar for selection mode (Material Design 3 style)
   Widget _buildSelectionBottomBar(
     BuildContext context,
     ColorScheme colorScheme,

@@ -874,10 +874,6 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     await _db.upsert(updated.toJson());
   }
 
-  /// Remove history entries where the file no longer exists on disk.
-  /// Returns the number of orphaned entries removed.
-
-  /// Audio file extensions that the app commonly produces or converts between.
   static const _audioExtensions = [
     '.flac',
     '.m4a',
@@ -888,9 +884,6 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     '.aac',
   ];
 
-  /// When the original file is missing, check whether a sibling with a
-  /// different audio extension exists (e.g. the user converted .flac → .opus).
-  /// Returns the path of the first match found, or `null` if none exist.
   Future<String?> _findConvertedSibling(String originalPath) async {
     final dotIndex = originalPath.lastIndexOf('.');
     if (dotIndex < 0) return null;
@@ -2711,7 +2704,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   static final _deezerSizeRegex = RegExp(r'/(\d+)x(\d+)-\d+-\d+-\d+-\d+\.jpg$');
 
   String _upgradeToMaxQualityCover(String coverUrl) {
-    // Spotify CDN upgrade (hash-based size identifiers)
     const spotifySize300 = 'ab67616d00001e02';
     const spotifySize640 = 'ab67616d0000b273';
     const spotifySizeMax = 'ab67616d000082c1';
@@ -2724,7 +2716,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       result = result.replaceFirst(spotifySize640, spotifySizeMax);
     }
 
-    // Deezer CDN upgrade (1000x1000 → 1800x1800)
     if (result.contains('cdn-images.dzcdn.net')) {
       final upgraded = result.replaceFirst(
         _deezerSizeRegex,
@@ -3405,7 +3396,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   Future<void> _processQueue() async {
     if (state.isProcessing) return;
 
-    // Check network connectivity before starting
     final settings = ref.read(settingsProvider);
     updateSettings(settings);
     final isSafMode = _isSafMode(settings);
@@ -3465,7 +3455,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         state = state.copyWith(outputDir: musicDir.path);
         ref.read(settingsProvider.notifier).setDownloadDirectory(musicDir.path);
       } else if (!isValidIosWritablePath(state.outputDir)) {
-        // Check for other invalid paths (like container root without Documents/)
         _log.w(
           'iOS: Invalid output path detected (container root?), falling back to app Documents folder',
         );
@@ -3487,7 +3476,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       _log.d('Output directory: ${state.outputDir}');
     } else {
       _log.d('Output directory: SAF (tree_uri=${settings.downloadTreeUri})');
-      // Validate SAF permission is still accessible
       try {
         final testResult = await PlatformBridge.createSafFileFromPath(
           treeUri: settings.downloadTreeUri,
@@ -3496,16 +3484,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           mimeType: 'application/octet-stream',
           srcPath: '',
         );
-        // If we got a result, permission is valid (file creation may fail but that's ok)
-        // If permission is revoked, this will throw
         if (testResult != null) {
-          // Clean up test file
           await PlatformBridge.safDelete(testResult);
         }
       } catch (e) {
         _log.e('SAF permission validation failed: $e');
         _log.w('SAF tree URI may be invalid or permission revoked');
-        // Mark all queued items as failed
         for (final item in state.items) {
           if (item.status == DownloadStatus.queued) {
             updateItemStatus(
@@ -3639,8 +3623,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       }
 
       if (activeDownloads.isNotEmpty) {
-        // Re-check queue/settings periodically so concurrency changes
-        // (e.g. 1 -> 3) can take effect before any active item finishes.
         await Future.any([
           Future.any(activeDownloads.values),
           Future.delayed(_queueSchedulingInterval),
@@ -3926,7 +3908,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             if (resolvedIsrc != null && _isValidISRC(resolvedIsrc)) {
               _log.d('Resolved ISRC from $provider: $resolvedIsrc');
 
-              // Enrich track with provider metadata
               final provReleaseDate = normalizeOptionalString(
                 trackData['release_date'] as String?,
               );
@@ -3962,7 +3943,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                 source: trackToDownload.source,
               );
 
-              // Search Deezer by the resolved ISRC
               try {
                 final deezerResult = await PlatformBridge.searchDeezerByISRC(
                   resolvedIsrc,
@@ -3988,9 +3968,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         }
       }
 
-      // Fallback: Use SongLink to convert Spotify ID to Deezer ID
-      // Skip for tidal:/qobuz: IDs – they are not Spotify URLs and the
-      // provider ISRC resolution above already handles them.
       if (!selectedExtensionDownloadProvider &&
           deezerTrackId == null &&
           !shouldSkipExtensionSongLinkPrelookup &&
@@ -4011,7 +3988,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             'track',
             spotifyId,
           );
-          // Response is TrackResponse: {"track": {"spotify_id": "deezer:XXXXX", ...}}
           final trackData = deezerData['track'];
           if (trackData is Map<String, dynamic>) {
             final rawId = trackData['spotify_id'] as String?;
@@ -4317,7 +4293,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           finalSafFileName = reportedFileName;
         }
 
-        // Check if file already existed (detected via ISRC match in Go backend)
         final wasExisting = result['already_exists'] == true;
         if (wasExisting) {
           _log.i('File already exists in library: $filePath');
@@ -4330,7 +4305,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         String actualQuality = quality;
 
         if (actualBitDepth != null && actualBitDepth > 0) {
-          // Format: "24-bit/96kHz" or "16-bit/44.1kHz"
           final sampleRateKHz = actualSampleRate != null && actualSampleRate > 0
               ? (actualSampleRate / 1000).toStringAsFixed(
                   actualSampleRate % 1000 == 0 ? 0 : 1,
@@ -4486,7 +4460,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         }
 
         if (isM4aFile || shouldForceTidalSafM4aHandling) {
-          // At this point filePath is guaranteed non-null by the checks above.
           final currentFilePath = filePath;
 
           if (isContentUriPath && effectiveSafMode) {
@@ -4979,9 +4952,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           return;
         }
 
-        // SAF downloads should end with content URI. If we still have a
-        // transient FD path, recover URI from SAF metadata to keep history
-        // dedup/exclusion stable.
         if (effectiveSafMode &&
             filePath != null &&
             filePath.isNotEmpty &&
@@ -5296,8 +5266,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         );
         _failedInSession++;
 
-        // Immediately cleanup connections after failure to prevent
-        // poisoned connection pool from affecting subsequent downloads
         try {
           await PlatformBridge.cleanupConnections();
         } catch (e) {
@@ -5350,7 +5318,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       );
       _failedInSession++;
 
-      // Immediately cleanup connections after exception
       try {
         await PlatformBridge.cleanupConnections();
       } catch (cleanupErr) {

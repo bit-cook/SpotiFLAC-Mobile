@@ -19,7 +19,7 @@ class OptionsSettingsPage extends ConsumerWidget {
     final topPadding = normalizedHeaderTopPadding(context);
 
     return PopScope(
-      canPop: true, // Always allow back gesture
+      canPop: true,
       child: Scaffold(
         body: CustomScrollView(
           slivers: [

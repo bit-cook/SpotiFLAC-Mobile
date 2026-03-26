@@ -61,7 +61,7 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
     final hasError = extension.status == 'error';
 
     return PopScope(
-      canPop: true, // Always allow back gesture
+      canPop: true,
       child: Scaffold(
         body: CustomScrollView(
           slivers: [

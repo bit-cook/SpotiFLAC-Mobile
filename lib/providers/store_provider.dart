@@ -264,13 +264,12 @@ class StoreNotifier extends Notifier<StoreState> {
       // Read back the resolved URL (may differ from input after normalisation).
       final resolvedUrl = await PlatformBridge.getStoreRegistryUrl();
 
-      // Persist to SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_registryUrlPrefKey, resolvedUrl);
 
       state = state.copyWith(
         registryUrl: resolvedUrl,
-        extensions: const [], // Clear old extensions
+        extensions: const [],
       );
 
       _log.i('Registry URL set to: $resolvedUrl');

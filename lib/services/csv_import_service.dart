@@ -198,8 +198,8 @@ class CsvImportService {
             artistName: artistName ?? 'Unknown Artist',
             albumName: albumName ?? 'Unknown Album',
             isrc: isrc,
-            duration: 0, // Will be updated by enrichment later
-            coverUrl: null, // Will be fetched by enrichment
+            duration: 0,
+            coverUrl: null,
           ),
         );
       }

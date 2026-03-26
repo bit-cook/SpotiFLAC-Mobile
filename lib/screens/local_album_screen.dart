@@ -1367,7 +1367,6 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
         }
       }
       if (currentFormat == null || currentFormat == targetFormat) continue;
-      // Skip lossy sources when target is lossless (pointless re-encoding)
       final isLosslessTarget = targetFormat == 'ALAC' || targetFormat == 'FLAC';
       final isLosslessSource =
           currentFormat == 'FLAC' || currentFormat == 'M4A';
@@ -1488,7 +1487,7 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
           bitrate: bitrate,
           metadata: metadata,
           coverPath: coverPath,
-          deleteOriginal: !isSaf, // Only delete original for regular files
+          deleteOriginal: !isSaf,
         );
 
         if (coverPath != null) {
@@ -1507,15 +1506,9 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
         }
 
         if (isSaf) {
-          // For SAF: derive the parent tree URI and relative dir from the content URI,
-          // then create new SAF file and delete old one
-          // Parse the SAF URI to get the tree document path:
-          // content://...tree/...document/.../oldName.flac
-          // We need tree URI and relative dir to create the new file
           final uri = Uri.parse(item.filePath);
           final pathSegments = uri.pathSegments;
 
-          // Try to find 'tree' and 'document' segments
           String? treeUri;
           String relativeDir = '';
           String oldFileName = '';
