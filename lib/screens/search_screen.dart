@@ -8,6 +8,7 @@ import 'package:spotiflac_android/providers/track_provider.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/widgets/track_collection_quick_actions.dart';
+import 'package:spotiflac_android/widgets/animation_utils.dart';
 import 'package:spotiflac_android/utils/clickable_metadata.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -51,9 +52,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     ref
         .read(downloadQueueProvider.notifier)
         .addToQueue(track, settings.defaultService);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(context.l10n.snackbarAddedToQueue(track.name))));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.snackbarAddedToQueue(track.name))),
+    );
   }
 
   @override
@@ -95,13 +96,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               child: Text(error, style: TextStyle(color: colorScheme.error)),
             ),
           Expanded(
-            child: tracks.isEmpty
-                ? _buildEmptyState(colorScheme)
-                : ListView.builder(
-                    itemCount: tracks.length,
-                    itemBuilder: (context, index) =>
-                        _buildTrackTile(tracks[index], colorScheme),
-                  ),
+            child: AnimatedStateSwitcher(
+              child: isLoading && tracks.isEmpty
+                  ? const TrackListSkeleton(key: ValueKey('loading'))
+                  : tracks.isEmpty
+                  ? _buildEmptyState(colorScheme)
+                  : ListView.builder(
+                      key: const ValueKey('results'),
+                      itemCount: tracks.length,
+                      itemBuilder: (context, index) => StaggeredListItem(
+                        index: index,
+                        child: _buildTrackTile(tracks[index], colorScheme),
+                      ),
+                    ),
+            ),
           ),
         ],
       ),
@@ -127,32 +135,30 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _buildTrackTile(Track track, ColorScheme colorScheme) {
-    return ListTile(
-      leading: track.coverUrl != null
-          ? ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: CachedNetworkImage(
-                imageUrl: track.coverUrl!,
-                width: 48,
-                height: 48,
-                fit: BoxFit.cover,
-                memCacheWidth: 144,
-                memCacheHeight: 144,
-                cacheManager: CoverCacheManager.instance,
-              ),
-            )
-          : Container(
+    final coverWidget = track.coverUrl != null
+        ? ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: CachedNetworkImage(
+              imageUrl: track.coverUrl!,
               width: 48,
               height: 48,
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.music_note,
-                color: colorScheme.onSurfaceVariant,
-              ),
+              fit: BoxFit.cover,
+              memCacheWidth: 144,
+              memCacheHeight: 144,
+              cacheManager: CoverCacheManager.instance,
             ),
+          )
+        : Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.music_note, color: colorScheme.onSurfaceVariant),
+          );
+    return ListTile(
+      leading: coverWidget,
       title: Text(track.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -192,11 +192,9 @@ class _EagerInitializationState extends ConsumerState<_EagerInitialization>
     if (settings.localLibraryPath.isEmpty) return;
     if (settings.localLibraryAutoScan == 'off') return;
 
-    // Don't start a scan if one is already running.
     final libraryState = ref.read(localLibraryProvider);
     if (libraryState.isScanning) return;
 
-    // Determine cooldown based on auto-scan mode.
     final now = DateTime.now();
     final prefs = await SharedPreferences.getInstance();
     final lastScanned = readLocalLibraryLastScannedAt(prefs);
@@ -220,7 +218,6 @@ class _EagerInitializationState extends ConsumerState<_EagerInitialization>
       }
     }
 
-    // All checks passed -- start an incremental scan.
     final iosBookmark = settings.localLibraryBookmark;
     ref
         .read(localLibraryProvider.notifier)

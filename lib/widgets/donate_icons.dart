@@ -166,7 +166,6 @@ class _GitHubPainter extends CustomPainter {
       9.47 * scale, 17.93 * scale,
       9.81 * scale, 17.63 * scale,
     );
-    // Bottom
     path.cubicTo(
       7.15 * scale, 17.33 * scale,
       4.34 * scale, 16.33 * scale,

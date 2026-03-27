@@ -498,7 +498,13 @@ func extractUserTextFrame(data []byte) (string, string) {
 
 func isLyricsDescription(description string) bool {
 	switch strings.ToLower(strings.TrimSpace(description)) {
-	case "lyrics", "lyric", "unsyncedlyrics", "unsynced lyrics", "lrc":
+	case
+		"lyrics",
+		"lyric",
+		"unsyncedlyrics",
+		"unsynced lyrics",
+		"uslt",
+		"lrc":
 		return true
 	default:
 		return false

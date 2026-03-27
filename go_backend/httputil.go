@@ -300,14 +300,11 @@ func DoRequestWithRetry(client *http.Client, req *http.Request, config RetryConf
 			continue
 		}
 
-		// Check for ISP blocking via HTTP status codes
-		// Some ISPs return 403 or 451 when blocking content
 		if resp.StatusCode == 403 || resp.StatusCode == 451 {
 			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
 			bodyStr := strings.ToLower(string(body))
 
-			// Check if response looks like ISP blocking page
 			ispBlockingIndicators := []string{
 				"blocked", "forbidden", "access denied", "not available in your",
 				"restricted", "censored", "unavailable for legal", "blocked by",
@@ -518,7 +515,6 @@ func IsISPBlocking(err error, requestURL string) *ISPBlockingError {
 	return nil
 }
 
-// Returns true if ISP blocking was detected
 func CheckAndLogISPBlocking(err error, requestURL string, tag string) bool {
 	ispErr := IsISPBlocking(err, requestURL)
 	if ispErr != nil {
@@ -553,7 +549,6 @@ func extractDomain(rawURL string) string {
 	return "unknown"
 }
 
-// If ISP blocking is detected, returns a more descriptive error
 func WrapErrorWithISPCheck(err error, requestURL string, tag string) error {
 	if err == nil {
 		return nil

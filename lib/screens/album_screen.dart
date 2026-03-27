@@ -14,6 +14,7 @@ import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/widgets/track_collection_quick_actions.dart';
 import 'package:spotiflac_android/widgets/download_service_picker.dart';
+import 'package:spotiflac_android/widgets/animation_utils.dart';
 import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/widgets/playlist_picker_sheet.dart';
 import 'package:spotiflac_android/utils/clickable_metadata.dart';
@@ -241,6 +242,16 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
     );
   }
 
+  String? _recommendedDownloadService() {
+    if (widget.extensionId != null && widget.extensionId!.isNotEmpty) {
+      return widget.extensionId;
+    }
+    if (widget.albumId.startsWith('tidal:')) return 'tidal';
+    if (widget.albumId.startsWith('qobuz:')) return 'qobuz';
+    if (widget.albumId.startsWith('deezer:')) return 'deezer';
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -257,8 +268,8 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
           if (_isLoading)
             const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Center(child: CircularProgressIndicator()),
+                padding: EdgeInsets.all(16),
+                child: AlbumTrackListSkeleton(itemCount: 10),
               ),
             ),
           if (_error != null)
@@ -534,9 +545,12 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
         final track = tracks[index];
         return KeyedSubtree(
           key: ValueKey(track.id),
-          child: _AlbumTrackItem(
-            track: track,
-            onDownload: () => _downloadTrack(context, track),
+          child: StaggeredListItem(
+            index: index,
+            child: _AlbumTrackItem(
+              track: track,
+              onDownload: () => _downloadTrack(context, track),
+            ),
           ),
         );
       }, childCount: tracks.length),
@@ -551,6 +565,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
         trackName: track.name,
         artistName: track.artistName,
         coverUrl: track.coverUrl,
+        recommendedService: _recommendedDownloadService(),
         onSelect: (quality, service) {
           ref
               .read(downloadQueueProvider.notifier)
@@ -576,7 +591,6 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
     final tracks = _tracks;
     if (tracks == null || tracks.isEmpty) return;
 
-    // Skip already-downloaded tracks
     final historyState = ref.read(downloadHistoryProvider);
     final settings = ref.read(settingsProvider);
     final localLibState =
@@ -623,6 +637,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
         context,
         trackName: '${tracksToQueue.length} tracks',
         artistName: widget.albumName,
+        recommendedService: _recommendedDownloadService(),
         onSelect: (quality, service) {
           ref
               .read(downloadQueueProvider.notifier)

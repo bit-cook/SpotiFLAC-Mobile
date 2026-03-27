@@ -17,7 +17,7 @@
 <div align="center">
 
 [![GitHub Release](https://img.shields.io/github/v/release/zarzet/SpotiFLAC-Mobile?style=for-the-badge&logo=github)](https://github.com/zarzet/SpotiFLAC-Mobile/releases)
-[![VirusTotal](https://img.shields.io/badge/VirusTotal-Safe-brightgreen?style=for-the-badge&logo=virustotal)](https://www.virustotal.com/gui/file/cc11355330c76f97548b8d26452b91746db9d9c1edbcfc4c18250133484d1487)
+[![VirusTotal](https://img.shields.io/badge/VirusTotal-Safe-brightgreen?style=for-the-badge&logo=virustotal)](https://www.virustotal.com/gui/file/31d1bf3c3b2015c13e83c4f909a7c6093a9423e3e702f0c582a3e0035c849424)
 [![Crowdin](https://img.shields.io/badge/HELP%20TRANSLATE%20ON-CROWDIN-%2321252b?style=for-the-badge&logo=crowdin)](https://crowdin.com/project/spotiflac-mobile)
 
 [![Telegram Channel](https://img.shields.io/badge/CHANNEL-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/spotiflac)
@@ -141,6 +141,11 @@ In AltStore/SideStore, go to **Browse > Sources**, tap **+**, and paste the link
 
 </details>
 
+> [!NOTE]
+> If SpotiFLAC is useful to you, consider supporting development:
+>
+> [![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/zarzet)
+
 ---
 
 ## Contributors
@@ -164,11 +169,6 @@ Interested in contributing? Check out the [Contributing Guide](CONTRIBUTING.md) 
 | [hifi-api](https://github.com/binimum/hifi-api) | [music.binimum.org](https://music.binimum.org) | [qqdl.site](https://qqdl.site) | [squid.wtf](https://squid.wtf) | [spotisaver.net](https://spotisaver.net) |
 | [dabmusic.xyz](https://dabmusic.xyz) | [AfkarXYZ](https://github.com/afkarxyz) | [LRCLib](https://lrclib.net) | [Paxsenix](https://lyrics.paxsenix.org) | [Cobalt](https://cobalt.tools) |
 | [qwkuns.me](https://qwkuns.me) | [SpotubeDL](https://spotubedl.com) | [Song.link](https://song.link) | [IDHS](https://github.com/sjdonado/idonthavespotify) | |
-
-> [!NOTE]
-> If SpotiFLAC is useful to you, consider supporting development:
->
-> [![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/zarzet)
 
 > [!TIP]
 > **Star the repo** to get notified about all new releases directly from GitHub.

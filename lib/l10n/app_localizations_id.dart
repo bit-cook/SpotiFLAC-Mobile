@@ -763,6 +763,36 @@ class AppLocalizationsId extends AppLocalizations {
   String get searchPlaylists => 'Playlist';
 
   @override
+  String get searchSortTitle => 'Sort Results';
+
+  @override
+  String get searchSortDefault => 'Default';
+
+  @override
+  String get searchSortTitleAZ => 'Title (A-Z)';
+
+  @override
+  String get searchSortTitleZA => 'Title (Z-A)';
+
+  @override
+  String get searchSortArtistAZ => 'Artist (A-Z)';
+
+  @override
+  String get searchSortArtistZA => 'Artist (Z-A)';
+
+  @override
+  String get searchSortDurationShort => 'Duration (Shortest)';
+
+  @override
+  String get searchSortDurationLong => 'Duration (Longest)';
+
+  @override
+  String get searchSortDateOldest => 'Release Date (Oldest)';
+
+  @override
+  String get searchSortDateNewest => 'Release Date (Newest)';
+
+  @override
   String get tooltipPlay => 'Putar';
 
   @override
@@ -1434,16 +1464,6 @@ class AppLocalizationsId extends AppLocalizations {
       'Kualitas sebenarnya tergantung ketersediaan lagu dari layanan';
 
   @override
-  String get youtubeQualityNote =>
-      'YouTube hanya menyediakan audio terkompresi (lossy). Bukan bagian dari fallback lossless.';
-
-  @override
-  String get youtubeOpusBitrateTitle => 'Bitrate YouTube Opus';
-
-  @override
-  String get youtubeMp3BitrateTitle => 'Kecepatan Bit MP3 YouTube';
-
-  @override
   String get downloadAskBeforeDownload => 'Tanya Sebelum Unduh';
 
   @override
@@ -1540,6 +1560,13 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get albumFolderArtistAlbumSinglesSubtitle =>
       'Artis/Album/ dan Artis/Single/';
+
+  @override
+  String get albumFolderArtistAlbumFlat => 'Artist / Album (Singles flat)';
+
+  @override
+  String get albumFolderArtistAlbumFlatSubtitle =>
+      'Artist/Album/ and Artist/song.flac';
 
   @override
   String get downloadedAlbumDeleteSelected => 'Hapus yang Dipilih';
@@ -2972,4 +2999,106 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get editMetadataSelectEmpty => 'Empty only';
+
+  @override
+  String queueDownloadingCount(int count) {
+    return 'Downloading ($count)';
+  }
+
+  @override
+  String get queueDownloadedHeader => 'Downloaded';
+
+  @override
+  String get queueFilteringIndicator => 'Filtering...';
+
+  @override
+  String queueTrackCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tracks',
+      one: '1 track',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String queueAlbumCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count albums',
+      one: '1 album',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get queueEmptyAlbums => 'No album downloads';
+
+  @override
+  String get queueEmptyAlbumsSubtitle =>
+      'Download multiple tracks from an album to see them here';
+
+  @override
+  String get queueEmptySingles => 'No single downloads';
+
+  @override
+  String get queueEmptySinglesSubtitle =>
+      'Single track downloads will appear here';
+
+  @override
+  String get queueEmptyHistory => 'No download history';
+
+  @override
+  String get queueEmptyHistorySubtitle => 'Downloaded tracks will appear here';
+
+  @override
+  String get selectionAllPlaylistsSelected => 'All playlists selected';
+
+  @override
+  String get selectionTapPlaylistsToSelect => 'Tap playlists to select';
+
+  @override
+  String get selectionSelectPlaylistsToDelete => 'Select playlists to delete';
+
+  @override
+  String get audioAnalysisTitle => 'Audio Quality Analysis';
+
+  @override
+  String get audioAnalysisDescription =>
+      'Verify lossless quality with spectrum analysis';
+
+  @override
+  String get audioAnalysisAnalyzing => 'Analyzing audio...';
+
+  @override
+  String get audioAnalysisSampleRate => 'Sample Rate';
+
+  @override
+  String get audioAnalysisBitDepth => 'Bit Depth';
+
+  @override
+  String get audioAnalysisChannels => 'Channels';
+
+  @override
+  String get audioAnalysisDuration => 'Duration';
+
+  @override
+  String get audioAnalysisNyquist => 'Nyquist';
+
+  @override
+  String get audioAnalysisFileSize => 'Size';
+
+  @override
+  String get audioAnalysisDynamicRange => 'Dynamic Range';
+
+  @override
+  String get audioAnalysisPeak => 'Peak';
+
+  @override
+  String get audioAnalysisRms => 'RMS';
+
+  @override
+  String get audioAnalysisSamples => 'Samples';
 }

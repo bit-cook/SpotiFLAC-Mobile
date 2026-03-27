@@ -125,6 +125,15 @@ func NewExtensionProviderWrapper(ext *LoadedExtension) *ExtensionProviderWrapper
 	}
 }
 
+func (p *ExtensionProviderWrapper) lockReadyVM() error {
+	vm, err := p.extension.lockReadyVM()
+	if err != nil {
+		return err
+	}
+	p.vm = vm
+	return nil
+}
+
 func (p *ExtensionProviderWrapper) SearchTracks(query string, limit int) (*ExtSearchResult, error) {
 	if !p.extension.Manifest.IsMetadataProvider() {
 		return nil, fmt.Errorf("extension '%s' is not a metadata provider", p.extension.ID)
@@ -133,8 +142,9 @@ func (p *ExtensionProviderWrapper) SearchTracks(query string, limit int) (*ExtSe
 	if !p.extension.Enabled {
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
-
-	p.extension.VMMu.Lock()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
 	defer p.extension.VMMu.Unlock()
 
 	script := fmt.Sprintf(`
@@ -192,8 +202,9 @@ func (p *ExtensionProviderWrapper) GetTrack(trackID string) (*ExtTrackMetadata, 
 	if !p.extension.Enabled {
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
-
-	p.extension.VMMu.Lock()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
 	defer p.extension.VMMu.Unlock()
 
 	script := fmt.Sprintf(`
@@ -240,8 +251,9 @@ func (p *ExtensionProviderWrapper) GetAlbum(albumID string) (*ExtAlbumMetadata, 
 	if !p.extension.Enabled {
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
-
-	p.extension.VMMu.Lock()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
 	defer p.extension.VMMu.Unlock()
 
 	script := fmt.Sprintf(`
@@ -291,8 +303,9 @@ func (p *ExtensionProviderWrapper) GetArtist(artistID string) (*ExtArtistMetadat
 	if !p.extension.Enabled {
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
-
-	p.extension.VMMu.Lock()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
 	defer p.extension.VMMu.Unlock()
 
 	script := fmt.Sprintf(`
@@ -345,8 +358,10 @@ func (p *ExtensionProviderWrapper) EnrichTrack(track *ExtTrackMetadata) (*ExtTra
 	if !p.extension.Enabled {
 		return track, nil
 	}
-
-	p.extension.VMMu.Lock()
+	if err := p.lockReadyVM(); err != nil {
+		GoLog("[Extension] EnrichTrack init error for %s: %v\n", p.extension.ID, err)
+		return track, nil
+	}
 	defer p.extension.VMMu.Unlock()
 
 	trackJSON, err := json.Marshal(track)
@@ -405,8 +420,9 @@ func (p *ExtensionProviderWrapper) CheckAvailability(isrc, trackName, artistName
 	if !p.extension.Enabled {
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
-
-	p.extension.VMMu.Lock()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
 	defer p.extension.VMMu.Unlock()
 
 	script := fmt.Sprintf(`
@@ -452,8 +468,9 @@ func (p *ExtensionProviderWrapper) GetDownloadURL(trackID, quality string) (*Ext
 	if !p.extension.Enabled {
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
-
-	p.extension.VMMu.Lock()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
 	defer p.extension.VMMu.Unlock()
 
 	script := fmt.Sprintf(`
@@ -493,7 +510,7 @@ func (p *ExtensionProviderWrapper) GetDownloadURL(trackID, quality string) (*Ext
 
 const ExtDownloadTimeout = DownloadTimeout
 
-func (p *ExtensionProviderWrapper) Download(trackID, quality, outputPath string, onProgress func(percent int)) (*ExtDownloadResult, error) {
+func (p *ExtensionProviderWrapper) Download(trackID, quality, outputPath, itemID string, onProgress func(percent int)) (*ExtDownloadResult, error) {
 	if !p.extension.Manifest.IsDownloadProvider() {
 		return nil, fmt.Errorf("extension '%s' is not a download provider", p.extension.ID)
 	}
@@ -501,9 +518,18 @@ func (p *ExtensionProviderWrapper) Download(trackID, quality, outputPath string,
 	if !p.extension.Enabled {
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
-
-	p.extension.VMMu.Lock()
+	if err := p.lockReadyVM(); err != nil {
+		return &ExtDownloadResult{
+			Success:      false,
+			ErrorMessage: err.Error(),
+			ErrorType:    "init_error",
+		}, nil
+	}
 	defer p.extension.VMMu.Unlock()
+	if p.extension.runtime != nil {
+		p.extension.runtime.setActiveDownloadItemID(itemID)
+		defer p.extension.runtime.clearActiveDownloadItemID()
+	}
 
 	p.vm.Set("__onProgress", func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) > 0 {
@@ -1106,7 +1132,7 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 				StartItemProgress(req.ItemID)
 			}
 
-			result, err := provider.Download(trackID, req.Quality, outputPath, func(percent int) {
+			result, err := provider.Download(trackID, req.Quality, outputPath, req.ItemID, func(percent int) {
 				if req.ItemID != "" {
 					normalized := float64(percent) / 100.0
 					if normalized < 0 {
@@ -1334,7 +1360,7 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 				StartItemProgress(req.ItemID)
 			}
 
-			result, err := provider.Download(availability.TrackID, req.Quality, outputPath, func(percent int) {
+			result, err := provider.Download(availability.TrackID, req.Quality, outputPath, req.ItemID, func(percent int) {
 				if req.ItemID != "" {
 					normalized := float64(percent) / 100.0
 					if normalized < 0 {
@@ -1626,8 +1652,9 @@ func (p *ExtensionProviderWrapper) CustomSearch(query string, options map[string
 	if !p.extension.Enabled {
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
-
-	p.extension.VMMu.Lock()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
 	defer p.extension.VMMu.Unlock()
 
 	if options == nil {
@@ -1707,8 +1734,9 @@ func (p *ExtensionProviderWrapper) HandleURL(url string) (*ExtURLHandleResult, e
 	if !p.extension.Enabled {
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
-
-	p.extension.VMMu.Lock()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
 	defer p.extension.VMMu.Unlock()
 
 	script := fmt.Sprintf(`
@@ -1792,8 +1820,9 @@ func (p *ExtensionProviderWrapper) MatchTrack(sourceTrack map[string]interface{}
 	if !p.extension.Enabled {
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
-
-	p.extension.VMMu.Lock()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
 	defer p.extension.VMMu.Unlock()
 
 	sourceJSON, _ := json.Marshal(sourceTrack)
@@ -1862,8 +1891,9 @@ func (p *ExtensionProviderWrapper) PostProcess(filePath string, metadata map[str
 	if !p.extension.Enabled {
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
-
-	p.extension.VMMu.Lock()
+	if err := p.lockReadyVM(); err != nil {
+		return &PostProcessResult{Success: false, Error: err.Error()}, nil
+	}
 	defer p.extension.VMMu.Unlock()
 
 	metadataJSON, _ := json.Marshal(metadata)
@@ -1924,8 +1954,9 @@ func (p *ExtensionProviderWrapper) PostProcessV2(input PostProcessInput, metadat
 	if !p.extension.Enabled {
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
-
-	p.extension.VMMu.Lock()
+	if err := p.lockReadyVM(); err != nil {
+		return &PostProcessResult{Success: false, Error: err.Error()}, nil
+	}
 	defer p.extension.VMMu.Unlock()
 
 	metadataJSON, _ := json.Marshal(metadata)
@@ -2182,8 +2213,9 @@ func (p *ExtensionProviderWrapper) FetchLyrics(trackName, artistName, albumName 
 	if !p.extension.Enabled {
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
-
-	p.extension.VMMu.Lock()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
 	defer p.extension.VMMu.Unlock()
 
 	// Use global variables to avoid JS injection issues with special characters in track/artist names

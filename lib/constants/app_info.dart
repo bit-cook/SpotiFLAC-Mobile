@@ -3,14 +3,14 @@ import 'package:flutter/foundation.dart';
 /// App version and info constants
 /// Update version here only - all other files will reference this
 class AppInfo {
-  static const String version = '3.9.0';
-  static const String buildNumber = '115';
+  static const String version = '4.1.1';
+  static const String buildNumber = '118';
   static const String fullVersion = '$version+$buildNumber';
 
   /// Shows "Internal" in debug builds, actual version in release.
   static String get displayVersion => kDebugMode ? 'Internal' : version;
 
-  static const String appName = 'SpotiFLAC';
+  static const String appName = 'SpotiFLAC Mobile';
   static const String copyright = '© 2026 SpotiFLAC';
 
   static const String mobileAuthor = 'zarzet';

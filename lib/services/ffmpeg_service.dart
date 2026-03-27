@@ -1437,7 +1437,6 @@ class FFmpegService {
     final cmdBuffer = StringBuffer();
     cmdBuffer.write('-i "$inputPath" ');
 
-    // Cover art as second input for M4A attached picture
     final hasCover =
         coverPath != null &&
         coverPath.trim().isNotEmpty &&
@@ -1455,7 +1454,6 @@ class FFmpegService {
     cmdBuffer.write('-c:a alac ');
     cmdBuffer.write('-map_metadata -1 ');
 
-    // Embed M4A metadata tags
     final m4aTags = _convertToM4aTags(metadata);
     for (final entry in m4aTags.entries) {
       final sanitized = entry.value.replaceAll('"', '\\"');
@@ -1764,7 +1762,6 @@ class FFmpegService {
 
     final outputPaths = <String>[];
     final inputExt = audioPath.toLowerCase().split('.').last;
-    // For lossless formats, keep as FLAC; for others, keep original format
     final outputExt =
         (inputExt == 'flac' ||
             inputExt == 'wav' ||
@@ -1836,14 +1833,10 @@ class FFmpegService {
       final result = await _execute(command);
       if (!result.success) {
         _log.e('CUE split failed for track ${track.number}: ${result.output}');
-        // Continue with remaining tracks instead of failing completely
         continue;
       }
 
-      // Embed cover art if available (for FLAC output)
       if (coverPath != null && coverPath.isNotEmpty && outputExt == 'flac') {
-        // Use the Go backend for FLAC cover embedding via PlatformBridge
-        // (handled by the caller)
       }
 
       outputPaths.add(outputPath);

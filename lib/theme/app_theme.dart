@@ -89,9 +89,7 @@ class AppTheme {
 
   static CardThemeData _cardTheme(ColorScheme scheme) => CardThemeData(
     elevation: 0,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
-    ),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     color: scheme.surfaceContainerLow,
     surfaceTintColor: scheme.surfaceTint,
   );
@@ -148,9 +146,7 @@ class AppTheme {
   static InputDecorationTheme _inputDecorationTheme(ColorScheme scheme) =>
       InputDecorationTheme(
         filled: true,
-        fillColor: scheme.surfaceContainerHighest.withValues(
-          alpha: 0.3,
-        ),
+        fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
@@ -175,9 +171,7 @@ class AppTheme {
 
   static ListTileThemeData _listTileTheme(ColorScheme scheme) =>
       ListTileThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       );
 
@@ -237,7 +231,7 @@ class AppTheme {
   );
 
   static ChipThemeData _chipTheme(ColorScheme scheme) => ChipThemeData(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     backgroundColor: scheme.surfaceContainerLow,
     selectedColor: scheme.secondaryContainer,
   );

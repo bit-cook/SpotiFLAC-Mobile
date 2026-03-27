@@ -124,7 +124,7 @@ class CsvImportService {
           );
 
           if (i < tracks.length - 1) {
-            await Future.delayed(const Duration(milliseconds: 100));
+            await Future<void>.delayed(const Duration(milliseconds: 100));
           }
           continue;
         }
@@ -198,8 +198,8 @@ class CsvImportService {
             artistName: artistName ?? 'Unknown Artist',
             albumName: albumName ?? 'Unknown Album',
             isrc: isrc,
-            duration: 0, // Will be updated by enrichment later
-            coverUrl: null, // Will be fetched by enrichment
+            duration: 0,
+            coverUrl: null,
           ),
         );
       }

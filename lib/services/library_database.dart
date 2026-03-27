@@ -255,18 +255,39 @@ class LibraryDatabase {
   Future<void> upsertBatch(List<Map<String, dynamic>> items) async {
     if (items.isEmpty) return;
     final db = await database;
-    final batch = db.batch();
-
-    for (final json in items) {
-      batch.insert(
-        'library',
-        _jsonToDbRow(json),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-    }
-
-    await batch.commit(noResult: true);
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+      for (final json in items) {
+        batch.insert(
+          'library',
+          _jsonToDbRow(json),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
     _log.i('Batch inserted ${items.length} items');
+  }
+
+  Future<void> replaceAll(List<Map<String, dynamic>> items) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('library');
+      if (items.isEmpty) {
+        return;
+      }
+
+      final batch = txn.batch();
+      for (final json in items) {
+        batch.insert(
+          'library',
+          _jsonToDbRow(json),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+    _log.i('Replaced library with ${items.length} items');
   }
 
   Future<List<Map<String, dynamic>>> getAll({int? limit, int? offset}) async {

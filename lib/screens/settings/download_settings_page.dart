@@ -465,34 +465,6 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
                       ),
                     ),
                   ],
-                  SettingsItem(
-                    title: context.l10n.youtubeOpusBitrateTitle,
-                    subtitle:
-                        '${settings.youtubeOpusBitrate}kbps (128/256/320)',
-                    onTap: () => _showYoutubeBitratePicker(
-                      context: context,
-                      title: context.l10n.youtubeOpusBitrateTitle,
-                      currentValue: settings.youtubeOpusBitrate,
-                      options: const [128, 256, 320],
-                      onSave: (value) => ref
-                          .read(settingsProvider.notifier)
-                          .setYoutubeOpusBitrate(value),
-                    ),
-                  ),
-                  SettingsItem(
-                    title: context.l10n.youtubeMp3BitrateTitle,
-                    subtitle: '${settings.youtubeMp3Bitrate}kbps (128/256/320)',
-                    onTap: () => _showYoutubeBitratePicker(
-                      context: context,
-                      title: context.l10n.youtubeMp3BitrateTitle,
-                      currentValue: settings.youtubeMp3Bitrate,
-                      options: const [128, 256, 320],
-                      onSave: (value) => ref
-                          .read(settingsProvider.notifier)
-                          .setYoutubeMp3Bitrate(value),
-                    ),
-                    showDivider: false,
-                  ),
                 ],
               ),
             ),
@@ -538,7 +510,7 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
                       ),
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(
+                        MaterialPageRoute<void>(
                           builder: (_) => const LyricsProviderPriorityPage(),
                         ),
                       ),
@@ -869,6 +841,8 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
         return 'Albums/[Year] Album/';
       case 'artist_album_singles':
         return 'Artist/Album/ + Artist/Singles/';
+      case 'artist_album_flat':
+        return 'Artist/Album/ + Artist/song.flac';
       default:
         return 'Albums/Artist/Album Name/';
     }
@@ -879,7 +853,7 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
     WidgetRef ref,
     String current,
   ) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
       builder: (context) => SafeArea(
@@ -958,6 +932,20 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
                 Navigator.pop(context);
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.person_outline_outlined),
+              title: Text(context.l10n.albumFolderArtistAlbumFlat),
+              subtitle: Text(context.l10n.albumFolderArtistAlbumFlatSubtitle),
+              trailing: current == 'artist_album_flat'
+                  ? const Icon(Icons.check)
+                  : null,
+              onTap: () {
+                ref
+                    .read(settingsProvider.notifier)
+                    .setAlbumFolderStructure('artist_album_flat');
+                Navigator.pop(context);
+              },
+            ),
           ],
         ),
       ),
@@ -1014,7 +1002,7 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
       );
     }
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
@@ -1232,7 +1220,7 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
     final settings = ref.read(settingsProvider);
     final isSafMode =
         settings.storageMode == 'saf' && settings.downloadTreeUri.isNotEmpty;
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
       backgroundColor: colorScheme.surfaceContainerHigh,
@@ -1310,7 +1298,7 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
 
   void _showIOSDirectoryOptions(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
       backgroundColor: colorScheme.surfaceContainerHigh,
@@ -1505,7 +1493,7 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
     String current,
   ) {
     final colorScheme = Theme.of(context).colorScheme;
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
       backgroundColor: colorScheme.surfaceContainerHigh,
@@ -1610,7 +1598,7 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
     String current,
   ) {
     final colorScheme = Theme.of(context).colorScheme;
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
       backgroundColor: colorScheme.surfaceContainerHigh,
@@ -1689,68 +1677,6 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
     );
   }
 
-  void _showYoutubeBitratePicker({
-    required BuildContext context,
-    required String title,
-    required int currentValue,
-    required List<int> options,
-    required void Function(int value) onSave,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    showModalBottomSheet(
-      context: context,
-      useRootNavigator: true,
-      backgroundColor: colorScheme.surfaceContainerHigh,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: Theme.of(sheetContext).textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            for (final bitrate in options)
-              ListTile(
-                title: Text('$bitrate kbps'),
-                trailing: bitrate == currentValue
-                    ? Icon(Icons.check, color: colorScheme.primary)
-                    : null,
-                onTap: () {
-                  onSave(bitrate);
-                  Navigator.pop(sheetContext);
-                },
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _showMusixmatchLanguagePicker(
     BuildContext context,
     WidgetRef ref,
@@ -1759,7 +1685,7 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
     final colorScheme = Theme.of(context).colorScheme;
     final controller = TextEditingController(text: currentLanguage);
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
       backgroundColor: colorScheme.surfaceContainerHigh,
@@ -1845,7 +1771,7 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
     String current,
   ) {
     final colorScheme = Theme.of(context).colorScheme;
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
       backgroundColor: colorScheme.surfaceContainerHigh,
@@ -1917,7 +1843,7 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
   ) {
     final colorScheme = Theme.of(context).colorScheme;
     final normalizedCurrent = current.trim().toUpperCase();
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
       backgroundColor: colorScheme.surfaceContainerHigh,
@@ -1985,7 +1911,7 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
     String current,
   ) {
     final colorScheme = Theme.of(context).colorScheme;
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
       backgroundColor: colorScheme.surfaceContainerHigh,
@@ -2100,7 +2026,7 @@ class _ServiceSelector extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final extState = ref.watch(extensionProvider);
-    final builtInServiceIds = ['tidal', 'qobuz', 'deezer', 'youtube'];
+    final builtInServiceIds = ['tidal', 'qobuz', 'deezer'];
 
     final extensionProviders = extState.extensions
         .where((e) => e.enabled && e.hasDownloadProvider)
@@ -2134,15 +2060,6 @@ class _ServiceSelector extends ConsumerWidget {
                   label: 'Qobuz',
                   isSelected: effectiveService == 'qobuz',
                   onTap: () => onChanged('qobuz'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _ServiceChip(
-                  icon: Icons.smart_display,
-                  label: 'YouTube',
-                  isSelected: effectiveService == 'youtube',
-                  onTap: () => onChanged('youtube'),
                 ),
               ),
             ],

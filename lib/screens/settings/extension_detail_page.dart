@@ -61,7 +61,7 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
     final hasError = extension.status == 'error';
 
     return PopScope(
-      canPop: true, // Always allow back gesture
+      canPop: true,
       child: Scaffold(
         body: CustomScrollView(
           slivers: [
@@ -832,9 +832,9 @@ class _SettingItemState extends State<_SettingItem> {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(context.l10n.snackbarError(e.toString()))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.snackbarError(e.toString()))),
+        );
       }
     } finally {
       if (mounted) {
@@ -849,7 +849,7 @@ class _SettingItemState extends State<_SettingItem> {
     );
     final colorScheme = Theme.of(context).colorScheme;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(widget.setting.label),

@@ -119,7 +119,7 @@ class AppStateDatabase {
       final db = await database;
       await db.transaction((txn) async {
         final batch = txn.batch();
-        for (final entry in decoded.whereType<Map>()) {
+        for (final entry in decoded.whereType<Map<Object?, Object?>>()) {
           final map = Map<String, dynamic>.from(entry);
           final id = map['id'] as String?;
           if (id == null || id.isEmpty) continue;
@@ -179,7 +179,7 @@ class AppStateDatabase {
           final decoded = jsonDecode(rawRecent);
           if (decoded is List) {
             final batch = txn.batch();
-            for (final entry in decoded.whereType<Map>()) {
+            for (final entry in decoded.whereType<Map<Object?, Object?>>()) {
               final map = Map<String, dynamic>.from(entry);
               final type = map['type'] as String?;
               final id = map['id'] as String?;

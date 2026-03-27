@@ -205,13 +205,22 @@ func (r *ExtensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 	defer out.Close()
 
 	contentLength := resp.ContentLength
+	activeItemID := r.getActiveDownloadItemID()
+	if activeItemID != "" && contentLength > 0 {
+		SetItemBytesTotal(activeItemID, contentLength)
+	}
+
+	var progressWriter interface{ Write([]byte) (int, error) } = out
+	if activeItemID != "" {
+		progressWriter = NewItemProgressWriter(out, activeItemID)
+	}
 
 	var written int64
 	buf := make([]byte, 32*1024)
 	for {
 		nr, er := resp.Body.Read(buf)
 		if nr > 0 {
-			nw, ew := out.Write(buf[0:nr])
+			nw, ew := progressWriter.Write(buf[0:nr])
 			if nw < 0 || nr < nw {
 				nw = 0
 				if ew == nil {
@@ -220,6 +229,12 @@ func (r *ExtensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 			}
 			written += int64(nw)
 			if ew != nil {
+				if ew == ErrDownloadCancelled {
+					return r.vm.ToValue(map[string]interface{}{
+						"success": false,
+						"error":   "download cancelled",
+					})
+				}
 				return r.vm.ToValue(map[string]interface{}{
 					"success": false,
 					"error":   fmt.Sprintf("failed to write file: %v", ew),

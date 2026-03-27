@@ -319,7 +319,6 @@ func (c *DeezerClient) GetMusicDLDownloadURL(deezerTrackURL string) (string, err
 		return "", fmt.Errorf("MusicDL error: %s", errMsg)
 	}
 
-	// Try various response fields for download URL
 	for _, key := range []string{"download_url", "url", "link"} {
 		if urlVal, ok := raw[key].(string); ok && strings.TrimSpace(urlVal) != "" {
 			return strings.TrimSpace(urlVal), nil

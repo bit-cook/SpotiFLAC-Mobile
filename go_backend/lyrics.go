@@ -83,7 +83,6 @@ func SetLyricsProviderOrder(providers []string) {
 		return
 	}
 
-	// Validate provider names
 	validNames := map[string]bool{
 		LyricsProviderSpotifyAPI: true,
 		LyricsProviderLRCLIB:     true,
@@ -105,7 +104,6 @@ func SetLyricsProviderOrder(providers []string) {
 	GoLog("[Lyrics] Provider order set to: %v\n", valid)
 }
 
-// GetLyricsProviderOrder returns the current lyrics provider order.
 func GetLyricsProviderOrder() []string {
 	lyricsProvidersMu.RLock()
 	defer lyricsProvidersMu.RUnlock()
@@ -119,7 +117,6 @@ func GetLyricsProviderOrder() []string {
 	return result
 }
 
-// GetAvailableLyricsProviders returns metadata about all available providers.
 func GetAvailableLyricsProviders() []map[string]interface{} {
 	return []map[string]interface{}{
 		{"id": LyricsProviderSpotifyAPI, "name": "Spotify Lyrics API", "has_proxy_dependency": true, "description": "Spotify-sourced lyrics via Paxsenix"},
@@ -140,7 +137,6 @@ func normalizeLyricsFetchOptions(opts LyricsFetchOptions) LyricsFetchOptions {
 	return opts
 }
 
-// SetLyricsFetchOptions sets provider-specific lyric fetch behavior.
 func SetLyricsFetchOptions(opts LyricsFetchOptions) {
 	normalized := normalizeLyricsFetchOptions(opts)
 
@@ -156,7 +152,6 @@ func SetLyricsFetchOptions(opts LyricsFetchOptions) {
 	)
 }
 
-// GetLyricsFetchOptions returns current provider-specific lyric fetch behavior.
 func GetLyricsFetchOptions() LyricsFetchOptions {
 	lyricsFetchOptionsMu.RLock()
 	defer lyricsFetchOptionsMu.RUnlock()
@@ -667,7 +662,6 @@ func (c *LyricsClient) FetchLyricsAllSources(spotifyID, trackName, artistName st
 
 	GoLog("[Lyrics] Searching for: %s - %s (providers: %v)\n", artistName, trackName, providerOrder)
 
-	// Cascade through all configured built-in providers
 	for _, providerName := range providerOrder {
 		GoLog("[Lyrics] Trying provider: %s\n", providerName)
 

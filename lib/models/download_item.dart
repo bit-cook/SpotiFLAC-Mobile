@@ -12,13 +12,7 @@ enum DownloadStatus {
   skipped,
 }
 
-enum DownloadErrorType {
-  unknown,
-  notFound,
-  rateLimit,
-  network,
-  permission,
-}
+enum DownloadErrorType { unknown, notFound, rateLimit, network, permission }
 
 @JsonSerializable()
 class DownloadItem {
@@ -28,7 +22,8 @@ class DownloadItem {
   final DownloadStatus status;
   final double progress;
   final double speedMBps;
-  final int bytesReceived; // Bytes downloaded so far (for unknown size downloads)
+  final int bytesReceived; // Bytes downloaded so far
+  final int bytesTotal; // Total bytes when the server provides content length
   final String? filePath;
   final String? error;
   final DownloadErrorType? errorType;
@@ -44,6 +39,7 @@ class DownloadItem {
     this.progress = 0.0,
     this.speedMBps = 0.0,
     this.bytesReceived = 0,
+    this.bytesTotal = 0,
     this.filePath,
     this.error,
     this.errorType,
@@ -60,6 +56,7 @@ class DownloadItem {
     double? progress,
     double? speedMBps,
     int? bytesReceived,
+    int? bytesTotal,
     String? filePath,
     String? error,
     DownloadErrorType? errorType,
@@ -75,6 +72,7 @@ class DownloadItem {
       progress: progress ?? this.progress,
       speedMBps: speedMBps ?? this.speedMBps,
       bytesReceived: bytesReceived ?? this.bytesReceived,
+      bytesTotal: bytesTotal ?? this.bytesTotal,
       filePath: filePath ?? this.filePath,
       error: error ?? this.error,
       errorType: errorType ?? this.errorType,
@@ -86,7 +84,7 @@ class DownloadItem {
 
   String get errorMessage {
     if (error == null) return '';
-    
+
     switch (errorType) {
       case DownloadErrorType.notFound:
         return 'Song not found on any service';

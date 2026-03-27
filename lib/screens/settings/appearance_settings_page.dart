@@ -770,7 +770,7 @@ class _LanguageSelector extends StatelessWidget {
 
   void _showLanguagePicker(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
       backgroundColor: colorScheme.surface,

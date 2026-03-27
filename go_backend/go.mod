@@ -12,6 +12,7 @@ require (
 	github.com/refraction-networking/utls v1.8.2
 	golang.org/x/mobile v0.0.0-20260211191516-dcd2a3258864
 	golang.org/x/net v0.50.0
+	golang.org/x/text v0.34.0
 )
 
 require (
@@ -24,6 +25,5 @@ require (
 	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
-	golang.org/x/text v0.34.0 // indirect
 	golang.org/x/tools v0.42.0 // indirect
 )

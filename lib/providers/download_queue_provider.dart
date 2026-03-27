@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotiflac_android/models/download_item.dart';
 import 'package:spotiflac_android/models/settings.dart';
 import 'package:spotiflac_android/models/track.dart';
@@ -262,8 +263,14 @@ class DownloadHistoryState {
 class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
   static const int _safRepairBatchSize = 20;
   static const int _safRepairMaxPerLaunch = 60;
+  static const int _orphanCleanupMaxPerLaunch = 80;
   static const int _audioMetadataBackfillMaxPerLaunch = 24;
-  static const _startupMaintenanceDelay = Duration(seconds: 2);
+  static const _startupMaintenanceDelay = Duration(seconds: 4);
+  static const _startupMaintenanceStepGap = Duration(milliseconds: 250);
+  static const _startupSafRepairCursorKey =
+      'history_startup_saf_repair_cursor_v1';
+  static const _startupOrphanCursorKey = 'history_startup_orphan_cursor_v1';
+  static const _startupAudioCursorKey = 'history_startup_audio_cursor_v1';
   final HistoryDatabase _db = HistoryDatabase.instance;
   bool _isLoaded = false;
   bool _isSafRepairInProgress = false;
@@ -320,20 +327,29 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     unawaited(
       Future<void>.delayed(_startupMaintenanceDelay, () async {
         try {
+          final prefs = await SharedPreferences.getInstance();
+
           if (Platform.isAndroid) {
             await _repairMissingSafEntries(
               initialItems,
               maxItems: _safRepairMaxPerLaunch,
+              prefs: prefs,
             );
+            await Future<void>.delayed(_startupMaintenanceStepGap);
           }
 
-          await cleanupOrphanedDownloads();
+          await _cleanupOrphanedDownloadsIncremental(
+            maxItems: _orphanCleanupMaxPerLaunch,
+            prefs: prefs,
+          );
+          await Future<void>.delayed(_startupMaintenanceStepGap);
 
           final currentItems = state.items;
           if (currentItems.isNotEmpty) {
             await _backfillAudioMetadata(
               currentItems,
               maxItems: _audioMetadataBackfillMaxPerLaunch,
+              prefs: prefs,
             );
           }
         } catch (e, stack) {
@@ -342,6 +358,30 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
         }
       }),
     );
+  }
+
+  int _readStartupCursor(SharedPreferences prefs, String key, int totalCount) {
+    if (totalCount <= 0) {
+      return 0;
+    }
+    final cursor = prefs.getInt(key) ?? 0;
+    if (cursor < 0 || cursor >= totalCount) {
+      return 0;
+    }
+    return cursor;
+  }
+
+  Future<void> _writeStartupCursor(
+    SharedPreferences prefs,
+    String key,
+    int nextCursor,
+    int totalCount,
+  ) async {
+    if (totalCount <= 0 || nextCursor <= 0 || nextCursor >= totalCount) {
+      await prefs.remove(key);
+      return;
+    }
+    await prefs.setInt(key, nextCursor);
   }
 
   String _fileNameFromUri(String uri) {
@@ -357,6 +397,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
   Future<void> _repairMissingSafEntries(
     List<DownloadHistoryItem> items, {
     required int maxItems,
+    required SharedPreferences prefs,
   }) async {
     if (_isSafRepairInProgress || items.isEmpty) {
       return;
@@ -378,22 +419,40 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
         continue;
       }
       candidateIndexes.add(i);
-      if (candidateIndexes.length >= maxItems) break;
     }
 
     if (candidateIndexes.isEmpty) {
+      await prefs.remove(_startupSafRepairCursorKey);
+      _isSafRepairInProgress = false;
+      return;
+    }
+
+    final startCursor = _readStartupCursor(
+      prefs,
+      _startupSafRepairCursorKey,
+      candidateIndexes.length,
+    );
+    final endCursor = (startCursor + maxItems).clamp(
+      0,
+      candidateIndexes.length,
+    );
+    final selectedIndexes = candidateIndexes.sublist(startCursor, endCursor);
+
+    if (selectedIndexes.isEmpty) {
+      await prefs.remove(_startupSafRepairCursorKey);
       _isSafRepairInProgress = false;
       return;
     }
 
     final updatedItems = [...items];
+    final persistedUpdates = <Map<String, dynamic>>[];
     var changed = false;
     var repairedCount = 0;
     var verifiedCount = 0;
 
     try {
-      for (var c = 0; c < candidateIndexes.length; c++) {
-        final i = candidateIndexes[c];
+      for (var c = 0; c < selectedIndexes.length; c++) {
+        final i = selectedIndexes[c];
         final item = items[i];
         final rawPath = item.filePath.trim();
         final isDirectSafUri = rawPath.isNotEmpty && isContentUri(rawPath);
@@ -408,7 +467,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
             updatedItems[i] = verified;
             changed = true;
             verifiedCount++;
-            await _db.upsert(verified.toJson());
+            persistedUpdates.add(verified.toJson());
             continue;
           }
         }
@@ -445,22 +504,29 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
           updatedItems[i] = updated;
           changed = true;
           repairedCount++;
-          await _db.upsert(updated.toJson());
+          persistedUpdates.add(updated.toJson());
         } catch (e) {
           _historyLog.w('Failed to repair SAF URI: $e');
         }
 
         if ((c + 1) % _safRepairBatchSize == 0) {
-          await Future.delayed(const Duration(milliseconds: 16));
+          await Future<void>.delayed(const Duration(milliseconds: 16));
         }
       }
 
       if (changed) {
+        await _db.upsertBatch(persistedUpdates);
         state = state.copyWith(items: updatedItems);
         _historyLog.i(
-          'SAF repair pass: verified=$verifiedCount, repaired=$repairedCount, checked=${candidateIndexes.length}',
+          'SAF repair pass: verified=$verifiedCount, repaired=$repairedCount, checked=${selectedIndexes.length}',
         );
       }
+      await _writeStartupCursor(
+        prefs,
+        _startupSafRepairCursorKey,
+        endCursor,
+        candidateIndexes.length,
+      );
     } finally {
       _isSafRepairInProgress = false;
     }
@@ -556,6 +622,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
   Future<void> _backfillAudioMetadata(
     List<DownloadHistoryItem> items, {
     required int maxItems,
+    required SharedPreferences prefs,
   }) async {
     if (_isAudioMetadataBackfillInProgress || items.isEmpty) {
       return;
@@ -563,15 +630,40 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     _isAudioMetadataBackfillInProgress = true;
 
     try {
+      final candidateIndexes = <int>[];
+      for (var i = 0; i < items.length; i++) {
+        if (_shouldBackfillAudioMetadata(items[i])) {
+          candidateIndexes.add(i);
+        }
+      }
+
+      if (candidateIndexes.isEmpty) {
+        await prefs.remove(_startupAudioCursorKey);
+        return;
+      }
+
+      final startCursor = _readStartupCursor(
+        prefs,
+        _startupAudioCursorKey,
+        candidateIndexes.length,
+      );
+      final endCursor = (startCursor + maxItems).clamp(
+        0,
+        candidateIndexes.length,
+      );
+      final selectedIndexes = candidateIndexes.sublist(startCursor, endCursor);
+
+      if (selectedIndexes.isEmpty) {
+        await prefs.remove(_startupAudioCursorKey);
+        return;
+      }
+
+      List<DownloadHistoryItem>? updatedItems;
+      final persistedUpdates = <Map<String, dynamic>>[];
       var refreshedCount = 0;
 
-      for (final item in items) {
-        if (refreshedCount >= maxItems) {
-          break;
-        }
-        if (!_shouldBackfillAudioMetadata(item)) {
-          continue;
-        }
+      for (final index in selectedIndexes) {
+        final item = items[index];
 
         final probed = await _probeAudioMetadata(
           item.filePath,
@@ -598,14 +690,28 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
           continue;
         }
 
-        await updateAudioMetadataForItem(
-          id: item.id,
+        final updated = item.copyWith(
           quality: resolvedQuality,
           bitDepth: resolvedBitDepth,
           sampleRate: resolvedSampleRate,
         );
+        updatedItems ??= [...items];
+        updatedItems[index] = updated;
+        persistedUpdates.add(updated.toJson());
         refreshedCount++;
       }
+
+      if (persistedUpdates.isNotEmpty && updatedItems != null) {
+        await _db.upsertBatch(persistedUpdates);
+        state = state.copyWith(items: updatedItems);
+      }
+
+      await _writeStartupCursor(
+        prefs,
+        _startupAudioCursorKey,
+        endCursor,
+        candidateIndexes.length,
+      );
 
       if (refreshedCount > 0) {
         _historyLog.i(
@@ -656,7 +762,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
       _historyLog.d('Added new history entry: ${mergedItem.trackName}');
     }
 
-    _db.upsert(mergedItem.toJson()).catchError((e) {
+    _db.upsert(mergedItem.toJson()).catchError((Object e) {
       _historyLog.e('Failed to save to database: $e');
     });
   }
@@ -665,7 +771,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     state = state.copyWith(
       items: state.items.where((item) => item.id != id).toList(),
     );
-    _db.deleteById(id).catchError((e) {
+    _db.deleteById(id).catchError((Object e) {
       _historyLog.e('Failed to delete from database: $e');
     });
   }
@@ -674,7 +780,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     state = state.copyWith(
       items: state.items.where((item) => item.spotifyId != spotifyId).toList(),
     );
-    _db.deleteBySpotifyId(spotifyId).catchError((e) {
+    _db.deleteBySpotifyId(spotifyId).catchError((Object e) {
       _historyLog.e('Failed to delete from database: $e');
     });
     _historyLog.d('Removed item with spotifyId: $spotifyId');
@@ -768,9 +874,6 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     await _db.upsert(updated.toJson());
   }
 
-  /// Remove history entries where the file no longer exists on disk
-  /// Returns the number of orphaned entries removed
-  /// Audio file extensions that the app commonly produces or converts between.
   static const _audioExtensions = [
     '.flac',
     '.m4a',
@@ -781,11 +884,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     '.aac',
   ];
 
-  /// When the original file is missing, check whether a sibling with a
-  /// different audio extension exists (e.g. the user converted .flac → .opus).
-  /// Returns the path of the first match found, or `null` if none exist.
   Future<String?> _findConvertedSibling(String originalPath) async {
-    // Strip the current extension to get the base path.
     final dotIndex = originalPath.lastIndexOf('.');
     if (dotIndex < 0) return null;
     final basePath = originalPath.substring(0, dotIndex);
@@ -801,11 +900,16 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     return null;
   }
 
-  Future<int> cleanupOrphanedDownloads() async {
-    _historyLog.i('Starting orphaned downloads cleanup...');
-
-    final entries = await _db.getAllEntriesWithPaths();
+  Future<
+    ({
+      List<String> orphanedIds,
+      Map<String, String> replacementPaths,
+      Map<String, String> pathById,
+    })
+  >
+  _inspectOrphanedEntries(List<Map<String, dynamic>> entries) async {
     final orphanedIds = <String>[];
+    final replacementPaths = <String, String>{};
     final pathById = <String, String>{};
     const checkChunkSize = 16;
 
@@ -824,14 +928,12 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
           try {
             if (await fileExists(filePath)) return MapEntry(id, true);
 
-            // Original file missing -- check for a converted sibling.
             final sibling = await _findConvertedSibling(filePath);
             if (sibling != null) {
               _historyLog.i(
-                'Found converted sibling for $id: $filePath → $sibling',
+                'Found converted sibling for $id: $filePath -> $sibling',
               );
-              // Update the stored path so future checks succeed immediately.
-              await _db.updateFilePath(id, sibling);
+              replacementPaths[id] = sibling;
               pathById[id] = sibling;
               return MapEntry(id, true);
             }
@@ -853,27 +955,133 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
       }
     }
 
-    if (orphanedIds.isEmpty) {
+    return (
+      orphanedIds: orphanedIds,
+      replacementPaths: replacementPaths,
+      pathById: pathById,
+    );
+  }
+
+  void _applyHistoryPathAndDeletionChanges({
+    required List<String> deletedIds,
+    required Map<String, String> replacementPaths,
+  }) {
+    if (deletedIds.isEmpty && replacementPaths.isEmpty) {
+      return;
+    }
+    final deletedSet = deletedIds.toSet();
+    final updatedItems = <DownloadHistoryItem>[];
+    for (final item in state.items) {
+      if (deletedSet.contains(item.id)) {
+        continue;
+      }
+      final replacementPath = replacementPaths[item.id];
+      if (replacementPath != null && replacementPath != item.filePath) {
+        updatedItems.add(item.copyWith(filePath: replacementPath));
+      } else {
+        updatedItems.add(item);
+      }
+    }
+    state = state.copyWith(items: updatedItems);
+  }
+
+  Future<int> _cleanupOrphanedDownloadsIncremental({
+    required int maxItems,
+    required SharedPreferences prefs,
+  }) async {
+    final cursor = prefs.getInt(_startupOrphanCursorKey) ?? 0;
+    final safeCursor = cursor < 0 ? 0 : cursor;
+    final entries = await _db.getEntriesWithPathsPage(
+      limit: maxItems,
+      offset: safeCursor,
+    );
+    if (entries.isEmpty) {
+      await prefs.remove(_startupOrphanCursorKey);
+      return 0;
+    }
+
+    final result = await _inspectOrphanedEntries(entries);
+    for (final replacement in result.replacementPaths.entries) {
+      await _db.updateFilePath(replacement.key, replacement.value);
+    }
+
+    final deletedCount = result.orphanedIds.isEmpty
+        ? 0
+        : await _db.deleteByIds(result.orphanedIds);
+
+    _applyHistoryPathAndDeletionChanges(
+      deletedIds: result.orphanedIds,
+      replacementPaths: result.replacementPaths,
+    );
+
+    if (entries.length < maxItems) {
+      await prefs.remove(_startupOrphanCursorKey);
+    } else {
+      final nextCursor =
+          safeCursor + entries.length - result.orphanedIds.length;
+      await prefs.setInt(_startupOrphanCursorKey, nextCursor);
+    }
+
+    if (deletedCount > 0 || result.replacementPaths.isNotEmpty) {
+      _historyLog.i(
+        'Startup orphan cleanup pass: removed=$deletedCount, repaired=${result.replacementPaths.length}, checked=${entries.length}',
+      );
+    }
+    return deletedCount;
+  }
+
+  Future<int> cleanupOrphanedDownloads() async {
+    _historyLog.i('Starting orphaned downloads cleanup...');
+    final orphanedIds = <String>[];
+    final replacementPaths = <String, String>{};
+    const pageSize = 256;
+    var offset = 0;
+
+    while (true) {
+      final entries = await _db.getEntriesWithPathsPage(
+        limit: pageSize,
+        offset: offset,
+      );
+      if (entries.isEmpty) {
+        break;
+      }
+
+      final result = await _inspectOrphanedEntries(entries);
+      orphanedIds.addAll(result.orphanedIds);
+      replacementPaths.addAll(result.replacementPaths);
+
+      if (entries.length < pageSize) {
+        break;
+      }
+      offset += entries.length - result.orphanedIds.length;
+    }
+
+    for (final replacement in replacementPaths.entries) {
+      await _db.updateFilePath(replacement.key, replacement.value);
+    }
+
+    if (orphanedIds.isEmpty && replacementPaths.isEmpty) {
       _historyLog.i('No orphaned entries found');
       return 0;
     }
 
-    final deletedCount = await _db.deleteByIds(orphanedIds);
-
-    final orphanedSet = orphanedIds.toSet();
-    state = state.copyWith(
-      items: state.items
-          .where((item) => !orphanedSet.contains(item.id))
-          .toList(),
+    final deletedCount = orphanedIds.isEmpty
+        ? 0
+        : await _db.deleteByIds(orphanedIds);
+    _applyHistoryPathAndDeletionChanges(
+      deletedIds: orphanedIds,
+      replacementPaths: replacementPaths,
     );
 
-    _historyLog.i('Cleaned up $deletedCount orphaned entries');
+    _historyLog.i(
+      'Cleaned up $deletedCount orphaned entries and repaired ${replacementPaths.length} paths',
+    );
     return deletedCount;
   }
 
   void clearHistory() {
     state = DownloadHistoryState();
-    _db.clearAll().catchError((e) {
+    _db.clearAll().catchError((Object e) {
       _historyLog.e('Failed to clear database: $e');
     });
   }
@@ -958,12 +1166,14 @@ class _ProgressUpdate {
   final double progress;
   final double? speedMBps;
   final int? bytesReceived;
+  final int? bytesTotal;
 
   const _ProgressUpdate({
     required this.status,
     required this.progress,
     this.speedMBps,
     this.bytesReceived,
+    this.bytesTotal,
   });
 }
 
@@ -1379,6 +1589,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           progress: normalizedProgress,
           speedMBps: normalizedSpeed,
           bytesReceived: normalizedBytes,
+          bytesTotal: bytesTotal,
         );
 
         if (LogBuffer.loggingEnabled) {
@@ -1416,11 +1627,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           progress: update.progress,
           speedMBps: update.speedMBps ?? current.speedMBps,
           bytesReceived: update.bytesReceived ?? current.bytesReceived,
+          bytesTotal: update.bytesTotal ?? current.bytesTotal,
         );
         if (current.status != next.status ||
             current.progress != next.progress ||
             current.speedMBps != next.speedMBps ||
-            current.bytesReceived != next.bytesReceived) {
+            current.bytesReceived != next.bytesReceived ||
+            current.bytesTotal != next.bytesTotal) {
           if (!changed) {
             updatedItems = List<DownloadItem>.from(updatedItems);
             changed = true;
@@ -1700,6 +1913,20 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         }
       }
 
+      if (albumFolderStructure == 'artist_album_flat') {
+        if (isSingle) {
+          final artistPath = '$baseDir${Platform.pathSeparator}$artistName';
+          await _ensureDirExists(artistPath, label: 'Artist folder');
+          return artistPath;
+        } else {
+          final albumName = _sanitizeFolderName(track.albumName);
+          final albumPath =
+              '$baseDir${Platform.pathSeparator}$artistName${Platform.pathSeparator}$albumName';
+          await _ensureDirExists(albumPath, label: 'Artist Album folder');
+          return albumPath;
+        }
+      }
+
       if (isSingle) {
         final singlesPath = '$baseDir${Platform.pathSeparator}Singles';
         await _ensureDirExists(singlesPath, label: 'Singles folder');
@@ -1858,6 +2085,14 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         return _joinRelativePath(playlistPrefix, '$artistName/$albumName');
       }
 
+      if (albumFolderStructure == 'artist_album_flat') {
+        if (isSingle) {
+          return _joinRelativePath(playlistPrefix, artistName);
+        }
+        final albumName = _sanitizeFolderName(track.albumName);
+        return _joinRelativePath(playlistPrefix, '$artistName/$albumName');
+      }
+
       if (isSingle) {
         return _joinRelativePath(playlistPrefix, 'Singles');
       }
@@ -1920,15 +2155,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   }
 
   String _determineOutputExt(String quality, String service) {
-    if (service.toLowerCase() == 'youtube') {
-      if (quality.toLowerCase().contains('mp3')) {
-        return '.mp3';
-      }
-      return '.opus';
-    }
     if (service.toLowerCase() == 'tidal' && quality == 'HIGH') {
       return '.m4a';
     }
+    final q = quality.toLowerCase();
+    if (q.startsWith('opus')) return '.opus';
+    if (q.startsWith('mp3')) return '.mp3';
     return '.flac';
   }
 
@@ -2181,6 +2413,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             progress: 0,
             speedMBps: 0,
             bytesReceived: 0,
+            bytesTotal: 0,
           );
         })
         .toList(growable: false);
@@ -2204,6 +2437,31 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     _locallyCancelledItemIds.add(id);
     updateItemStatus(id, DownloadStatus.skipped);
     _requestNativeCancel(id);
+  }
+
+  void dismissItem(String id) {
+    final item = _findItemById(id);
+    if (item == null) return;
+
+    final isActive =
+        item.status == DownloadStatus.queued ||
+        item.status == DownloadStatus.downloading ||
+        item.status == DownloadStatus.finalizing;
+
+    if (isActive) {
+      _pausePendingItemIds.remove(id);
+      _locallyCancelledItemIds.add(id);
+      _requestNativeCancel(id);
+    } else {
+      _locallyCancelledItemIds.remove(id);
+    }
+
+    final items = state.items.where((entry) => entry.id != id).toList();
+    final currentDownload = state.currentDownload?.id == id
+        ? null
+        : state.currentDownload;
+    state = state.copyWith(items: items, currentDownload: currentDownload);
+    _saveQueueToStorage();
   }
 
   void clearCompleted() {
@@ -2474,7 +2732,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   static final _deezerSizeRegex = RegExp(r'/(\d+)x(\d+)-\d+-\d+-\d+-\d+\.jpg$');
 
   String _upgradeToMaxQualityCover(String coverUrl) {
-    // Spotify CDN upgrade (hash-based size identifiers)
     const spotifySize300 = 'ab67616d00001e02';
     const spotifySize640 = 'ab67616d0000b273';
     const spotifySizeMax = 'ab67616d000082c1';
@@ -2487,7 +2744,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       result = result.replaceFirst(spotifySize640, spotifySizeMax);
     }
 
-    // Deezer CDN upgrade (1000x1000 → 1800x1800)
     if (result.contains('cdn-images.dzcdn.net')) {
       final upgraded = result.replaceFirst(
         _deezerSizeRegex,
@@ -3168,7 +3424,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   Future<void> _processQueue() async {
     if (state.isProcessing) return;
 
-    // Check network connectivity before starting
     final settings = ref.read(settingsProvider);
     updateSettings(settings);
     final isSafMode = _isSafMode(settings);
@@ -3228,7 +3483,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         state = state.copyWith(outputDir: musicDir.path);
         ref.read(settingsProvider.notifier).setDownloadDirectory(musicDir.path);
       } else if (!isValidIosWritablePath(state.outputDir)) {
-        // Check for other invalid paths (like container root without Documents/)
         _log.w(
           'iOS: Invalid output path detected (container root?), falling back to app Documents folder',
         );
@@ -3250,7 +3504,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       _log.d('Output directory: ${state.outputDir}');
     } else {
       _log.d('Output directory: SAF (tree_uri=${settings.downloadTreeUri})');
-      // Validate SAF permission is still accessible
       try {
         final testResult = await PlatformBridge.createSafFileFromPath(
           treeUri: settings.downloadTreeUri,
@@ -3259,16 +3512,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           mimeType: 'application/octet-stream',
           srcPath: '',
         );
-        // If we got a result, permission is valid (file creation may fail but that's ok)
-        // If permission is revoked, this will throw
         if (testResult != null) {
-          // Clean up test file
           await PlatformBridge.safDelete(testResult);
         }
       } catch (e) {
         _log.e('SAF permission validation failed: $e');
         _log.w('SAF tree URI may be invalid or permission revoked');
-        // Mark all queued items as failed
         for (final item in state.items) {
           if (item.status == DownloadStatus.queued) {
             updateItemStatus(
@@ -3359,7 +3608,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         _log.d('Queue is paused, waiting for active downloads...');
         await Future.any([
           Future.wait(activeDownloads.values),
-          Future.delayed(_queueSchedulingInterval),
+          Future<void>.delayed(_queueSchedulingInterval),
         ]);
         continue;
       }
@@ -3402,14 +3651,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       }
 
       if (activeDownloads.isNotEmpty) {
-        // Re-check queue/settings periodically so concurrency changes
-        // (e.g. 1 -> 3) can take effect before any active item finishes.
         await Future.any([
           Future.any(activeDownloads.values),
-          Future.delayed(_queueSchedulingInterval),
+          Future<void>.delayed(_queueSchedulingInterval),
         ]);
       } else {
-        await Future.delayed(_queueSchedulingInterval);
+        await Future<void>.delayed(_queueSchedulingInterval);
       }
     }
 
@@ -3555,28 +3802,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       );
 
       var quality = item.qualityOverride ?? state.audioQuality;
-      if (item.service.toLowerCase() == 'youtube') {
-        final normalized = quality.toLowerCase();
-        final isYoutubeQuality =
-            normalized.startsWith('mp3_') || normalized.startsWith('opus_');
-        if (!isYoutubeQuality) {
-          final mp3Bitrate = (() {
-            const supported = [128, 256, 320];
-            var nearest = supported.first;
-            var nearestDistance = (settings.youtubeMp3Bitrate - nearest).abs();
-            for (final option in supported.skip(1)) {
-              final distance = (settings.youtubeMp3Bitrate - option).abs();
-              if (distance < nearestDistance ||
-                  (distance == nearestDistance && option > nearest)) {
-                nearest = option;
-                nearestDistance = distance;
-              }
-            }
-            return nearest;
-          })();
-          quality = 'mp3_$mp3Bitrate';
-        }
-      }
       final isSafMode = _isSafMode(settings);
       final relativeOutputDir = isSafMode
           ? await _buildRelativeOutputDir(
@@ -3684,13 +3909,101 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         }
       }
 
-      // Fallback: Use SongLink to convert Spotify ID to Deezer ID
+      // For tidal:/qobuz: tracks without ISRC, resolve ISRC from provider
+      // API directly (faster than SongLink and avoids rate limits).
+      if (deezerTrackId == null &&
+          (trackToDownload.isrc == null ||
+              trackToDownload.isrc!.isEmpty ||
+              !_isValidISRC(trackToDownload.isrc!)) &&
+          (trackToDownload.id.startsWith('tidal:') ||
+              trackToDownload.id.startsWith('qobuz:'))) {
+        try {
+          final colonIdx = trackToDownload.id.indexOf(':');
+          final provider = trackToDownload.id.substring(0, colonIdx);
+          final providerTrackId = trackToDownload.id.substring(colonIdx + 1);
+
+          _log.d('No ISRC, fetching from $provider API: $providerTrackId');
+          final providerData = provider == 'tidal'
+              ? await PlatformBridge.getTidalMetadata('track', providerTrackId)
+              : await PlatformBridge.getQobuzMetadata('track', providerTrackId);
+
+          final trackData = providerData['track'] as Map<String, dynamic>?;
+          if (trackData != null) {
+            final resolvedIsrc = normalizeOptionalString(
+              trackData['isrc'] as String?,
+            );
+
+            if (resolvedIsrc != null && _isValidISRC(resolvedIsrc)) {
+              _log.d('Resolved ISRC from $provider: $resolvedIsrc');
+
+              final provReleaseDate = normalizeOptionalString(
+                trackData['release_date'] as String?,
+              );
+              final provTrackNum = trackData['track_number'] as int?;
+              final provDiscNum = trackData['disc_number'] as int?;
+
+              trackToDownload = Track(
+                id: trackToDownload.id,
+                name: trackToDownload.name,
+                artistName: trackToDownload.artistName,
+                albumName: trackToDownload.albumName,
+                albumArtist: trackToDownload.albumArtist,
+                artistId: trackToDownload.artistId,
+                albumId: trackToDownload.albumId,
+                coverUrl: normalizeCoverReference(trackToDownload.coverUrl),
+                duration: trackToDownload.duration,
+                isrc: resolvedIsrc,
+                trackNumber:
+                    (trackToDownload.trackNumber != null &&
+                        trackToDownload.trackNumber! > 0)
+                    ? trackToDownload.trackNumber
+                    : provTrackNum,
+                discNumber:
+                    (trackToDownload.discNumber != null &&
+                        trackToDownload.discNumber! > 0)
+                    ? trackToDownload.discNumber
+                    : provDiscNum,
+                releaseDate: trackToDownload.releaseDate ?? provReleaseDate,
+                deezerId: trackToDownload.deezerId,
+                availability: trackToDownload.availability,
+                albumType: trackToDownload.albumType,
+                totalTracks: trackToDownload.totalTracks,
+                source: trackToDownload.source,
+              );
+
+              try {
+                final deezerResult = await PlatformBridge.searchDeezerByISRC(
+                  resolvedIsrc,
+                );
+                if (deezerResult['success'] == true &&
+                    deezerResult['track_id'] != null) {
+                  deezerTrackId = deezerResult['track_id'].toString();
+                  _log.d(
+                    'Found Deezer track ID via $provider ISRC: $deezerTrackId',
+                  );
+                }
+              } catch (e) {
+                _log.w('Failed to search Deezer by $provider ISRC: $e');
+              }
+            }
+          }
+        } catch (e) {
+          _log.w('Failed to resolve ISRC from provider: $e');
+        }
+
+        if (shouldAbortWork('during provider ISRC resolution')) {
+          return;
+        }
+      }
+
       if (!selectedExtensionDownloadProvider &&
           deezerTrackId == null &&
           !shouldSkipExtensionSongLinkPrelookup &&
           trackToDownload.id.isNotEmpty &&
           !trackToDownload.id.startsWith('deezer:') &&
-          !trackToDownload.id.startsWith('extension:')) {
+          !trackToDownload.id.startsWith('extension:') &&
+          !trackToDownload.id.startsWith('tidal:') &&
+          !trackToDownload.id.startsWith('qobuz:')) {
         try {
           String spotifyId = trackToDownload.id;
           if (spotifyId.startsWith('spotify:track:')) {
@@ -3703,7 +4016,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             'track',
             spotifyId,
           );
-          // Response is TrackResponse: {"track": {"spotify_id": "deezer:XXXXX", ...}}
           final trackData = deezerData['track'];
           if (trackData is Map<String, dynamic>) {
             final rawId = trackData['spotify_id'] as String?;
@@ -3839,14 +4151,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         final relativeDir = useSaf ? outputDir : '';
         final fileName = useSaf ? (safFileName ?? '') : '';
         final outputExt = useSaf ? safOutputExt : '';
-        final isYouTube = item.service == 'youtube';
-        final shouldUseExtensions = !isYouTube && useExtensions;
-        final shouldUseFallback = !isYouTube && state.autoFallback;
+        final shouldUseExtensions = useExtensions;
+        final shouldUseFallback = state.autoFallback;
 
-        if (isYouTube) {
-          _log.d('Using YouTube/Cobalt provider for download');
-          _log.d('Quality: $quality (lossy only)');
-        } else if (shouldUseExtensions) {
+        if (shouldUseExtensions) {
           _log.d('Using extension providers for download');
           _log.d(
             'Quality: $quality${item.qualityOverride != null ? ' (override)' : ''}',
@@ -4013,7 +4321,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           finalSafFileName = reportedFileName;
         }
 
-        // Check if file already existed (detected via ISRC match in Go backend)
         final wasExisting = result['already_exists'] == true;
         if (wasExisting) {
           _log.i('File already exists in library: $filePath');
@@ -4026,7 +4333,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         String actualQuality = quality;
 
         if (actualBitDepth != null && actualBitDepth > 0) {
-          // Format: "24-bit/96kHz" or "16-bit/44.1kHz"
           final sampleRateKHz = actualSampleRate != null && actualSampleRate > 0
               ? (actualSampleRate / 1000).toStringAsFixed(
                   actualSampleRate % 1000 == 0 ? 0 : 1,
@@ -4182,7 +4488,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         }
 
         if (isM4aFile || shouldForceTidalSafM4aHandling) {
-          // At this point filePath is guaranteed non-null by the checks above.
           final currentFilePath = filePath;
 
           if (isContentUriPath && effectiveSafMode) {
@@ -4521,11 +4826,23 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         } else if (metadataEmbeddingEnabled &&
             isContentUriPath &&
             effectiveSafMode &&
-            isFlacFile &&
+            !isM4aFile &&
             !wasExisting) {
           final currentFilePath = filePath;
+          final isOpusFile = filePath.endsWith('.opus');
+          final isMp3File = filePath.endsWith('.mp3');
+          final ext = isOpusFile
+              ? '.opus'
+              : isMp3File
+              ? '.mp3'
+              : '.flac';
+          final formatName = isOpusFile
+              ? 'Opus'
+              : isMp3File
+              ? 'MP3'
+              : 'FLAC';
           _log.d(
-            'SAF FLAC detected, embedding metadata and cover via temp file...',
+            'SAF $formatName detected, embedding metadata and cover via temp file...',
           );
           final tempPath = await _copySafToTemp(currentFilePath);
           if (tempPath != null) {
@@ -4545,21 +4862,39 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
               final backendLabel = result['label'] as String?;
               final backendCopyright = result['copyright'] as String?;
 
-              await _embedMetadataAndCover(
-                tempPath,
-                finalTrack,
-                genre: backendGenre ?? genre,
-                label: backendLabel ?? label,
-                copyright: backendCopyright,
-                writeExternalLrc: false,
-              );
+              if (isMp3File) {
+                await _embedMetadataToMp3(
+                  tempPath,
+                  finalTrack,
+                  genre: backendGenre ?? genre,
+                  label: backendLabel ?? label,
+                  copyright: backendCopyright,
+                );
+              } else if (isOpusFile) {
+                await _embedMetadataToOpus(
+                  tempPath,
+                  finalTrack,
+                  genre: backendGenre ?? genre,
+                  label: backendLabel ?? label,
+                  copyright: backendCopyright,
+                );
+              } else {
+                await _embedMetadataAndCover(
+                  tempPath,
+                  finalTrack,
+                  genre: backendGenre ?? genre,
+                  label: backendLabel ?? label,
+                  copyright: backendCopyright,
+                  writeExternalLrc: false,
+                );
+              }
 
-              final newFileName = '${safBaseName ?? 'track'}.flac';
+              final newFileName = '${safBaseName ?? 'track'}$ext';
               final newUri = await _writeTempToSaf(
                 treeUri: settings.downloadTreeUri,
                 relativeDir: effectiveOutputDir,
                 fileName: newFileName,
-                mimeType: _mimeTypeForExt('.flac'),
+                mimeType: _mimeTypeForExt(ext),
                 srcPath: tempPath,
               );
 
@@ -4569,12 +4904,14 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                 }
                 filePath = newUri;
                 finalSafFileName = newFileName;
-                _log.d('SAF FLAC metadata embedding completed');
+                _log.d('SAF $formatName metadata embedding completed');
               } else {
-                _log.w('Failed to write metadata-updated FLAC back to SAF');
+                _log.w(
+                  'Failed to write metadata-updated $formatName back to SAF',
+                );
               }
             } catch (e) {
-              _log.w('SAF FLAC metadata embedding failed: $e');
+              _log.w('SAF $formatName metadata embedding failed: $e');
             } finally {
               try {
                 await File(tempPath).delete();
@@ -4619,109 +4956,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           }
         }
 
-        // YouTube downloads: embed metadata to raw Opus/MP3 files from Cobalt
-        if (metadataEmbeddingEnabled &&
-            !wasExisting &&
-            item.service == 'youtube' &&
-            filePath != null) {
-          final isOpusFile = filePath.endsWith('.opus');
-          final isMp3File = filePath.endsWith('.mp3');
-
-          if (isOpusFile || isMp3File) {
-            _log.i(
-              'YouTube download: embedding metadata to ${isOpusFile ? 'Opus' : 'MP3'} file',
-            );
-            updateItemStatus(
-              item.id,
-              DownloadStatus.downloading,
-              progress: 0.95,
-            );
-
-            final finalTrack = _buildTrackForMetadataEmbedding(
-              trackToDownload,
-              result,
-              resolvedAlbumArtist,
-            );
-            final backendGenre = result['genre'] as String?;
-            final backendLabel = result['label'] as String?;
-            final backendCopyright = result['copyright'] as String?;
-
-            final isContentUriPath = isContentUri(filePath);
-            if (isContentUriPath && effectiveSafMode) {
-              final tempPath = await _copySafToTemp(filePath);
-              if (tempPath != null) {
-                try {
-                  if (isMp3File) {
-                    await _embedMetadataToMp3(
-                      tempPath,
-                      finalTrack,
-                      genre: backendGenre ?? genre,
-                      label: backendLabel ?? label,
-                      copyright: backendCopyright,
-                    );
-                  } else {
-                    await _embedMetadataToOpus(
-                      tempPath,
-                      finalTrack,
-                      genre: backendGenre ?? genre,
-                      label: backendLabel ?? label,
-                      copyright: backendCopyright,
-                    );
-                  }
-                  final ext = isMp3File ? '.mp3' : '.opus';
-                  final newFileName = '${safBaseName ?? 'track'}$ext';
-                  final newUri = await _writeTempToSaf(
-                    treeUri: settings.downloadTreeUri,
-                    relativeDir: effectiveOutputDir,
-                    fileName: newFileName,
-                    mimeType: _mimeTypeForExt(ext),
-                    srcPath: tempPath,
-                  );
-                  if (newUri != null) {
-                    if (newUri != filePath) {
-                      await _deleteSafFile(filePath);
-                    }
-                    filePath = newUri;
-                    finalSafFileName = newFileName;
-                    _log.d('YouTube SAF metadata embedding completed');
-                  } else {
-                    _log.w('Failed to write metadata-updated file back to SAF');
-                  }
-                } catch (e) {
-                  _log.w('YouTube SAF metadata embedding failed: $e');
-                } finally {
-                  try {
-                    await File(tempPath).delete();
-                  } catch (_) {}
-                }
-              }
-            } else {
-              try {
-                if (isMp3File) {
-                  await _embedMetadataToMp3(
-                    filePath,
-                    finalTrack,
-                    genre: backendGenre ?? genre,
-                    label: backendLabel ?? label,
-                    copyright: backendCopyright,
-                  );
-                } else {
-                  await _embedMetadataToOpus(
-                    filePath,
-                    finalTrack,
-                    genre: backendGenre ?? genre,
-                    label: backendLabel ?? label,
-                    copyright: backendCopyright,
-                  );
-                }
-                _log.d('YouTube metadata embedding completed');
-              } catch (e) {
-                _log.w('YouTube metadata embedding failed: $e');
-              }
-            }
-          }
-        }
-
         final itemAfterDownload = _findItemById(item.id);
         if (itemAfterDownload == null ||
             _isLocallyCancelled(item.id, item: itemAfterDownload)) {
@@ -4746,9 +4980,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           return;
         }
 
-        // SAF downloads should end with content URI. If we still have a
-        // transient FD path, recover URI from SAF metadata to keep history
-        // dedup/exclusion stable.
         if (effectiveSafMode &&
             filePath != null &&
             filePath.isNotEmpty &&
@@ -5063,8 +5294,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         );
         _failedInSession++;
 
-        // Immediately cleanup connections after failure to prevent
-        // poisoned connection pool from affecting subsequent downloads
         try {
           await PlatformBridge.cleanupConnections();
         } catch (e) {
@@ -5117,7 +5346,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       );
       _failedInSession++;
 
-      // Immediately cleanup connections after exception
       try {
         await PlatformBridge.cleanupConnections();
       } catch (cleanupErr) {

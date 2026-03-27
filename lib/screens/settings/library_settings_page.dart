@@ -23,21 +23,15 @@ class _LibrarySettingsPageState extends ConsumerState<LibrarySettingsPage> {
   int _androidSdkVersion = 0;
   bool _hasStoragePermission = false;
 
-  /// Convert SAF content URI to a readable display path
   String _getDisplayPath(String path) {
     if (!path.startsWith('content://')) return path;
-    // Extract the path portion from SAF tree URI
-    // e.g. content://com.android.externalstorage.documents/tree/primary%3AMusic
-    // -> /storage/emulated/0/Music
     try {
       final uri = Uri.parse(path);
-      final treePath =
-          uri.pathSegments.last; // e.g. "primary:Music" or "primary%3AMusic"
+      final treePath = uri.pathSegments.last;
       final decoded = Uri.decodeComponent(treePath);
       if (decoded.startsWith('primary:')) {
         return '/storage/emulated/0/${decoded.substring('primary:'.length)}';
       }
-      // For SD card or other volumes, just show the decoded path
       return decoded;
     } catch (_) {
       return path;
@@ -261,7 +255,7 @@ class _LibrarySettingsPageState extends ConsumerState<LibrarySettingsPage> {
 
   void _showAutoScanPicker(BuildContext context, String current) {
     final colorScheme = Theme.of(context).colorScheme;
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
       backgroundColor: colorScheme.surfaceContainerHigh,

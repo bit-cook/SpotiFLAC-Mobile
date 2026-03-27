@@ -477,213 +477,45 @@ class _CryptoWalletItem extends StatelessWidget {
   }
 }
 
-int _cr(String v) {
-  int r = 0x1F;
-  for (final c in v.codeUnits) {
-    r = (r * 31 + c) & 0x7FFFFFFF;
-  }
-  return r;
-}
-
-// Highlighted supporters (hashes of names).
-const _cv = <int>{1211573191, 1003219236};
-
-// Diamond tier supporters ($50+ donors).
-const _dv = <int>{560908930};
-
-enum _SupporterTier { normal, gold, diamond }
-
-_SupporterTier _tierOf(String name) {
-  final h = _cr(name);
-  if (_dv.contains(h)) return _SupporterTier.diamond;
-  if (_cv.contains(h)) return _SupporterTier.gold;
-  return _SupporterTier.normal;
-}
-
-class _SupporterChip extends StatefulWidget {
+class _SupporterChip extends StatelessWidget {
   final String name;
   final ColorScheme colorScheme;
 
   const _SupporterChip({required this.name, required this.colorScheme});
 
   @override
-  State<_SupporterChip> createState() => _SupporterChipState();
-}
-
-class _SupporterChipState extends State<_SupporterChip>
-    with SingleTickerProviderStateMixin {
-  late final _SupporterTier _tier;
-  AnimationController? _shimmerController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tier = _tierOf(widget.name);
-    if (_tier == _SupporterTier.diamond) {
-      _shimmerController = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 2400),
-      )..repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _shimmerController?.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    if (_tier == _SupporterTier.diamond) {
-      return _buildDiamondChip(isDark);
-    }
-
-    final isGold = _tier == _SupporterTier.gold;
-    const goldChipColor = Color(0xFFFFF8DC);
-    const goldAccentColor = Color(0xFFB8860B);
-    const goldDarkChipColor = Color(0xFF3A3000);
-
-    final chipColor = isGold
-        ? goldChipColor
-        : widget.colorScheme.secondaryContainer;
-    final accentColor = isGold ? goldAccentColor : widget.colorScheme.primary;
-    final effectiveChipColor = isGold && isDark ? goldDarkChipColor : chipColor;
-
     return Material(
-      color: effectiveChipColor,
+      color: colorScheme.secondaryContainer,
       borderRadius: BorderRadius.circular(20),
-      child: Container(
-        decoration: isGold
-            ? BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: accentColor.withValues(alpha: 0.4),
-                  width: 1,
-                ),
-              )
-            : null,
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             CircleAvatar(
               radius: 10,
-              backgroundColor: accentColor.withValues(alpha: 0.2),
-              child: isGold
-                  ? Icon(Icons.star_rounded, size: 12, color: accentColor)
-                  : Text(
-                      widget.name.isNotEmpty
-                          ? widget.name[0].toUpperCase()
-                          : '?',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: accentColor,
-                      ),
-                    ),
+              backgroundColor: colorScheme.primary.withValues(alpha: 0.2),
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.primary,
+                ),
+              ),
             ),
             const SizedBox(width: 8),
             Text(
-              widget.name,
+              name,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: isGold
-                    ? accentColor
-                    : widget.colorScheme.onSecondaryContainer,
-                fontWeight: isGold ? FontWeight.w600 : FontWeight.w500,
+                color: colorScheme.onSecondaryContainer,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildDiamondChip(bool isDark) {
-    const diamondLight = Color(0xFFE8F4FD);
-    const diamondDark = Color(0xFF0D2B3E);
-    const diamondAccent = Color(0xFF4FC3F7);
-    const diamondHighlight = Color(0xFFB3E5FC);
-
-    final chipBg = isDark ? diamondDark : diamondLight;
-
-    return AnimatedBuilder(
-      animation: _shimmerController!,
-      builder: (context, child) {
-        final t = _shimmerController!.value;
-        return Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: LinearGradient(
-                begin: Alignment(-2.0 + 4.0 * t, 0.0),
-                end: Alignment(-1.0 + 4.0 * t, 0.0),
-                colors: [
-                  chipBg,
-                  isDark
-                      ? diamondAccent.withValues(alpha: 0.18)
-                      : diamondHighlight.withValues(alpha: 0.7),
-                  chipBg,
-                ],
-                stops: const [0.0, 0.5, 1.0],
-              ),
-              border: Border.all(
-                color: diamondAccent.withValues(
-                  alpha: 0.5 + 0.3 * (0.5 - (t - 0.5).abs()),
-                ),
-                width: 1.2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: diamondAccent.withValues(
-                    alpha: 0.15 + 0.1 * (0.5 - (t - 0.5).abs()),
-                  ),
-                  blurRadius: 8,
-                  spreadRadius: 0,
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        diamondAccent.withValues(alpha: 0.3),
-                        diamondAccent.withValues(alpha: 0.15),
-                      ],
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.diamond_rounded,
-                    size: 12,
-                    color: diamondAccent,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  widget.name,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: isDark ? diamondHighlight : diamondAccent,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

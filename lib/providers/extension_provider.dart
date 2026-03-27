@@ -32,14 +32,12 @@ class Extension {
   final bool hasMetadataProvider;
   final bool hasDownloadProvider;
   final bool hasLyricsProvider;
-  final bool
-  skipMetadataEnrichment; // If true, use metadata from extension instead of enriching
+  final bool skipMetadataEnrichment;
   final SearchBehavior? searchBehavior;
   final URLHandler? urlHandler;
   final TrackMatching? trackMatching;
   final PostProcessing? postProcessing;
-  final Map<String, dynamic>
-  capabilities; // Extension capabilities (homeFeed, browseCategories, etc.)
+  final Map<String, dynamic> capabilities;
 
   const Extension({
     required this.id,
@@ -198,12 +196,10 @@ class SearchBehavior {
   final String? placeholder;
   final bool primary;
   final String? icon;
-  final String?
-  thumbnailRatio; // "square" (1:1), "wide" (16:9), "portrait" (2:3)
+  final String? thumbnailRatio;
   final int? thumbnailWidth;
   final int? thumbnailHeight;
-  final List<SearchFilter>
-  filters; // Available search filters (e.g., track, album, artist, playlist)
+  final List<SearchFilter> filters;
 
   const SearchBehavior({
     required this.enabled,
@@ -239,11 +235,11 @@ class SearchBehavior {
     }
 
     switch (thumbnailRatio) {
-      case 'wide': // 16:9 - YouTube style
+      case 'wide':
         return (defaultSize * 16 / 9, defaultSize);
-      case 'portrait': // 2:3 - Poster style
+      case 'portrait':
         return (defaultSize * 2 / 3, defaultSize);
-      case 'square': // 1:1 - Album art style
+      case 'square':
       default:
         return (defaultSize, defaultSize);
     }
@@ -290,7 +286,6 @@ class PostProcessing {
   }
 }
 
-/// URL handler configuration for custom URL patterns
 class URLHandler {
   final bool enabled;
   final List<String> patterns;
@@ -304,7 +299,6 @@ class URLHandler {
     );
   }
 
-  /// Check if a URL matches any of the patterns
   bool matchesURL(String url) {
     if (!enabled || patterns.isEmpty) return false;
     final lowerUrl = url.toLowerCase();

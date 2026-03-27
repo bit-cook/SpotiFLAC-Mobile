@@ -67,8 +67,8 @@ class PlatformBridge {
     if (response['success'] == true) {
       final service = response['service'] ?? payload.service;
       final filePath = response['file_path'] ?? '';
-      final bitDepth = response['actual_bit_depth'];
-      final sampleRate = response['actual_sample_rate'];
+      final bitDepth = response['actual_bit_depth'] as num?;
+      final sampleRate = response['actual_sample_rate'] as num?;
       final qualityStr = bitDepth != null && sampleRate != null
           ? ' ($bitDepth-bit/${(sampleRate / 1000).toStringAsFixed(1)}kHz)'
           : '';
@@ -83,24 +83,18 @@ class PlatformBridge {
 
   static Future<Map<String, dynamic>> getDownloadProgress() async {
     final result = await _channel.invokeMethod('getDownloadProgress');
-    return jsonDecode(result as String) as Map<String, dynamic>;
+    return _decodeMapResult(result);
   }
 
   static Future<Map<String, dynamic>> getAllDownloadProgress() async {
     final result = await _channel.invokeMethod('getAllDownloadProgress');
-    return jsonDecode(result as String) as Map<String, dynamic>;
+    return _decodeMapResult(result);
   }
 
   static Stream<Map<String, dynamic>> downloadProgressStream() {
-    return _downloadProgressEvents.receiveBroadcastStream().map((event) {
-      if (event is String) {
-        return jsonDecode(event) as Map<String, dynamic>;
-      }
-      if (event is Map) {
-        return Map<String, dynamic>.from(event);
-      }
-      return const <String, dynamic>{};
-    });
+    return _downloadProgressEvents.receiveBroadcastStream().map(
+      _decodeMapResult,
+    );
   }
 
   static Future<void> exitApp() async {
@@ -1087,7 +1081,6 @@ class PlatformBridge {
     }
   }
 
-  /// Set the directory for caching extracted cover art
   static Future<void> setLibraryCoverCacheDir(String cacheDir) async {
     _log.i('setLibraryCoverCacheDir: $cacheDir');
     await _channel.invokeMethod('setLibraryCoverCacheDir', {
@@ -1095,8 +1088,6 @@ class PlatformBridge {
     });
   }
 
-  /// Scan a folder for audio files and read their metadata
-  /// Returns a list of track metadata
   static Future<List<Map<String, dynamic>>> scanLibraryFolder(
     String folderPath,
   ) async {
@@ -1108,10 +1099,6 @@ class PlatformBridge {
     return list.map((e) => e as Map<String, dynamic>).toList();
   }
 
-  /// Perform an incremental scan of the library folder
-  /// Only scans files that are new or have changed since last scan
-  /// [existingFiles] is a map of filePath -> modTime (unix millis)
-  /// Returns IncrementalScanResult with scanned items, deleted paths, and skip count
   static Future<Map<String, dynamic>> scanLibraryFolderIncremental(
     String folderPath,
     Map<String, int> existingFiles,
@@ -1146,8 +1133,6 @@ class PlatformBridge {
     return list.map((e) => e as Map<String, dynamic>).toList();
   }
 
-  /// Incremental SAF tree scan - only scans new or modified files
-  /// Returns a map with 'files' (new/changed) and 'removedUris' (deleted files)
   static Future<Map<String, dynamic>> scanSafTreeIncremental(
     String treeUri,
     Map<String, int> existingFiles,
@@ -1173,8 +1158,6 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  /// Get last-modified timestamps for a list of SAF file URIs.
-  /// Returns map uri -> modTime (unix millis), only for files that still exist.
   static Future<Map<String, int>> getSafFileModTimes(List<String> uris) async {
     final result = await _channel.invokeMethod('getSafFileModTimes', {
       'uris': jsonEncode(uris),
@@ -1183,27 +1166,33 @@ class PlatformBridge {
     return map.map((key, value) => MapEntry(key, (value as num).toInt()));
   }
 
-  /// Get current library scan progress
   static Future<Map<String, dynamic>> getLibraryScanProgress() async {
     final result = await _channel.invokeMethod('getLibraryScanProgress');
-    return jsonDecode(result as String) as Map<String, dynamic>;
+    return _decodeMapResult(result);
   }
 
   static Stream<Map<String, dynamic>> libraryScanProgressStream() {
-    return _libraryScanProgressEvents.receiveBroadcastStream().map((event) {
-      if (event is String) {
-        return jsonDecode(event) as Map<String, dynamic>;
-      }
-      if (event is Map) {
-        return Map<String, dynamic>.from(event);
-      }
-      return const <String, dynamic>{};
-    });
+    return _libraryScanProgressEvents.receiveBroadcastStream().map(
+      _decodeMapResult,
+    );
   }
 
-  /// Cancel ongoing library scan
   static Future<void> cancelLibraryScan() async {
     await _channel.invokeMethod('cancelLibraryScan');
+  }
+
+  static Map<String, dynamic> _decodeMapResult(dynamic result) {
+    if (result is Map) {
+      return Map<String, dynamic>.from(result);
+    }
+    if (result is String) {
+      if (result.isEmpty) return const <String, dynamic>{};
+      final decoded = jsonDecode(result);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+    }
+    return const <String, dynamic>{};
   }
 
   // MARK: - iOS Security-Scoped Bookmark
@@ -1247,7 +1236,6 @@ class PlatformBridge {
     }
   }
 
-  /// Read metadata from a single audio file
   static Future<Map<String, dynamic>?> readAudioMetadata(
     String filePath,
   ) async {
@@ -1367,10 +1355,6 @@ class PlatformBridge {
     await _channel.invokeMethod('clearStoreCache');
   }
 
-  /// Parse a .cue file and return split information (track listing, timing, metadata).
-  /// Returns a map with: cue_path, audio_path, album, artist, genre, date, tracks[]
-  /// Each track has: number, title, artist, isrc, composer, start_sec, end_sec
-  /// [audioDir] optionally overrides the directory for audio file resolution (used for SAF).
   static Future<Map<String, dynamic>> parseCueSheet(
     String cuePath, {
     String audioDir = '',

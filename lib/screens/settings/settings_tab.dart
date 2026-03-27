@@ -13,6 +13,7 @@ import 'package:spotiflac_android/screens/settings/donate_page.dart';
 import 'package:spotiflac_android/screens/settings/log_screen.dart';
 import 'package:spotiflac_android/utils/app_bar_layout.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
+import 'package:spotiflac_android/widgets/animation_utils.dart';
 
 class SettingsTab extends ConsumerWidget {
   const SettingsTab({super.key});
@@ -150,26 +151,6 @@ class SettingsTab extends ConsumerWidget {
 
   void _navigateTo(BuildContext context, Widget page) {
     FocusManager.instance.primaryFocus?.unfocus();
-
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => page,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          const curve = Curves.easeInOut;
-          var tween = Tween(
-            begin: begin,
-            end: end,
-          ).chain(CurveTween(curve: curve));
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 300),
-        reverseTransitionDuration: const Duration(milliseconds: 250),
-      ),
-    );
+    Navigator.of(context).push(slidePageRoute<void>(page: page));
   }
 }

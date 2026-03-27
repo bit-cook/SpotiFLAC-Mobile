@@ -90,6 +90,9 @@ type ExtensionRuntime struct {
 	dataDir        string
 	vm             *goja.Runtime
 
+	activeDownloadMu     sync.RWMutex
+	activeDownloadItemID string
+
 	storageMu      sync.RWMutex
 	storageCache   map[string]interface{}
 	storageLoaded  bool
@@ -137,6 +140,24 @@ func NewExtensionRuntime(ext *LoadedExtension) *ExtensionRuntime {
 	runtime.downloadClient = newExtensionHTTPClient(ext, jar, DownloadTimeout)
 
 	return runtime
+}
+
+func (r *ExtensionRuntime) setActiveDownloadItemID(itemID string) {
+	r.activeDownloadMu.Lock()
+	defer r.activeDownloadMu.Unlock()
+	r.activeDownloadItemID = strings.TrimSpace(itemID)
+}
+
+func (r *ExtensionRuntime) clearActiveDownloadItemID() {
+	r.activeDownloadMu.Lock()
+	defer r.activeDownloadMu.Unlock()
+	r.activeDownloadItemID = ""
+}
+
+func (r *ExtensionRuntime) getActiveDownloadItemID() string {
+	r.activeDownloadMu.RLock()
+	defer r.activeDownloadMu.RUnlock()
+	return r.activeDownloadItemID
 }
 
 func newExtensionHTTPClient(ext *LoadedExtension, jar http.CookieJar, timeout time.Duration) *http.Client {

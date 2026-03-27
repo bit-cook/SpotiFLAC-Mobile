@@ -137,14 +137,13 @@ class DownloadService : Service() {
     
     private fun startForegroundService() {
         isRunning = true
-        
-        // Acquire wake lock to prevent CPU sleep
+
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
             WAKELOCK_TAG
         ).apply {
-            acquire(60 * 60 * 1000L) // 1 hour max
+            acquire(60 * 60 * 1000L)
         }
         
         val notification = buildNotification(0, 0)

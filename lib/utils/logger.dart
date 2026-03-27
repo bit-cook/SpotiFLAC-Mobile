@@ -179,15 +179,16 @@ class LogBuffer extends ChangeNotifier {
       final nextIndex = result['next_index'] as int? ?? _lastGoLogIndex;
       final keepNonErrorLogs = _loggingEnabled;
 
-      for (final log in logs) {
-        final level = log['level'] as String? ?? 'INFO';
+      for (final log in logs.whereType<Map<Object?, Object?>>()) {
+        final logMap = Map<String, dynamic>.from(log);
+        final level = logMap['level'] as String? ?? 'INFO';
         if (!keepNonErrorLogs && level != 'ERROR' && level != 'FATAL') {
           continue;
         }
 
-        final timestamp = log['timestamp'] as String? ?? '';
-        final tag = log['tag'] as String? ?? 'Go';
-        final message = log['message'] as String? ?? '';
+        final timestamp = logMap['timestamp'] as String? ?? '';
+        final tag = logMap['tag'] as String? ?? 'Go';
+        final message = logMap['message'] as String? ?? '';
 
         DateTime parsedTime = DateTime.now();
         if (timestamp.isNotEmpty) {

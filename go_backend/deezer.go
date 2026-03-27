@@ -1181,7 +1181,7 @@ func (c *DeezerClient) getJSON(ctx context.Context, endpoint string, dst interfa
 
 	for attempt := 0; attempt <= deezerMaxRetries; attempt++ {
 		if attempt > 0 {
-			delay := deezerRetryDelay * time.Duration(1<<(attempt-1)) // Exponential backoff
+			delay := deezerRetryDelay * time.Duration(1<<(attempt-1))
 			GoLog("[Deezer] Retry %d/%d after %v...\n", attempt, deezerMaxRetries, delay)
 			time.Sleep(delay)
 		}
@@ -1194,7 +1194,6 @@ func (c *DeezerClient) getJSON(ctx context.Context, endpoint string, dst interfa
 		lastErr = err
 		errStr := err.Error()
 
-		// Check if error is retryable
 		isRetryable := strings.Contains(errStr, "timeout") ||
 			strings.Contains(errStr, "connection reset") ||
 			strings.Contains(errStr, "connection refused") ||

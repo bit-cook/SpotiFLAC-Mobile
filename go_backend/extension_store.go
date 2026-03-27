@@ -21,7 +21,7 @@ const (
 	CategoryIntegration = "integration"
 )
 
-type StoreExtension struct {
+type storeExtension struct {
 	ID               string   `json:"id"`
 	Name             string   `json:"name"`
 	DisplayName      string   `json:"display_name,omitempty"`
@@ -41,7 +41,7 @@ type StoreExtension struct {
 	MinAppVersionAlt string   `json:"minAppVersion,omitempty"`
 }
 
-func (e *StoreExtension) getDisplayName() string {
+func (e *storeExtension) getDisplayName() string {
 	if e.DisplayName != "" {
 		return e.DisplayName
 	}
@@ -51,34 +51,34 @@ func (e *StoreExtension) getDisplayName() string {
 	return e.Name
 }
 
-func (e *StoreExtension) getDownloadURL() string {
+func (e *storeExtension) getDownloadURL() string {
 	if e.DownloadURL != "" {
 		return e.DownloadURL
 	}
 	return e.DownloadURLAlt
 }
 
-func (e *StoreExtension) getIconURL() string {
+func (e *storeExtension) getIconURL() string {
 	if e.IconURL != "" {
 		return e.IconURL
 	}
 	return e.IconURLAlt
 }
 
-func (e *StoreExtension) getMinAppVersion() string {
+func (e *storeExtension) getMinAppVersion() string {
 	if e.MinAppVersion != "" {
 		return e.MinAppVersion
 	}
 	return e.MinAppVersionAlt
 }
 
-type StoreRegistry struct {
+type storeRegistry struct {
 	Version    int              `json:"version"`
 	UpdatedAt  string           `json:"updated_at"`
-	Extensions []StoreExtension `json:"extensions"`
+	Extensions []storeExtension `json:"extensions"`
 }
 
-type StoreExtensionResponse struct {
+type storeExtensionResponse struct {
 	ID               string   `json:"id"`
 	Name             string   `json:"name"`
 	DisplayName      string   `json:"display_name"`
@@ -97,8 +97,8 @@ type StoreExtensionResponse struct {
 	HasUpdate        bool     `json:"has_update"`
 }
 
-func (e *StoreExtension) ToResponse() StoreExtensionResponse {
-	return StoreExtensionResponse{
+func (e *storeExtension) toResponse() storeExtensionResponse {
+	resp := storeExtensionResponse{
 		ID:            e.ID,
 		Name:          e.Name,
 		DisplayName:   e.getDisplayName(),
@@ -108,25 +108,30 @@ func (e *StoreExtension) ToResponse() StoreExtensionResponse {
 		DownloadURL:   e.getDownloadURL(),
 		IconURL:       e.getIconURL(),
 		Category:      e.Category,
-		Tags:          e.Tags,
 		Downloads:     e.Downloads,
 		UpdatedAt:     e.UpdatedAt,
 		MinAppVersion: e.getMinAppVersion(),
 	}
+
+	if len(e.Tags) > 0 {
+		resp.Tags = append([]string(nil), e.Tags...)
+	}
+
+	return resp
 }
 
-type ExtensionStore struct {
+type extensionStore struct {
 	registryURL string
 	cacheDir    string
-	cache       *StoreRegistry
+	cache       *storeRegistry
 	cacheMu     sync.RWMutex
 	cacheTime   time.Time
 	cacheTTL    time.Duration
 }
 
 var (
-	extensionStore   *ExtensionStore
-	extensionStoreMu sync.Mutex
+	globalExtensionStore *extensionStore
+	extensionStoreMu     sync.Mutex
 )
 
 const (
@@ -134,24 +139,24 @@ const (
 	cacheFileName = "store_cache.json"
 )
 
-func InitExtensionStore(cacheDir string) *ExtensionStore {
+func initExtensionStore(cacheDir string) *extensionStore {
 	extensionStoreMu.Lock()
 	defer extensionStoreMu.Unlock()
 
-	if extensionStore == nil {
-		extensionStore = &ExtensionStore{
+	if globalExtensionStore == nil {
+		globalExtensionStore = &extensionStore{
 			registryURL: "", // No default - user must provide a registry URL
 			cacheDir:    cacheDir,
 			cacheTTL:    cacheTTL,
 		}
-		extensionStore.loadDiskCache()
+		globalExtensionStore.loadDiskCache()
 	}
-	return extensionStore
+	return globalExtensionStore
 }
 
 // SetRegistryURL updates the registry URL and clears the in-memory cache
 // so the next fetch will use the new URL. Disk cache is also cleared.
-func (s *ExtensionStore) SetRegistryURL(registryURL string) {
+func (s *extensionStore) setRegistryURL(registryURL string) {
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()
 
@@ -173,19 +178,19 @@ func (s *ExtensionStore) SetRegistryURL(registryURL string) {
 }
 
 // GetRegistryURL returns the currently configured registry URL.
-func (s *ExtensionStore) GetRegistryURL() string {
+func (s *extensionStore) getRegistryURL() string {
 	s.cacheMu.RLock()
 	defer s.cacheMu.RUnlock()
 	return s.registryURL
 }
 
-func GetExtensionStore() *ExtensionStore {
+func getExtensionStore() *extensionStore {
 	extensionStoreMu.Lock()
 	defer extensionStoreMu.Unlock()
-	return extensionStore
+	return globalExtensionStore
 }
 
-func (s *ExtensionStore) loadDiskCache() {
+func (s *extensionStore) loadDiskCache() {
 	if s.cacheDir == "" {
 		return
 	}
@@ -197,7 +202,7 @@ func (s *ExtensionStore) loadDiskCache() {
 	}
 
 	var cacheData struct {
-		Registry  StoreRegistry `json:"registry"`
+		Registry  storeRegistry `json:"registry"`
 		CacheTime int64         `json:"cache_time"`
 	}
 
@@ -210,13 +215,13 @@ func (s *ExtensionStore) loadDiskCache() {
 	LogDebug("ExtensionStore", "Loaded %d extensions from disk cache", len(s.cache.Extensions))
 }
 
-func (s *ExtensionStore) saveDiskCache() {
+func (s *extensionStore) saveDiskCache() {
 	if s.cacheDir == "" || s.cache == nil {
 		return
 	}
 
 	cacheData := struct {
-		Registry  StoreRegistry `json:"registry"`
+		Registry  storeRegistry `json:"registry"`
 		CacheTime int64         `json:"cache_time"`
 	}{
 		Registry:  *s.cache,
@@ -232,11 +237,10 @@ func (s *ExtensionStore) saveDiskCache() {
 	os.WriteFile(cachePath, data, 0644)
 }
 
-func (s *ExtensionStore) FetchRegistry(forceRefresh bool) (*StoreRegistry, error) {
+func (s *extensionStore) fetchRegistry(forceRefresh bool) (*storeRegistry, error) {
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()
 
-	// Check if a registry URL has been configured
 	if s.registryURL == "" {
 		return nil, fmt.Errorf("no registry URL configured. Please add a repository URL first")
 	}
@@ -276,7 +280,7 @@ func (s *ExtensionStore) FetchRegistry(forceRefresh bool) (*StoreRegistry, error
 		return nil, fmt.Errorf("failed to read registry: %w", err)
 	}
 
-	var registry StoreRegistry
+	var registry storeRegistry
 	if err := json.Unmarshal(body, &registry); err != nil {
 		return nil, fmt.Errorf("failed to parse registry: %w", err)
 	}
@@ -289,8 +293,8 @@ func (s *ExtensionStore) FetchRegistry(forceRefresh bool) (*StoreRegistry, error
 	return &registry, nil
 }
 
-func (s *ExtensionStore) GetExtensionsWithStatus() ([]StoreExtensionResponse, error) {
-	registry, err := s.FetchRegistry(false)
+func (s *extensionStore) getExtensionsWithStatus(forceRefresh bool) ([]storeExtensionResponse, error) {
+	registry, err := s.fetchRegistry(forceRefresh)
 	if err != nil {
 		return nil, err
 	}
@@ -304,29 +308,32 @@ func (s *ExtensionStore) GetExtensionsWithStatus() ([]StoreExtensionResponse, er
 		}
 	}
 
-	result := make([]StoreExtensionResponse, len(registry.Extensions))
-	for i, ext := range registry.Extensions {
-		resp := ext.ToResponse()
+	LogDebug("ExtensionStore", "Building store response for %d registry extensions (%d installed)", len(registry.Extensions), len(installed))
 
+	result := make([]storeExtensionResponse, 0, len(registry.Extensions))
+	for i := range registry.Extensions {
+		ext := &registry.Extensions[i]
+		resp := ext.toResponse()
 		if installedVersion, ok := installed[ext.ID]; ok {
 			resp.IsInstalled = true
 			resp.InstalledVersion = installedVersion
 			resp.HasUpdate = compareVersions(ext.Version, installedVersion) > 0
 		}
 
-		result[i] = resp
+		result = append(result, resp)
 	}
 
+	LogDebug("ExtensionStore", "Built store response payload for %d extensions", len(result))
 	return result, nil
 }
 
-func (s *ExtensionStore) DownloadExtension(extensionID string, destPath string) error {
-	registry, err := s.FetchRegistry(false)
+func (s *extensionStore) downloadExtension(extensionID string, destPath string) error {
+	registry, err := s.fetchRegistry(false)
 	if err != nil {
 		return err
 	}
 
-	var ext *StoreExtension
+	var ext *storeExtension
 	for _, e := range registry.Extensions {
 		if e.ID == extensionID {
 			ext = &e
@@ -378,7 +385,7 @@ func (s *ExtensionStore) DownloadExtension(extensionID string, destPath string) 
 //   - https://github.com/owner/repo  (with optional trailing path / .git)  → resolved via
 //     the GitHub API to discover the default branch, then converted to the raw URL
 //   - Any other HTTPS URL  → returned as-is (assumed to be a direct link)
-func ResolveRegistryURL(input string) (string, error) {
+func resolveRegistryURL(input string) (string, error) {
 	input = strings.TrimSpace(input)
 	if input == "" {
 		return "", fmt.Errorf("registry URL is empty")
@@ -389,7 +396,6 @@ func ResolveRegistryURL(input string) (string, error) {
 		return input, nil
 	}
 
-	// Try to match https://github.com/<owner>/<repo>[/...]
 	const ghPrefix = "https://github.com/"
 	if !strings.HasPrefix(input, ghPrefix) {
 		// Also accept http:// and upgrade silently.
@@ -460,7 +466,7 @@ func requireHTTPSURL(rawURL string, context string) error {
 	return nil
 }
 
-func (s *ExtensionStore) GetCategories() []string {
+func (s *extensionStore) getCategories() []string {
 	return []string{
 		CategoryMetadata,
 		CategoryDownload,
@@ -470,8 +476,8 @@ func (s *ExtensionStore) GetCategories() []string {
 	}
 }
 
-func (s *ExtensionStore) SearchExtensions(query string, category string) ([]StoreExtensionResponse, error) {
-	extensions, err := s.GetExtensionsWithStatus()
+func (s *extensionStore) searchExtensions(query string, category string) ([]storeExtensionResponse, error) {
+	extensions, err := s.getExtensionsWithStatus(false)
 	if err != nil {
 		return nil, err
 	}
@@ -480,7 +486,7 @@ func (s *ExtensionStore) SearchExtensions(query string, category string) ([]Stor
 		return extensions, nil
 	}
 
-	var result []StoreExtensionResponse
+	result := make([]storeExtensionResponse, 0, len(extensions))
 	queryLower := toLower(query)
 
 	for _, ext := range extensions {
@@ -493,7 +499,6 @@ func (s *ExtensionStore) SearchExtensions(query string, category string) ([]Stor
 				!containsIgnoreCase(ext.DisplayName, queryLower) &&
 				!containsIgnoreCase(ext.Description, queryLower) &&
 				!containsIgnoreCase(ext.Author, queryLower) {
-				// Check tags
 				found := false
 				for _, tag := range ext.Tags {
 					if containsIgnoreCase(tag, queryLower) {
@@ -513,7 +518,7 @@ func (s *ExtensionStore) SearchExtensions(query string, category string) ([]Stor
 	return result, nil
 }
 
-func (s *ExtensionStore) ClearCache() {
+func (s *extensionStore) clearCache() {
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()
 

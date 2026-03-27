@@ -16,6 +16,7 @@ import 'package:spotiflac_android/services/local_track_redownload_service.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/providers/playback_provider.dart';
+import 'package:spotiflac_android/widgets/animation_utils.dart';
 
 class LocalAlbumScreen extends ConsumerStatefulWidget {
   final String albumName;
@@ -531,7 +532,6 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
     if (tracks.isEmpty) return null;
     final first = tracks.first;
 
-    // For lossy formats, use bitrate
     if (first.bitrate != null && first.bitrate! > 0) {
       final fmt = first.format?.toUpperCase() ?? '';
       final firstBitrate = first.bitrate;
@@ -543,7 +543,6 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
       return '$fmt ${firstBitrate}kbps'.trim();
     }
 
-    // For lossless formats, use bit depth / sample rate
     if (first.bitDepth == null ||
         first.bitDepth == 0 ||
         first.sampleRate == null) {
@@ -630,7 +629,10 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
             final track = discTracks[index];
             return KeyedSubtree(
               key: ValueKey(track.id),
-              child: _buildTrackItem(context, colorScheme, track),
+              child: StaggeredListItem(
+                index: index,
+                child: _buildTrackItem(context, colorScheme, track),
+              ),
             );
           }, childCount: discTracks.length),
         ),
@@ -669,28 +671,11 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (_isSelectionMode) ...[
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? colorScheme.primary
-                        : Colors.transparent,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isSelected
-                          ? colorScheme.primary
-                          : colorScheme.outline,
-                      width: 2,
-                    ),
-                  ),
-                  child: isSelected
-                      ? Icon(
-                          Icons.check,
-                          color: colorScheme.onPrimary,
-                          size: 16,
-                        )
-                      : null,
+                AnimatedSelectionCheckbox(
+                  visible: true,
+                  selected: isSelected,
+                  colorScheme: colorScheme,
+                  size: 24,
                 ),
                 const SizedBox(width: 12),
               ],
@@ -1195,7 +1180,7 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
         ? '320k'
         : (selectedFormat == 'Opus' ? '128k' : '320k');
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
       shape: const RoundedRectangleBorder(
@@ -1382,7 +1367,6 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
         }
       }
       if (currentFormat == null || currentFormat == targetFormat) continue;
-      // Skip lossy sources when target is lossless (pointless re-encoding)
       final isLosslessTarget = targetFormat == 'ALAC' || targetFormat == 'FLAC';
       final isLosslessSource =
           currentFormat == 'FLAC' || currentFormat == 'M4A';
@@ -1503,7 +1487,7 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
           bitrate: bitrate,
           metadata: metadata,
           coverPath: coverPath,
-          deleteOriginal: !isSaf, // Only delete original for regular files
+          deleteOriginal: !isSaf,
         );
 
         if (coverPath != null) {
@@ -1522,15 +1506,9 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
         }
 
         if (isSaf) {
-          // For SAF: derive the parent tree URI and relative dir from the content URI,
-          // then create new SAF file and delete old one
-          // Parse the SAF URI to get the tree document path:
-          // content://...tree/...document/.../oldName.flac
-          // We need tree URI and relative dir to create the new file
           final uri = Uri.parse(item.filePath);
           final pathSegments = uri.pathSegments;
 
-          // Try to find 'tree' and 'document' segments
           String? treeUri;
           String relativeDir = '';
           String oldFileName = '';

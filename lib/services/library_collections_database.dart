@@ -155,11 +155,11 @@ class LibraryCollectionsDatabase {
 
       final db = await database;
       await db.transaction((txn) async {
-        for (final entry in wishlistRaw.whereType<Map>()) {
+        for (final entry in wishlistRaw.whereType<Map<Object?, Object?>>()) {
           final map = Map<String, dynamic>.from(entry);
           final trackKey = map['key'] as String?;
           final track = map['track'];
-          if (trackKey == null || track is! Map) continue;
+          if (trackKey == null || track is! Map<Object?, Object?>) continue;
           final addedAt = (map['addedAt'] as String?) ?? nowIso;
           await txn.insert(_tableWishlist, {
             'track_key': trackKey,
@@ -168,11 +168,11 @@ class LibraryCollectionsDatabase {
           }, conflictAlgorithm: ConflictAlgorithm.replace);
         }
 
-        for (final entry in lovedRaw.whereType<Map>()) {
+        for (final entry in lovedRaw.whereType<Map<Object?, Object?>>()) {
           final map = Map<String, dynamic>.from(entry);
           final trackKey = map['key'] as String?;
           final track = map['track'];
-          if (trackKey == null || track is! Map) continue;
+          if (trackKey == null || track is! Map<Object?, Object?>) continue;
           final addedAt = (map['addedAt'] as String?) ?? nowIso;
           await txn.insert(_tableLoved, {
             'track_key': trackKey,
@@ -181,7 +181,8 @@ class LibraryCollectionsDatabase {
           }, conflictAlgorithm: ConflictAlgorithm.replace);
         }
 
-        for (final playlistEntry in playlistsRaw.whereType<Map>()) {
+        for (final playlistEntry
+            in playlistsRaw.whereType<Map<Object?, Object?>>()) {
           final playlist = Map<String, dynamic>.from(playlistEntry);
           final playlistId = playlist['id'] as String?;
           if (playlistId == null || playlistId.isEmpty) continue;
@@ -197,11 +198,12 @@ class LibraryCollectionsDatabase {
           }, conflictAlgorithm: ConflictAlgorithm.replace);
 
           final tracksRaw = (playlist['tracks'] as List?) ?? const [];
-          for (final trackEntry in tracksRaw.whereType<Map>()) {
+          for (final trackEntry
+              in tracksRaw.whereType<Map<Object?, Object?>>()) {
             final trackMap = Map<String, dynamic>.from(trackEntry);
             final trackKey = trackMap['key'] as String?;
             final track = trackMap['track'];
-            if (trackKey == null || track is! Map) continue;
+            if (trackKey == null || track is! Map<Object?, Object?>) continue;
             final addedAt = (trackMap['addedAt'] as String?) ?? nowIso;
             await txn.insert(_tablePlaylistTracks, {
               'playlist_id': playlistId,

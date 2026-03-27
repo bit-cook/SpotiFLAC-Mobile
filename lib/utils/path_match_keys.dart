@@ -22,6 +22,9 @@ const _audioExtensions = <String>[
   '.aac',
 ];
 
+const _maxPathMatchKeyCacheSize = 6000;
+final Map<String, Set<String>> _pathMatchKeyCache = <String, Set<String>>{};
+
 /// Strips a trailing audio extension from [path] if present.
 /// Returns the path without extension, or `null` if no known audio extension
 /// was found.
@@ -41,6 +44,11 @@ Set<String> buildPathMatchKeys(String? filePath) {
 
   final cleaned = raw.startsWith('EXISTS:') ? raw.substring(7).trim() : raw;
   if (cleaned.isEmpty) return const {};
+  final cached = _pathMatchKeyCache.remove(cleaned);
+  if (cached != null) {
+    _pathMatchKeyCache[cleaned] = cached;
+    return cached;
+  }
 
   final keys = <String>{};
   final visited = <String>{};
@@ -118,7 +126,12 @@ Set<String> buildPathMatchKeys(String? filePath) {
   }
   keys.addAll(extensionStrippedKeys);
 
-  return keys;
+  final result = Set<String>.unmodifiable(keys);
+  _pathMatchKeyCache[cleaned] = result;
+  while (_pathMatchKeyCache.length > _maxPathMatchKeyCacheSize) {
+    _pathMatchKeyCache.remove(_pathMatchKeyCache.keys.first);
+  }
+  return result;
 }
 
 Iterable<String> _androidEquivalentPaths(String path) {
