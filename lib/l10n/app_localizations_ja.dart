@@ -21,13 +21,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get navSettings => '設定';
 
   @override
-  String get navStore => 'ストア';
+  String get navStore => 'Repo';
 
   @override
   String get homeTitle => 'ホーム';
 
   @override
-  String get homeSubtitle => 'Spotify のリンクを貼り付けるか、名前で検索します';
+  String get homeSubtitle => 'Paste a supported URL or search by name';
 
   @override
   String get homeSupports => 'サポート: トラック、アルバム、プレイリスト、アーティスト、URL';
@@ -214,10 +214,10 @@ class AppLocalizationsJa extends AppLocalizations {
       'Parallel downloads may trigger rate limiting';
 
   @override
-  String get optionsExtensionStore => '拡張ストア';
+  String get optionsExtensionStore => 'Extension Repo';
 
   @override
-  String get optionsExtensionStoreSubtitle => 'ナビゲーションにストアタブを表示';
+  String get optionsExtensionStoreSubtitle => 'Show Repo tab in navigation';
 
   @override
   String get optionsCheckUpdates => '更新を確認';
@@ -293,7 +293,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get extensionsUninstall => 'アンインストール';
 
   @override
-  String get storeTitle => '拡張ストア';
+  String get storeTitle => 'Extension Repo';
 
   @override
   String get storeSearch => '拡張を検索...';
@@ -1330,7 +1330,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get storeEmptyNoResults => 'No extensions found';
 
   @override
-  String get extensionDefaultProvider => 'デフォルト (Deezer/Spotify)';
+  String get extensionDefaultProvider => 'Default (Deezer)';
 
   @override
   String get extensionDefaultProviderSubtitle => '内蔵の検索を使用する';
@@ -2101,7 +2101,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get tutorialExtensionsTip1 =>
-      'Browse the Store tab to discover useful extensions';
+      'Browse the Repo tab to discover useful extensions';
 
   @override
   String get tutorialExtensionsTip2 =>
@@ -2382,7 +2382,8 @@ class AppLocalizationsJa extends AppLocalizations {
   String get trackConvertFormat => '変換の形式';
 
   @override
-  String get trackConvertFormatSubtitle => 'MP3 または Opus に変換';
+  String get trackConvertFormatSubtitle =>
+      'Convert to MP3, Opus, ALAC, or FLAC';
 
   @override
   String get trackConvertTitle => 'オーディオを変換';

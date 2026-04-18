@@ -21,13 +21,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get navSettings => 'Paramètres';
 
   @override
-  String get navStore => 'Magasin';
+  String get navStore => 'Repo';
 
   @override
   String get homeTitle => 'Accueil';
 
   @override
-  String get homeSubtitle => 'Coller un lien Spotify ou rechercher par nom';
+  String get homeSubtitle => 'Paste a supported URL or search by name';
 
   @override
   String get homeSupports => 'Supports: Piste, Album, Playlist, Artiste URLs';
@@ -218,10 +218,10 @@ class AppLocalizationsFr extends AppLocalizations {
       'Parallel downloads may trigger rate limiting';
 
   @override
-  String get optionsExtensionStore => 'Extension Store';
+  String get optionsExtensionStore => 'Extension Repo';
 
   @override
-  String get optionsExtensionStoreSubtitle => 'Show Store tab in navigation';
+  String get optionsExtensionStoreSubtitle => 'Show Repo tab in navigation';
 
   @override
   String get optionsCheckUpdates => 'Check for Updates';
@@ -282,7 +282,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get extensionsTitle => 'Extensions';
 
   @override
-  String get extensionsDisabled => 'Disabled';
+  String get extensionsDisabled => 'Désactivée';
 
   @override
   String extensionsVersion(String version) {
@@ -291,38 +291,38 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String extensionsAuthor(String author) {
-    return 'by $author';
+    return 'par $author';
   }
 
   @override
   String get extensionsUninstall => 'Désinstaller';
 
   @override
-  String get storeTitle => 'Magasin d\'extension';
+  String get storeTitle => 'Extension Repo';
 
   @override
   String get storeSearch => 'Recherche d\'extensions...';
 
   @override
-  String get storeInstall => 'Install';
+  String get storeInstall => 'Installer';
 
   @override
-  String get storeInstalled => 'Installed';
+  String get storeInstalled => 'Installé';
 
   @override
-  String get storeUpdate => 'Update';
+  String get storeUpdate => 'Mettre à jour';
 
   @override
-  String get aboutTitle => 'About';
+  String get aboutTitle => 'À propos de';
 
   @override
-  String get aboutContributors => 'Contributors';
+  String get aboutContributors => 'Contributeurs';
 
   @override
-  String get aboutMobileDeveloper => 'Mobile version developer';
+  String get aboutMobileDeveloper => 'Développeur de la version mobile';
 
   @override
-  String get aboutOriginalCreator => 'Creator of the original SpotiFLAC';
+  String get aboutOriginalCreator => 'Créateur de SpotiFLAC original';
 
   @override
   String get aboutLogoArtist =>
@@ -362,7 +362,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get aboutTelegramChannel => 'Telegram Channel';
 
   @override
-  String get aboutTelegramChannelSubtitle => 'Announcements and updates';
+  String get aboutTelegramChannelSubtitle => 'Annonces et mises à jour';
 
   @override
   String get aboutTelegramChat => 'Telegram Community';
@@ -520,10 +520,11 @@ class AppLocalizationsFr extends AppLocalizations {
       'SpotiFLAC needs storage permission to save your downloaded music files.';
 
   @override
-  String get setupNotificationGranted => 'Notification Permission Granted!';
+  String get setupNotificationGranted =>
+      'Autorisation de notifications accordée!';
 
   @override
-  String get setupNotificationEnable => 'Enable Notifications';
+  String get setupNotificationEnable => 'Activer les notifications';
 
   @override
   String get setupFolderChoose => 'Choisissez le dossier pour télécharger';
@@ -533,39 +534,39 @@ class AppLocalizationsFr extends AppLocalizations {
       'Sélectionnez un dossier dans lequel votre musique téléchargée sera enregistrée.';
 
   @override
-  String get setupSelectFolder => 'Select Folder';
+  String get setupSelectFolder => 'Sélectionner un dossier';
 
   @override
-  String get setupEnableNotifications => 'Enable Notifications';
+  String get setupEnableNotifications => 'Activer les notifications';
 
   @override
   String get setupNotificationBackgroundDescription =>
       'Get notified about download progress and completion. This helps you track downloads when the app is in background.';
 
   @override
-  String get setupSkipForNow => 'Skip for now';
+  String get setupSkipForNow => 'Ignorer pour le moment';
 
   @override
-  String get setupNext => 'Next';
+  String get setupNext => 'Suivant';
 
   @override
-  String get setupGetStarted => 'Get Started';
+  String get setupGetStarted => 'Démarrer';
 
   @override
   String get setupAllowAccessToManageFiles =>
-      'Please enable \"Allow access to manage all files\" in the next screen.';
+      'Veuillez activer \"Autoriser l\'accès à tous les fichiers\" sur l\'écran suivant.';
 
   @override
-  String get dialogCancel => 'Cancel';
+  String get dialogCancel => 'Annuler';
 
   @override
-  String get dialogSave => 'Save';
+  String get dialogSave => 'Sauvegarder';
 
   @override
-  String get dialogDelete => 'Delete';
+  String get dialogDelete => 'Supprimer';
 
   @override
-  String get dialogRetry => 'Retry';
+  String get dialogRetry => 'Réessayer';
 
   @override
   String get dialogClear => 'Clear';
@@ -577,7 +578,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get dialogImport => 'Import';
 
   @override
-  String get dialogDownload => 'Download';
+  String get dialogDownload => 'Télécharger';
 
   @override
   String get dialogDiscard => 'Discard';
@@ -586,10 +587,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get dialogRemove => 'Remove';
 
   @override
-  String get dialogUninstall => 'Uninstall';
+  String get dialogUninstall => 'Désinstaller';
 
   @override
-  String get dialogDiscardChanges => 'Discard Changes?';
+  String get dialogDiscardChanges => 'Ignorer les modifications ?';
 
   @override
   String get dialogUnsavedChanges =>
@@ -1338,7 +1339,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get storeEmptyNoResults => 'No extensions found';
 
   @override
-  String get extensionDefaultProvider => 'Default (Deezer/Spotify)';
+  String get extensionDefaultProvider => 'Default (Deezer)';
 
   @override
   String get extensionDefaultProviderSubtitle => 'Use built-in search';
@@ -2116,7 +2117,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tutorialExtensionsTip1 =>
-      'Browse the Store tab to discover useful extensions';
+      'Browse the Repo tab to discover useful extensions';
 
   @override
   String get tutorialExtensionsTip2 =>
@@ -2397,7 +2398,8 @@ class AppLocalizationsFr extends AppLocalizations {
   String get trackConvertFormat => 'Convert Format';
 
   @override
-  String get trackConvertFormatSubtitle => 'Convert to MP3 or Opus';
+  String get trackConvertFormatSubtitle =>
+      'Convert to MP3, Opus, ALAC, or FLAC';
 
   @override
   String get trackConvertTitle => 'Convert Audio';

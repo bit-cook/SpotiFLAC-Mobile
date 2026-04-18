@@ -21,13 +21,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get navSettings => 'Settings';
 
   @override
-  String get navStore => 'Store';
+  String get navStore => 'Repo';
 
   @override
   String get homeTitle => 'Home';
 
   @override
-  String get homeSubtitle => 'Spotify URL을 붙여 넣거나 검색';
+  String get homeSubtitle => 'Paste a supported URL or search by name';
 
   @override
   String get homeSupports => '지원 항목: 트랙, 앨범, 플레이리스트, 아티스트 URLs';
@@ -209,10 +209,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get optionsConcurrentWarning => '동시에 다수의 음반을 다운로드하면 속도 제한이 발생할 수 있습니다';
 
   @override
-  String get optionsExtensionStore => '확장 기능 스토어';
+  String get optionsExtensionStore => 'Extension Repo';
 
   @override
-  String get optionsExtensionStoreSubtitle => '탐색 메뉴에 스토어 탭 표시';
+  String get optionsExtensionStoreSubtitle => 'Show Repo tab in navigation';
 
   @override
   String get optionsCheckUpdates => '업데이트 확인';
@@ -286,7 +286,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get extensionsUninstall => '삭제';
 
   @override
-  String get storeTitle => '확장 기능 스토어';
+  String get storeTitle => 'Extension Repo';
 
   @override
   String get storeSearch => '확장 기능 검색';
@@ -1316,7 +1316,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get storeEmptyNoResults => 'No extensions found';
 
   @override
-  String get extensionDefaultProvider => 'Default (Deezer/Spotify)';
+  String get extensionDefaultProvider => 'Default (Deezer)';
 
   @override
   String get extensionDefaultProviderSubtitle => 'Use built-in search';
@@ -2094,7 +2094,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get tutorialExtensionsTip1 =>
-      'Browse the Store tab to discover useful extensions';
+      'Browse the Repo tab to discover useful extensions';
 
   @override
   String get tutorialExtensionsTip2 =>
@@ -2375,7 +2375,8 @@ class AppLocalizationsKo extends AppLocalizations {
   String get trackConvertFormat => 'Convert Format';
 
   @override
-  String get trackConvertFormatSubtitle => 'Convert to MP3 or Opus';
+  String get trackConvertFormatSubtitle =>
+      'Convert to MP3, Opus, ALAC, or FLAC';
 
   @override
   String get trackConvertTitle => 'Convert Audio';
