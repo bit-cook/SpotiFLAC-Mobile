@@ -21,13 +21,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get navSettings => 'Настройки';
 
   @override
-  String get navStore => 'Магазин';
+  String get navStore => 'Repo';
 
   @override
   String get homeTitle => 'Главная';
 
   @override
-  String get homeSubtitle => 'Вставьте ссылку Spotify или ищите по названию';
+  String get homeSubtitle => 'Paste a supported URL or search by name';
 
   @override
   String get homeSupports =>
@@ -221,11 +221,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'Параллельные загрузки могут вызвать ограничение скорости';
 
   @override
-  String get optionsExtensionStore => 'Магазин расширений';
+  String get optionsExtensionStore => 'Extension Repo';
 
   @override
-  String get optionsExtensionStoreSubtitle =>
-      'Показывать вкладку Магазин в гл. меню';
+  String get optionsExtensionStoreSubtitle => 'Show Repo tab in navigation';
 
   @override
   String get optionsCheckUpdates => 'Проверить обновления';
@@ -302,7 +301,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get extensionsUninstall => 'Удалить';
 
   @override
-  String get storeTitle => 'Магазин расширений';
+  String get storeTitle => 'Extension Repo';
 
   @override
   String get storeSearch => 'Поиск расширений...';
@@ -636,9 +635,9 @@ class AppLocalizationsRu extends AppLocalizations {
       count,
       locale: localeName,
       other: 'треков',
+      one: 'трек',
       many: 'треков',
       few: 'трека',
-      one: 'трек',
     );
     return 'Удалить $count $_temp0 из истории?\n\nЭто также удалит файлы из хранилища.';
   }
@@ -691,9 +690,9 @@ class AppLocalizationsRu extends AppLocalizations {
       count,
       locale: localeName,
       other: 'треков',
+      one: 'трек',
       many: 'треков',
       few: 'трека',
-      one: 'трек',
     );
     return 'Удалено $count $_temp0';
   }
@@ -1161,9 +1160,9 @@ class AppLocalizationsRu extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count треков',
+      one: '1 трек',
       many: '$count треков',
       few: '$count трека',
-      one: '$count трек',
     );
     return '$_temp0';
   }
@@ -1357,7 +1356,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get storeEmptyNoResults => 'No extensions found';
 
   @override
-  String get extensionDefaultProvider => 'По умолчанию (Deezer/Spotify)';
+  String get extensionDefaultProvider => 'Default (Deezer)';
 
   @override
   String get extensionDefaultProviderSubtitle =>
@@ -1670,9 +1669,9 @@ class AppLocalizationsRu extends AppLocalizations {
       count,
       locale: localeName,
       other: 'треков',
+      one: 'трек',
       many: 'треков',
       few: 'трека',
-      one: 'трек',
     );
     return 'Удалить $count $_temp0 из этого альбома?\n\nЭто также удалит файлы из хранилища.';
   }
@@ -1694,9 +1693,9 @@ class AppLocalizationsRu extends AppLocalizations {
       count,
       locale: localeName,
       other: 'треков',
+      one: 'трек',
       many: 'треков',
       few: 'трека',
-      one: 'трек',
     );
     return 'Удалить $count $_temp0';
   }
@@ -1927,9 +1926,9 @@ class AppLocalizationsRu extends AppLocalizations {
       count,
       locale: localeName,
       other: 'треков',
+      one: 'трек',
       many: 'треков',
       few: 'трека',
-      one: 'трек',
     );
     return '$_temp0';
   }
@@ -2083,9 +2082,9 @@ class AppLocalizationsRu extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count минут',
+      one: '1 минуту',
       many: '$count минут',
       few: '$count минуты',
-      one: '$count минуту',
     );
     return '$_temp0 назад';
   }
@@ -2096,9 +2095,9 @@ class AppLocalizationsRu extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count часов',
+      one: '1 час',
       many: '$count часов',
       few: '$count часа',
-      one: '$count час',
     );
     return '$_temp0 назад';
   }
@@ -2164,7 +2163,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get tutorialExtensionsTip1 =>
-      'Просмотрите вкладку Магазина, чтобы найти полезные расширения';
+      'Browse the Repo tab to discover useful extensions';
 
   @override
   String get tutorialExtensionsTip2 =>
@@ -2448,7 +2447,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get trackConvertFormat => 'Переконвертировать формат';
 
   @override
-  String get trackConvertFormatSubtitle => 'Конвертировать в MP3 или Opus';
+  String get trackConvertFormatSubtitle =>
+      'Convert to MP3, Opus, ALAC, or FLAC';
 
   @override
   String get trackConvertTitle => 'Конвертировать аудио';
@@ -2579,9 +2579,9 @@ class AppLocalizationsRu extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count треков',
+      one: '1 трек',
       many: '$count треков',
       few: '$count трека',
-      one: '$count трек',
     );
     return '$_temp0';
   }
@@ -2698,9 +2698,9 @@ class AppLocalizationsRu extends AppLocalizations {
       count,
       locale: localeName,
       other: 'треков',
+      one: 'трек',
       many: 'треков',
       few: 'трека',
-      one: 'трек',
     );
     return 'Отправить $count $_temp0';
   }
@@ -2715,9 +2715,9 @@ class AppLocalizationsRu extends AppLocalizations {
       count,
       locale: localeName,
       other: 'треков',
+      one: 'трек',
       many: 'треков',
       few: 'трека',
-      one: 'трек',
     );
     return 'Конвертировать $count $_temp0';
   }

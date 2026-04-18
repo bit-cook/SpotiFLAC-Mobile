@@ -27,8 +27,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get homeTitle => 'Beranda';
 
   @override
-  String get homeSubtitle =>
-      'Tempel URL yang didukung atau cari berdasarkan nama';
+  String get homeSubtitle => 'Paste a supported URL or search by name';
 
   @override
   String get homeSupports => 'Mendukung: URL Track, Album, Playlist, Artis';
@@ -130,11 +129,11 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String get optionsDefaultSearchTab => 'Tab Pencarian Default';
+  String get optionsDefaultSearchTab => 'Default Search Tab';
 
   @override
   String get optionsDefaultSearchTabSubtitle =>
-      'Pilih tab yang dibuka lebih dulu untuk hasil pencarian baru.';
+      'Choose which tab opens first for new search results.';
 
   @override
   String get optionsSwitchBack =>
@@ -220,10 +219,10 @@ class AppLocalizationsId extends AppLocalizations {
       'Unduhan paralel dapat memicu pembatasan rate';
 
   @override
-  String get optionsExtensionStore => 'Repo Ekstensi';
+  String get optionsExtensionStore => 'Extension Repo';
 
   @override
-  String get optionsExtensionStoreSubtitle => 'Tampilkan tab Repo di navigasi';
+  String get optionsExtensionStoreSubtitle => 'Show Repo tab in navigation';
 
   @override
   String get optionsCheckUpdates => 'Periksa Pembaruan';
@@ -299,7 +298,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get extensionsUninstall => 'Copot';
 
   @override
-  String get storeTitle => 'Repo Ekstensi';
+  String get storeTitle => 'Extension Repo';
 
   @override
   String get storeSearch => 'Cari ekstensi...';
@@ -745,15 +744,15 @@ class AppLocalizationsId extends AppLocalizations {
   String get errorNoTracksFound => 'Tidak ada lagu ditemukan';
 
   @override
-  String get errorUrlNotRecognized => 'Link tidak dikenali';
+  String get errorUrlNotRecognized => 'Tautan tidak dikenali';
 
   @override
   String get errorUrlNotRecognizedMessage =>
-      'Link ini tidak didukung. Pastikan URL benar dan ekstensi yang kompatibel sudah terpasang.';
+      'Tautan ini tidak didukung. Pastikan URL sudah benar dan ekstensi yang kompatibel telah terpasang.';
 
   @override
   String get errorUrlFetchFailed =>
-      'Gagal memuat konten dari link ini. Silakan coba lagi.';
+      'Konten dari tautan ini gagal dimuat. Silakan coba lagi.';
 
   @override
   String errorMissingExtensionSource(String item) {
@@ -941,15 +940,15 @@ class AppLocalizationsId extends AppLocalizations {
       'Jika lagu tidak tersedia di provider pertama, aplikasi akan otomatis mencoba yang berikutnya.';
 
   @override
-  String get providerPriorityFallbackExtensionsTitle => 'Fallback Ekstensi';
+  String get providerPriorityFallbackExtensionsTitle => 'Extension Fallback';
 
   @override
   String get providerPriorityFallbackExtensionsDescription =>
-      'Pilih ekstensi unduhan terpasang mana yang boleh dipakai saat fallback otomatis. Provider bawaan tetap mengikuti urutan prioritas di atas.';
+      'Choose which installed download extensions can be used during automatic fallback. Built-in providers still follow the priority order above.';
 
   @override
   String get providerPriorityFallbackExtensionsHint =>
-      'Hanya ekstensi aktif dengan kemampuan download provider yang ditampilkan di sini.';
+      'Only enabled extensions with download-provider capability are listed here.';
 
   @override
   String get providerBuiltIn => 'Bawaan';
@@ -1334,7 +1333,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get storeNewRepoUrlLabel => 'New Repository URL';
 
   @override
-  String get storeLoadError => 'Gagal memuat repo';
+  String get storeLoadError => 'Failed to load repository';
 
   @override
   String get storeEmptyNoExtensions => 'No extensions available';
@@ -1343,7 +1342,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get storeEmptyNoResults => 'No extensions found';
 
   @override
-  String get extensionDefaultProvider => 'Bawaan (Deezer/Spotify)';
+  String get extensionDefaultProvider => 'Default (Deezer)';
 
   @override
   String get extensionDefaultProviderSubtitle => 'Gunakan pencarian bawaan';
@@ -1449,7 +1448,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get extensionsFallbackSubtitle =>
-      'Pilih ekstensi unduhan terpasang yang boleh dipakai saat fallback';
+      'Choose which installed download extensions can be used as fallback';
 
   @override
   String get extensionsNoDownloadProvider =>
@@ -2124,7 +2123,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get tutorialExtensionsTip1 =>
-      'Buka tab Repo untuk menemukan ekstensi yang berguna';
+      'Browse the Repo tab to discover useful extensions';
 
   @override
   String get tutorialExtensionsTip2 =>
@@ -2375,25 +2374,25 @@ class AppLocalizationsId extends AppLocalizations {
   String get trackReEnrichFfmpegFailed => 'FFmpeg metadata embed failed';
 
   @override
-  String get queueFlacAction => 'Antrekan FLAC';
+  String get queueFlacAction => 'Queue FLAC';
 
   @override
   String queueFlacConfirmMessage(int count) {
-    return 'Cari kecocokan online untuk track yang dipilih lalu antrekan download FLAC.\n\nFile yang sudah ada tidak akan diubah atau dihapus.\n\nHanya kecocokan dengan keyakinan tinggi yang akan diantrikan otomatis.\n\n$count dipilih';
+    return 'Search online matches for the selected tracks and queue FLAC downloads.\n\nExisting files will not be modified or deleted.\n\nOnly high-confidence matches are queued automatically.\n\n$count selected';
   }
 
   @override
   String queueFlacFindingProgress(int current, int total) {
-    return 'Mencari kecocokan FLAC... ($current/$total)';
+    return 'Finding FLAC matches... ($current/$total)';
   }
 
   @override
   String get queueFlacNoReliableMatches =>
-      'Tidak ada kecocokan online yang cukup meyakinkan untuk pilihan ini';
+      'No reliable online matches found for the selection';
 
   @override
   String queueFlacQueuedWithSkipped(int addedCount, int skippedCount) {
-    return 'Menambahkan $addedCount track ke antrean, melewati $skippedCount';
+    return 'Added $addedCount tracks to queue, skipped $skippedCount';
   }
 
   @override
@@ -2406,7 +2405,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get trackConvertFormatSubtitle =>
-      'Konversi ke MP3, Opus, ALAC, atau FLAC';
+      'Convert to MP3, Opus, ALAC, or FLAC';
 
   @override
   String get trackConvertTitle => 'Convert Audio';
@@ -2434,12 +2433,12 @@ class AppLocalizationsId extends AppLocalizations {
     String sourceFormat,
     String targetFormat,
   ) {
-    return 'Konversi dari $sourceFormat ke $targetFormat? (Lossless — tanpa kehilangan kualitas)\n\nFile asli akan dihapus setelah konversi.';
+    return 'Convert from $sourceFormat to $targetFormat? (Lossless — no quality loss)\n\nThe original file will be deleted after conversion.';
   }
 
   @override
   String get trackConvertLosslessHint =>
-      'Konversi lossless — tanpa kehilangan kualitas';
+      'Lossless conversion — no quality loss';
 
   @override
   String get trackConvertConverting => 'Converting audio...';
@@ -2893,19 +2892,19 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get downloadCreatePlaylistSourceFolder =>
-      'Buat folder sumber playlist';
+      'Create playlist source folder';
 
   @override
   String get downloadCreatePlaylistSourceFolderEnabled =>
-      'Unduhan dari playlist memakai Playlist/ lalu struktur folder normal Anda.';
+      'Playlist downloads use Playlist/ plus your normal folder structure.';
 
   @override
   String get downloadCreatePlaylistSourceFolderDisabled =>
-      'Unduhan dari playlist hanya memakai struktur folder normal.';
+      'Playlist downloads use the normal folder structure only.';
 
   @override
   String get downloadCreatePlaylistSourceFolderRedundant =>
-      'Mode Berdasarkan Playlist sudah menaruh unduhan ke dalam folder playlist.';
+      'By Playlist already places downloads inside a playlist folder.';
 
   @override
   String get downloadSongLinkRegion => 'SongLink Region';
