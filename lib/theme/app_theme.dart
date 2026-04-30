@@ -32,6 +32,7 @@ class AppTheme {
       switchTheme: _switchTheme(scheme),
       chipTheme: _chipTheme(scheme),
       dividerTheme: _dividerTheme(scheme),
+      fontFamily: 'Google Sans Flex',
     );
   }
 
@@ -67,6 +68,7 @@ class AppTheme {
       switchTheme: _switchTheme(scheme),
       chipTheme: _chipTheme(scheme),
       dividerTheme: _dividerTheme(scheme),
+      fontFamily: 'Google Sans Flex',
     );
   }
 

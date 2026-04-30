@@ -15,8 +15,6 @@ class OptionsSettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
-    final extensionState = ref.watch(extensionProvider);
-    final hasExtensions = extensionState.extensions.isNotEmpty;
     final colorScheme = Theme.of(context).colorScheme;
     final topPadding = normalizedHeaderTopPadding(context);
 
@@ -93,18 +91,6 @@ class OptionsSettingsPage extends ConsumerWidget {
                     onChanged: (v) =>
                         ref.read(settingsProvider.notifier).setAutoFallback(v),
                   ),
-                  if (hasExtensions)
-                    SettingsSwitchItem(
-                      icon: Icons.extension,
-                      title: context.l10n.optionsUseExtensionProviders,
-                      subtitle: settings.useExtensionProviders
-                          ? context.l10n.optionsUseExtensionProvidersOn
-                          : context.l10n.optionsUseExtensionProvidersOff,
-                      value: settings.useExtensionProviders,
-                      onChanged: (v) => ref
-                          .read(settingsProvider.notifier)
-                          .setUseExtensionProviders(v),
-                    ),
                   SettingsSwitchItem(
                     icon: Icons.sell_outlined,
                     title: context.l10n.optionsEmbedMetadata,

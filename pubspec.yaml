@@ -82,6 +82,7 @@ flutter_launcher_icons:
   adaptive_icon_background: "#000000"
   adaptive_icon_foreground: "icon_foreground_android.png"
   adaptive_icon_foreground_inset: 16
+  adaptive_icon_monochrome: "icon_foreground_android.png"
   ios_content_mode: scaleAspectFill
   remove_alpha_ios: true
   background_color_ios: "#000000"
@@ -92,3 +93,8 @@ flutter:
 
   assets:
     - assets/images/
+
+  fonts:
+    - family: Google Sans Flex
+      fonts:
+        - asset: assets/fonts/GoogleSansFlex.ttf

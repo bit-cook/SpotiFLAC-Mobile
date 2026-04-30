@@ -1,10 +1,18 @@
 package gobackend
 
 import (
+	"context"
+	"crypto/tls"
 	"errors"
+	"fmt"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestSetMetadataProviderPriorityStripsRetiredBuiltIns(t *testing.T) {
@@ -112,6 +120,110 @@ func TestNormalizeDownloadDecryptionInfoCanonicalizesMovAliases(t *testing.T) {
 	}
 	if normalized.InputFormat != "mov" {
 		t.Fatalf("input format = %q", normalized.InputFormat)
+	}
+}
+
+func TestExtensionDownloadUsesIsolatedRuntimeForConcurrentCalls(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(500 * time.Millisecond)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer server.Close()
+	setPrivateIPCache("download.test", false, time.Minute)
+
+	originalTransport := sharedTransport
+	testTransport := &http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, network, server.Listener.Addr().String())
+		},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	sharedTransport = testTransport
+	defer func() {
+		testTransport.CloseIdleConnections()
+		sharedTransport = originalTransport
+	}()
+
+	extDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(extDir, "index.js"), []byte(`
+		registerExtension({
+			download: function(trackID, quality, outputPath, onProgress) {
+				var result = file.download('https://download.test/' + trackID, outputPath, {
+					onProgress: function(written, total) {
+						if (onProgress) onProgress(50);
+					}
+				});
+				if (!result || !result.success) {
+					return {
+						success: false,
+						error_message: result && result.error ? result.error : 'download failed',
+						error_type: 'download_error'
+					};
+				}
+				if (onProgress) onProgress(100);
+				return { success: true, file_path: result.path };
+			}
+		});
+	`), 0600); err != nil {
+		t.Fatalf("write extension index: %v", err)
+	}
+
+	outputDir := t.TempDir()
+	SetAllowedDownloadDirs([]string{outputDir})
+	defer SetAllowedDownloadDirs(nil)
+
+	ext := &loadedExtension{
+		ID: "concurrent-download",
+		Manifest: &ExtensionManifest{
+			Name:        "concurrent-download",
+			Description: "Concurrent download test",
+			Version:     "1.0.0",
+			Types:       []ExtensionType{ExtensionTypeDownloadProvider},
+			Permissions: ExtensionPermissions{
+				Network: []string{"download.test"},
+				File:    true,
+			},
+		},
+		Enabled:   true,
+		SourceDir: extDir,
+		DataDir:   t.TempDir(),
+	}
+	provider := newExtensionProviderWrapper(ext)
+
+	start := time.Now()
+	var wg sync.WaitGroup
+	errs := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		i := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			result, err := provider.Download(
+				fmt.Sprintf("track-%d", i),
+				"LOSSLESS",
+				filepath.Join(outputDir, fmt.Sprintf("track-%d.flac", i)),
+				"",
+				nil,
+			)
+			if err != nil {
+				errs <- err
+				return
+			}
+			if result == nil || !result.Success {
+				errs <- fmt.Errorf("download failed: %#v", result)
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if elapsed := time.Since(start); elapsed >= 850*time.Millisecond {
+		t.Fatalf("expected same-extension downloads to overlap, elapsed %s", elapsed)
 	}
 }
 

@@ -3,7 +3,6 @@ package gobackend
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -1020,105 +1019,22 @@ func applySongLinkRegionFromRequest(req *DownloadRequest) {
 }
 
 func DownloadTrack(requestJSON string) (string, error) {
-	var req DownloadRequest
-	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
-		return errorResponse("Invalid request: " + err.Error())
-	}
-	applySongLinkRegionFromRequest(&req)
-	defer closeOwnedOutputFD(req.OutputFD)
-	if req.ItemID != "" {
-		initDownloadCancel(req.ItemID)
-		defer clearDownloadCancel(req.ItemID)
-		if isDownloadCancelled(req.ItemID) {
-			return errorResponse("Download cancelled")
-		}
-	}
-
-	req.TrackName = strings.TrimSpace(req.TrackName)
-	req.ArtistName = strings.TrimSpace(req.ArtistName)
-	req.AlbumName = strings.TrimSpace(req.AlbumName)
-	req.AlbumArtist = strings.TrimSpace(req.AlbumArtist)
-	req.OutputDir = strings.TrimSpace(req.OutputDir)
-	req.OutputPath = strings.TrimSpace(req.OutputPath)
-	req.OutputExt = strings.TrimSpace(req.OutputExt)
-
-	if req.OutputPath == "" && req.OutputFD <= 0 && req.OutputDir != "" {
-		AddAllowedDownloadDir(req.OutputDir)
-	}
-
-	enrichRequestExtendedMetadata(&req)
-	if isDownloadCancelled(req.ItemID) {
-		return errorResponse("Download cancelled")
-	}
-
-	if !isBuiltInDownloadProvider(req.Service) {
-		return errorResponse("Unknown service: " + req.Service)
-	}
-
-	result, err := downloadWithBuiltInProvider(req.Service, req)
-
-	if err != nil {
-		return errorResponse(err.Error())
-	}
-
-	if len(result.FilePath) > 7 && result.FilePath[:7] == "EXISTS:" {
-		actualPath := result.FilePath[7:]
-		result.FilePath = actualPath
-		enrichResultQualityFromFile(&result)
-		resp := buildDownloadSuccessResponse(
-			req,
-			result,
-			req.Service,
-			"File already exists",
-			actualPath,
-			true,
-		)
-		jsonBytes, _ := json.Marshal(resp)
-		return string(jsonBytes), nil
-	}
-
-	enrichResultQualityFromFile(&result)
-
-	resp := buildDownloadSuccessResponse(
-		req,
-		result,
-		req.Service,
-		"Download complete",
-		result.FilePath,
-		false,
-	)
-
-	jsonBytes, _ := json.Marshal(resp)
-	return string(jsonBytes), nil
+	return errorResponse("Built-in download providers have been retired. Use downloadByStrategy with extension providers.")
 }
 
-// DownloadByStrategy routes download requests with priority: YouTube > extension fallback > built-in fallback > direct service.
+// DownloadByStrategy routes all download requests through extension providers.
 func DownloadByStrategy(requestJSON string) (string, error) {
 	var req DownloadRequest
 	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
 		return errorResponse("Invalid request: " + err.Error())
 	}
-
-	serviceRaw := strings.TrimSpace(req.Service)
-	serviceNormalized := strings.ToLower(serviceRaw)
-
-	normalizedReq := req
-	if isBuiltInDownloadProvider(serviceNormalized) {
-		normalizedReq.Service = serviceNormalized
-	}
-
-	normalizedBytes, err := json.Marshal(normalizedReq)
+	normalizedBytes, err := json.Marshal(req)
 	if err != nil {
 		return errorResponse("Invalid request: " + err.Error())
 	}
 	normalizedJSON := string(normalizedBytes)
 
 	if req.UseExtensions {
-		// Respect strict mode when auto fallback is disabled:
-		// for built-in providers, route directly to selected service only.
-		if !req.UseFallback && isBuiltInDownloadProvider(serviceNormalized) {
-			return DownloadTrack(normalizedJSON)
-		}
 		resp, err := DownloadWithExtensionsJSON(normalizedJSON)
 		if err != nil {
 			return errorResponse(err.Error())
@@ -1126,120 +1042,11 @@ func DownloadByStrategy(requestJSON string) (string, error) {
 		return resp, nil
 	}
 
-	if req.UseFallback {
-		return DownloadWithFallback(normalizedJSON)
-	}
-
-	return DownloadTrack(normalizedJSON)
+	return errorResponse("Extension providers are disabled; built-in download providers have been retired")
 }
 
 func DownloadWithFallback(requestJSON string) (string, error) {
-	var req DownloadRequest
-	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
-		return errorResponse("Invalid request: " + err.Error())
-	}
-	applySongLinkRegionFromRequest(&req)
-	defer closeOwnedOutputFD(req.OutputFD)
-	if req.ItemID != "" {
-		initDownloadCancel(req.ItemID)
-		defer clearDownloadCancel(req.ItemID)
-		if isDownloadCancelled(req.ItemID) {
-			return errorResponse("Download cancelled")
-		}
-	}
-
-	req.TrackName = strings.TrimSpace(req.TrackName)
-	req.ArtistName = strings.TrimSpace(req.ArtistName)
-	req.AlbumName = strings.TrimSpace(req.AlbumName)
-	req.AlbumArtist = strings.TrimSpace(req.AlbumArtist)
-	req.OutputDir = strings.TrimSpace(req.OutputDir)
-	req.OutputPath = strings.TrimSpace(req.OutputPath)
-	req.OutputExt = strings.TrimSpace(req.OutputExt)
-
-	if req.OutputPath == "" && req.OutputFD <= 0 && req.OutputDir != "" {
-		AddAllowedDownloadDir(req.OutputDir)
-	}
-
-	enrichRequestExtendedMetadata(&req)
-	if isDownloadCancelled(req.ItemID) {
-		return errorResponse("Download cancelled")
-	}
-
-	allServices := make([]string, 0, len(getBuiltInProviderSpecs()))
-	for _, spec := range getBuiltInProviderSpecs() {
-		if spec.SupportsDownload {
-			allServices = append(allServices, spec.ID)
-		}
-	}
-	if len(allServices) == 0 {
-		return errorResponse("No built-in download providers available")
-	}
-	preferredService := req.Service
-	if !isBuiltInDownloadProvider(preferredService) {
-		preferredService = allServices[0]
-	}
-
-	GoLog("[DownloadWithFallback] Preferred service from request: '%s'\n", req.Service)
-
-	services := []string{preferredService}
-	for _, s := range allServices {
-		if s != preferredService {
-			services = append(services, s)
-		}
-	}
-
-	GoLog("[DownloadWithFallback] Service order: %v\n", services)
-
-	var lastErr error
-
-	for _, service := range services {
-		GoLog("[DownloadWithFallback] Trying service: %s\n", service)
-		req.Service = service
-
-		result, err := downloadWithBuiltInProvider(service, req)
-		if err != nil && !errors.Is(err, ErrDownloadCancelled) {
-			GoLog("[DownloadWithFallback] %s error: %v\n", service, err)
-		}
-
-		if err != nil && errors.Is(err, ErrDownloadCancelled) {
-			return errorResponse("Download cancelled")
-		}
-
-		if err == nil {
-			if len(result.FilePath) > 7 && result.FilePath[:7] == "EXISTS:" {
-				actualPath := result.FilePath[7:]
-				result.FilePath = actualPath
-				enrichResultQualityFromFile(&result)
-				resp := buildDownloadSuccessResponse(
-					req,
-					result,
-					service,
-					"File already exists",
-					actualPath,
-					true,
-				)
-				jsonBytes, _ := json.Marshal(resp)
-				return string(jsonBytes), nil
-			}
-
-			enrichResultQualityFromFile(&result)
-
-			resp := buildDownloadSuccessResponse(
-				req,
-				result,
-				service,
-				"Downloaded from "+service,
-				result.FilePath,
-				false,
-			)
-			jsonBytes, _ := json.Marshal(resp)
-			return string(jsonBytes), nil
-		}
-
-		lastErr = err
-	}
-
-	return errorResponse("All services failed. Last error: " + lastErr.Error())
+	return errorResponse("Built-in fallback has been retired. Use extension fallback through downloadByStrategy.")
 }
 
 func GetDownloadProgress() string {

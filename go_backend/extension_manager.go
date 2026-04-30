@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/dop251/goja"
 )
@@ -342,20 +343,87 @@ func initializeVMLocked(ext *loadedExtension) error {
 	return nil
 }
 
+func newIsolatedExtensionRuntime(ext *loadedExtension) (*goja.Runtime, *extensionRuntime, error) {
+	vm := goja.New()
+
+	indexPath := filepath.Join(ext.SourceDir, "index.js")
+	jsCode, err := os.ReadFile(indexPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read index.js: %w", err)
+	}
+
+	runtime := &extensionRuntime{
+		extensionID:       ext.ID,
+		manifest:          ext.Manifest,
+		settings:          make(map[string]interface{}),
+		cookieJar:         nil,
+		dataDir:           ext.DataDir,
+		vm:                vm,
+		storageFlushDelay: defaultStorageFlushDelay,
+	}
+	if ext.runtime != nil && ext.runtime.cookieJar != nil {
+		runtime.cookieJar = ext.runtime.cookieJar
+	} else {
+		jar, _ := newSimpleCookieJar()
+		runtime.cookieJar = jar
+	}
+	runtime.httpClient = newExtensionHTTPClient(ext, runtime.cookieJar, extensionHTTPTimeout(ext, 30*time.Second))
+	runtime.downloadClient = newExtensionHTTPClient(ext, runtime.cookieJar, DownloadTimeout)
+	runtime.RegisterAPIs(vm)
+	runtime.RegisterGoBackendAPIs(vm)
+
+	console := vm.NewObject()
+	console.Set("log", func(call goja.FunctionCall) goja.Value {
+		args := make([]interface{}, len(call.Arguments))
+		for i, arg := range call.Arguments {
+			args[i] = arg.Export()
+		}
+		GoLog("[Extension:%s] %v\n", ext.ID, args)
+		return goja.Undefined()
+	})
+	vm.Set("console", console)
+
+	var registeredExtension goja.Value
+	vm.Set("registerExtension", func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) > 0 {
+			registeredExtension = call.Arguments[0]
+			vm.Set("extension", call.Arguments[0])
+		}
+		return goja.Undefined()
+	})
+
+	if _, err := vm.RunString(string(jsCode)); err != nil {
+		runtime.closeStorageFlusher()
+		return nil, nil, fmt.Errorf("failed to execute extension code: %w", err)
+	}
+
+	if registeredExtension == nil || goja.IsUndefined(registeredExtension) {
+		runtime.closeStorageFlusher()
+		return nil, nil, fmt.Errorf("extension did not call registerExtension()")
+	}
+
+	settings := getExtensionInitSettings(ext.ID)
+	if len(settings) > 0 {
+		if err := initializeExtensionRuntimeWithSettings(vm, ext.ID, settings); err != nil {
+			runtime.closeStorageFlusher()
+			return nil, nil, err
+		}
+	}
+
+	return vm, runtime, nil
+}
+
 func (m *extensionManager) initializeVM(ext *loadedExtension) error {
 	ext.VMMu.Lock()
 	defer ext.VMMu.Unlock()
 	return initializeVMLocked(ext)
 }
 
-func initializeExtensionWithSettingsLocked(
-	ext *loadedExtension,
+func initializeExtensionRuntimeWithSettings(
+	vm *goja.Runtime,
+	extensionID string,
 	settings map[string]interface{},
 ) error {
-	if ext.VM == nil {
-		return fmt.Errorf("Extension failed to load. Please reinstall the extension")
-	}
-
 	settingsJSON, err := json.Marshal(settings)
 	if err != nil {
 		return fmt.Errorf("Failed to save settings")
@@ -376,11 +444,9 @@ func initializeExtensionWithSettingsLocked(
 		})()
 	`, string(settingsJSON))
 
-	result, err := ext.VM.RunString(script)
+	result, err := vm.RunString(script)
 	if err != nil {
-		ext.Error = fmt.Sprintf("initialize failed: %v", err)
-		ext.Enabled = false
-		GoLog("[Extension] Initialize error for %s: %v\n", ext.ID, err)
+		GoLog("[Extension] Initialize error for %s: %v\n", extensionID, err)
 		return err
 	}
 
@@ -392,12 +458,27 @@ func initializeExtensionWithSettingsLocked(
 				if e, ok := resultMap["error"].(string); ok {
 					errMsg = e
 				}
-				ext.Error = errMsg
-				ext.Enabled = false
-				GoLog("[Extension] Initialize failed for %s: %s\n", ext.ID, errMsg)
+				GoLog("[Extension] Initialize failed for %s: %s\n", extensionID, errMsg)
 				return fmt.Errorf("initialize failed: %s", errMsg)
 			}
 		}
+	}
+
+	return nil
+}
+
+func initializeExtensionWithSettingsLocked(
+	ext *loadedExtension,
+	settings map[string]interface{},
+) error {
+	if ext.VM == nil {
+		return fmt.Errorf("Extension failed to load. Please reinstall the extension")
+	}
+
+	if err := initializeExtensionRuntimeWithSettings(ext.VM, ext.ID, settings); err != nil {
+		ext.Error = err.Error()
+		ext.Enabled = false
+		return err
 	}
 
 	ext.initialized = true
@@ -407,42 +488,53 @@ func initializeExtensionWithSettingsLocked(
 
 func runCleanupLocked(ext *loadedExtension) error {
 	if ext.VM != nil {
-		script := `
-			(function() {
-				if (typeof extension !== 'undefined' && typeof extension.cleanup === 'function') {
-					try {
-						extension.cleanup();
-						return { success: true };
-					} catch (e) {
-						return { success: false, error: e.toString() };
-					}
-				}
-				return { success: true, message: 'no cleanup function' };
-			})()
-		`
-
-		result, err := ext.VM.RunString(script)
-		if err != nil {
+		if err := runCleanupOnVM(ext.VM); err != nil {
 			return err
 		}
-
-		if result != nil && !goja.IsUndefined(result) {
-			exported := result.Export()
-			if resultMap, ok := exported.(map[string]interface{}); ok {
-				if success, ok := resultMap["success"].(bool); ok && !success {
-					errMsg := "unknown error"
-					if e, ok := resultMap["error"].(string); ok {
-						errMsg = e
-					}
-					return fmt.Errorf("cleanup failed: %s", errMsg)
-				}
-			}
-		}
-
-		if result != nil && !goja.IsUndefined(result) && !goja.IsNull(result) {
+		if ext.VM.Get("extension") != nil {
 			GoLog("[Extension] Cleanup called for %s\n", ext.ID)
 		}
 	}
+	return nil
+}
+
+func runCleanupOnVM(vm *goja.Runtime) error {
+	if vm == nil {
+		return nil
+	}
+
+	script := `
+		(function() {
+			if (typeof extension !== 'undefined' && typeof extension.cleanup === 'function') {
+				try {
+					extension.cleanup();
+					return { success: true };
+				} catch (e) {
+					return { success: false, error: e.toString() };
+				}
+			}
+			return { success: true, message: 'no cleanup function' };
+		})()
+	`
+
+	result, err := vm.RunString(script)
+	if err != nil {
+		return err
+	}
+
+	if result != nil && !goja.IsUndefined(result) {
+		exported := result.Export()
+		if resultMap, ok := exported.(map[string]interface{}); ok {
+			if success, ok := resultMap["success"].(bool); ok && !success {
+				errMsg := "unknown error"
+				if e, ok := resultMap["error"].(string); ok {
+					errMsg = e
+				}
+				return fmt.Errorf("cleanup failed: %s", errMsg)
+			}
+		}
+	}
+
 	return nil
 }
 

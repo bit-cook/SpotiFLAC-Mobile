@@ -103,12 +103,10 @@ type builtInProviderSpec struct {
 	ID               string                                                                         `json:"id"`
 	DisplayName      string                                                                         `json:"display_name"`
 	SupportsMetadata bool                                                                           `json:"supports_metadata"`
-	SupportsDownload bool                                                                           `json:"supports_download"`
 	SupportsSearch   bool                                                                           `json:"supports_search"`
 	GetMetadata      func(resourceType, resourceID string) (string, error)                          `json:"-"`
 	SearchAll        func(query string, trackLimit, artistLimit int, filter string) (string, error) `json:"-"`
 	SearchTracks     func(query string, limit int) ([]ExtTrackMetadata, error)                      `json:"-"`
-	Download         func(req DownloadRequest) (DownloadResult, error)                              `json:"-"`
 }
 
 var builtInProviderRegistry = []builtInProviderSpec{}
@@ -151,14 +149,6 @@ func searchBuiltInProviderTracks(providerID, query string, limit int) ([]ExtTrac
 		return nil, fmt.Errorf("unsupported built-in metadata provider: %s", providerID)
 	}
 	return spec.SearchTracks(query, limit)
-}
-
-func downloadWithBuiltInProvider(providerID string, req DownloadRequest) (DownloadResult, error) {
-	spec, ok := getBuiltInProviderSpec(providerID)
-	if !ok || !spec.SupportsDownload || spec.Download == nil {
-		return DownloadResult{}, fmt.Errorf("unknown built-in provider: %s", providerID)
-	}
-	return spec.Download(req)
 }
 
 func manifestCapabilityStringList(manifest *ExtensionManifest, key string) []string {
@@ -1076,17 +1066,30 @@ func (p *extensionProviderWrapper) Download(trackID, quality, outputPath, itemID
 	if !p.extension.Enabled {
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
-	if err := p.lockReadyVM(); err != nil {
+	p.extension.VMMu.Lock()
+	vm, runtime, err := newIsolatedExtensionRuntime(p.extension)
+	p.extension.VMMu.Unlock()
+	if err != nil {
 		return &ExtDownloadResult{
 			Success:      false,
 			ErrorMessage: err.Error(),
 			ErrorType:    "init_error",
 		}, nil
 	}
-	defer p.extension.VMMu.Unlock()
-	if p.extension.runtime != nil {
-		p.extension.runtime.setActiveDownloadItemID(itemID)
-		defer p.extension.runtime.clearActiveDownloadItemID()
+	defer func() {
+		if cleanupErr := runCleanupOnVM(vm); cleanupErr != nil {
+			GoLog("[Extension:%s] isolated download cleanup failed: %v\n", p.extension.ID, cleanupErr)
+		}
+		if runtime != nil {
+			if flushErr := runtime.flushStorageNow(); flushErr != nil {
+				GoLog("[Extension:%s] isolated download storage flush failed: %v\n", p.extension.ID, flushErr)
+			}
+			runtime.closeStorageFlusher()
+		}
+	}()
+	if runtime != nil {
+		runtime.setActiveDownloadItemID(itemID)
+		defer runtime.clearActiveDownloadItemID()
 	}
 	if itemID != "" {
 		initDownloadCancel(itemID)
@@ -1094,7 +1097,7 @@ func (p *extensionProviderWrapper) Download(trackID, quality, outputPath, itemID
 		SetItemPreparing(itemID)
 	}
 
-	p.vm.Set("__onProgress", func(call goja.FunctionCall) goja.Value {
+	vm.Set("__onProgress", func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) > 0 {
 			percent := int(call.Arguments[0].ToInteger())
 			if percent < 0 {
@@ -1119,7 +1122,7 @@ func (p *extensionProviderWrapper) Download(trackID, quality, outputPath, itemID
 		})()
 	`, trackID, quality, outputPath)
 
-	result, err := RunWithTimeoutAndRecover(p.vm, script, ExtDownloadTimeout)
+	result, err := RunWithTimeoutAndRecover(vm, script, ExtDownloadTimeout)
 	if err != nil {
 		errMsg := err.Error()
 		errType := "script_error"
@@ -1314,12 +1317,8 @@ func sanitizeDownloadProviderPriority(providerIDs []string) []string {
 			continue
 		}
 
-		normalizedBuiltIn := strings.ToLower(providerID)
-		if isRetiredBuiltInDownloadProvider(normalizedBuiltIn) {
+		if isRetiredBuiltInDownloadProvider(providerID) {
 			continue
-		}
-		if isBuiltInDownloadProvider(normalizedBuiltIn) {
-			providerID = normalizedBuiltIn
 		}
 
 		seenKey := strings.ToLower(providerID)
@@ -1336,9 +1335,6 @@ func sanitizeDownloadProviderPriority(providerIDs []string) []string {
 func isRetiredBuiltInDownloadProvider(providerID string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(providerID))
 	if normalized == "" {
-		return false
-	}
-	if isBuiltInDownloadProvider(normalized) {
 		return false
 	}
 	switch normalized {
@@ -1379,7 +1375,7 @@ func SetExtensionFallbackProviderIDs(providerIDs []string) {
 	seen := map[string]struct{}{}
 	for _, providerID := range providerIDs {
 		providerID = strings.TrimSpace(providerID)
-		if providerID == "" || isBuiltInDownloadProvider(strings.ToLower(providerID)) {
+		if providerID == "" {
 			continue
 		}
 		if _, exists := seen[providerID]; exists {
@@ -1407,10 +1403,6 @@ func GetExtensionFallbackProviderIDs() []string {
 }
 
 func isExtensionFallbackAllowed(providerID string) bool {
-	if isBuiltInDownloadProvider(strings.ToLower(providerID)) {
-		return true
-	}
-
 	allowed := GetExtensionFallbackProviderIDs()
 	if allowed == nil {
 		return true
@@ -1471,24 +1463,6 @@ func isBuiltInMetadataProvider(providerID string) bool {
 func isBuiltInSearchProvider(providerID string) bool {
 	spec, ok := getBuiltInProviderSpec(providerID)
 	return ok && spec.SupportsSearch
-}
-
-func isBuiltInDownloadProvider(providerID string) bool {
-	spec, ok := getBuiltInProviderSpec(providerID)
-	return ok && spec.SupportsDownload
-}
-
-func normalizeQualityForBuiltIn(quality string) string {
-	switch strings.ToLower(strings.TrimSpace(quality)) {
-	case "alac", "hi_res_lossless", "lossless":
-		return "HI_RES_LOSSLESS"
-	case "atmos", "ac3", "dolby_atmos":
-		return "LOSSLESS"
-	case "aac", "aac-legacy":
-		return "LOSSLESS"
-	default:
-		return quality
-	}
 }
 
 func normalizeBuiltInMetadataTrack(track TrackMetadata, providerID string) ExtTrackMetadata {
@@ -1666,17 +1640,7 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 		}
 	}
 
-	if !strictMode && req.Service != "" && isBuiltInDownloadProvider(strings.ToLower(req.Service)) {
-		GoLog("[DownloadWithExtensionFallback] User selected service: %s, prioritizing it first\n", req.Service)
-		newPriority := []string{req.Service}
-		for _, p := range priority {
-			if p != req.Service {
-				newPriority = append(newPriority, p)
-			}
-		}
-		priority = newPriority
-		GoLog("[DownloadWithExtensionFallback] New priority order: %v\n", priority)
-	} else if !strictMode && req.Service != "" && !isBuiltInDownloadProvider(strings.ToLower(req.Service)) {
+	if !strictMode && req.Service != "" {
 		found := false
 		for _, p := range priority {
 			if strings.EqualFold(p, req.Service) {
@@ -2050,67 +2014,18 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 		if providerID == "" {
 			continue
 		}
-		providerIDNormalized := strings.ToLower(providerID)
 		if providerID == req.Source {
 			continue
 		}
 
-		if skipBuiltIn && isBuiltInDownloadProvider(providerIDNormalized) {
-			GoLog("[DownloadWithExtensionFallback] Skipping built-in provider %s (skipBuiltInFallback)\n", providerID)
-			continue
-		}
-
-		if !isBuiltInDownloadProvider(providerIDNormalized) && !isExtensionFallbackAllowed(providerID) {
+		if !isExtensionFallbackAllowed(providerID) {
 			GoLog("[DownloadWithExtensionFallback] Skipping extension provider %s (not enabled for fallback)\n", providerID)
 			continue
 		}
 
 		GoLog("[DownloadWithExtensionFallback] Trying provider: %s\n", providerID)
 
-		if isBuiltInDownloadProvider(providerIDNormalized) {
-			req.OutputExt = ""
-			if (req.Genre == "" || req.Label == "" || req.Copyright == "") &&
-				req.ISRC != "" {
-				GoLog("[DownloadWithExtensionFallback] Enriching extra metadata from ISRC: %s\n", req.ISRC)
-				enrichExtraMetadataByISRC("DownloadWithExtensionFallback", req.ISRC, &req.Genre, &req.Label, &req.Copyright)
-				if isDownloadCancelled(req.ItemID) {
-					return nil, ErrDownloadCancelled
-				}
-			}
-
-			origQuality := req.Quality
-			req.Quality = normalizeQualityForBuiltIn(req.Quality)
-			result, err := tryBuiltInProvider(providerIDNormalized, req)
-			req.Quality = origQuality
-			if err == nil && result.Success {
-				result.Service = providerIDNormalized
-				if req.Label != "" {
-					result.Label = req.Label
-				}
-				if req.Copyright != "" {
-					result.Copyright = req.Copyright
-				}
-				if req.Genre != "" {
-					result.Genre = req.Genre
-				}
-				if req.ReleaseDate != "" && result.ReleaseDate == "" {
-					result.ReleaseDate = req.ReleaseDate
-				}
-				return result, nil
-			}
-			if err != nil {
-				if errors.Is(err, ErrDownloadCancelled) {
-					return &DownloadResponse{
-						Success:   false,
-						Error:     "Download cancelled",
-						ErrorType: "cancelled",
-						Service:   providerIDNormalized,
-					}, nil
-				}
-				lastErr = err
-				GoLog("[DownloadWithExtensionFallback] %s failed: %v\n", providerIDNormalized, err)
-			}
-		} else {
+		{
 			ext, err := extManager.GetExtension(providerID)
 			if err != nil || !ext.Enabled || ext.Error != "" {
 				GoLog("[DownloadWithExtensionFallback] Extension %s not available\n", providerID)
@@ -2244,39 +2159,8 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 
 	return &DownloadResponse{
 		Success:   false,
-		Error:     "No providers available",
+		Error:     "No extension download providers available",
 		ErrorType: "not_found",
-	}, nil
-}
-
-func tryBuiltInProvider(providerID string, req DownloadRequest) (*DownloadResponse, error) {
-	req.Service = providerID
-
-	result, err := downloadWithBuiltInProvider(providerID, req)
-	if err != nil {
-		return nil, err
-	}
-
-	return &DownloadResponse{
-		Success:          true,
-		Message:          "Download complete",
-		FilePath:         result.FilePath,
-		ActualBitDepth:   result.BitDepth,
-		ActualSampleRate: result.SampleRate,
-		Title:            result.Title,
-		Artist:           result.Artist,
-		Album:            result.Album,
-		ReleaseDate:      result.ReleaseDate,
-		TrackNumber:      result.TrackNumber,
-		DiscNumber:       result.DiscNumber,
-		ISRC:             result.ISRC,
-		CoverURL:         result.CoverURL,
-		Genre:            req.Genre,
-		Label:            req.Label,
-		Copyright:        req.Copyright,
-		LyricsLRC:        result.LyricsLRC,
-		DecryptionKey:    result.DecryptionKey,
-		Decryption:       normalizeDownloadDecryptionInfo(result.Decryption, result.DecryptionKey),
 	}, nil
 }
 
