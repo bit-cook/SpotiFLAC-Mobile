@@ -9,7 +9,7 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
-  String get appName => 'SpotiFLAC';
+  String get appName => 'SpotiFLAC Mobile';
 
   @override
   String get navHome => 'Home';
@@ -3473,7 +3473,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String notifDownloadingUpdate(String version) {
-    return 'Downloading SpotiFLAC v$version';
+    return 'Downloading SpotiFLAC Mobile v$version';
   }
 
   @override
@@ -3486,7 +3486,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String notifUpdateReadyBody(String version) {
-    return 'SpotiFLAC v$version downloaded. Tap to install.';
+    return 'SpotiFLAC Mobile v$version downloaded. Tap to install.';
   }
 
   @override
@@ -3788,7 +3788,7 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   AppLocalizationsEsEs() : super('es_ES');
 
   @override
-  String get appName => 'SpotiFLAC';
+  String get appName => 'SpotiFLAC Mobile';
 
   @override
   String get navHome => 'Inicio';
@@ -7211,7 +7211,7 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
 
   @override
   String notifDownloadingUpdate(String version) {
-    return 'Downloading SpotiFLAC v$version';
+    return 'Downloading SpotiFLAC Mobile v$version';
   }
 
   @override
@@ -7224,7 +7224,7 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
 
   @override
   String notifUpdateReadyBody(String version) {
-    return 'SpotiFLAC v$version downloaded. Tap to install.';
+    return 'SpotiFLAC Mobile v$version downloaded. Tap to install.';
   }
 
   @override

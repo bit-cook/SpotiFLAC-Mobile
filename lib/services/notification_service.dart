@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:spotiflac_android/constants/app_info.dart';
 import 'package:spotiflac_android/l10n/app_localizations.dart';
 
 class NotificationService {
@@ -547,7 +548,7 @@ class NotificationService {
       id: updateDownloadId,
       title:
           _l10n?.notifDownloadingUpdate(version) ??
-          'Downloading SpotiFLAC v$version',
+          'Downloading ${AppInfo.appName} v$version',
       body:
           _l10n?.notifUpdateProgress(receivedMB, totalMB, percentage) ??
           '$receivedMB / $totalMB MB • $percentage%',
@@ -585,7 +586,7 @@ class NotificationService {
       title: _l10n?.notifUpdateReady ?? 'Update Ready',
       body:
           _l10n?.notifUpdateReadyBody(version) ??
-          'SpotiFLAC v$version downloaded. Tap to install.',
+          '${AppInfo.appName} v$version downloaded. Tap to install.',
       details: details,
     );
   }

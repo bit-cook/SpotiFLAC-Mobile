@@ -24,6 +24,30 @@ bool _stringListEquals(List<String> a, List<String> b) {
   return true;
 }
 
+List<String>? _tryDecodeStringListPreference(String rawJson, String key) {
+  try {
+    final decoded = jsonDecode(rawJson);
+    if (decoded is! List) {
+      throw const FormatException('expected a JSON list');
+    }
+
+    final values = <String>[];
+    for (final item in decoded) {
+      if (item is! String) {
+        throw const FormatException('expected string entries');
+      }
+      final trimmed = item.trim();
+      if (trimmed.isNotEmpty) {
+        values.add(trimmed);
+      }
+    }
+    return values;
+  } catch (e) {
+    _log.w('Ignoring invalid $key preference: $e');
+    return null;
+  }
+}
+
 class BuiltInProviderSpec {
   final String id;
   final String displayName;
@@ -1630,15 +1654,27 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
 
       List<String> priority;
       if (savedJson != null) {
-        final saved = jsonDecode(savedJson) as List<dynamic>;
-        priority = saved.map((e) => e as String).toList();
-        priority = _sanitizeDownloadProviderPriority(priority);
-        _log.d('Loaded provider priority from prefs: $priority');
-        await prefs.setString(_providerPriorityKey, jsonEncode(priority));
-        await PlatformBridge.setProviderPriority(priority);
+        final saved = _tryDecodeStringListPreference(
+          savedJson,
+          _providerPriorityKey,
+        );
+        if (saved != null) {
+          priority = _sanitizeDownloadProviderPriority(saved);
+          _log.d('Loaded provider priority from prefs: $priority');
+          await prefs.setString(_providerPriorityKey, jsonEncode(priority));
+          await PlatformBridge.setProviderPriority(priority);
+        } else {
+          await prefs.remove(_providerPriorityKey);
+          priority = await PlatformBridge.getProviderPriority();
+          priority = _sanitizeDownloadProviderPriority(priority);
+          await prefs.setString(_providerPriorityKey, jsonEncode(priority));
+          await PlatformBridge.setProviderPriority(priority);
+          _log.d('Recovered provider priority from defaults: $priority');
+        }
       } else {
         priority = await PlatformBridge.getProviderPriority();
         priority = _sanitizeDownloadProviderPriority(priority);
+        await prefs.setString(_providerPriorityKey, jsonEncode(priority));
         await PlatformBridge.setProviderPriority(priority);
         _log.d('Using default provider priority: $priority');
       }
@@ -1691,18 +1727,34 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
 
       List<String> priority;
       if (savedJson != null) {
-        final saved = jsonDecode(savedJson) as List<dynamic>;
-        priority = _sanitizeMetadataProviderPriority(
-          _replaceRetiredBuiltInMetadataProviders(
-            saved.map((e) => e as String).toList(),
-          ),
-        );
-        _log.d('Loaded metadata provider priority from prefs: $priority');
-        await prefs.setString(
+        final saved = _tryDecodeStringListPreference(
+          savedJson,
           _metadataProviderPriorityKey,
-          jsonEncode(priority),
         );
-        await PlatformBridge.setMetadataProviderPriority(priority);
+        if (saved != null) {
+          priority = _sanitizeMetadataProviderPriority(
+            _replaceRetiredBuiltInMetadataProviders(saved),
+          );
+          _log.d('Loaded metadata provider priority from prefs: $priority');
+          await prefs.setString(
+            _metadataProviderPriorityKey,
+            jsonEncode(priority),
+          );
+          await PlatformBridge.setMetadataProviderPriority(priority);
+        } else {
+          await prefs.remove(_metadataProviderPriorityKey);
+          final backendPriority =
+              await PlatformBridge.getMetadataProviderPriority();
+          priority = _sanitizeMetadataProviderPriority(backendPriority);
+          await prefs.setString(
+            _metadataProviderPriorityKey,
+            jsonEncode(priority),
+          );
+          await PlatformBridge.setMetadataProviderPriority(priority);
+          _log.d(
+            'Recovered metadata provider priority from defaults: $priority',
+          );
+        }
       } else {
         final backendPriority =
             await PlatformBridge.getMetadataProviderPriority();

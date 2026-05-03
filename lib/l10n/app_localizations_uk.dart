@@ -9,7 +9,7 @@ class AppLocalizationsUk extends AppLocalizations {
   AppLocalizationsUk([String locale = 'uk']) : super(locale);
 
   @override
-  String get appName => 'SpotiFLAC';
+  String get appName => 'SpotiFLAC Mobile';
 
   @override
   String get navHome => 'Головна';
@@ -3533,7 +3533,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String notifDownloadingUpdate(String version) {
-    return 'Завантаження SpotiFLAC v$version';
+    return 'Завантаження SpotiFLAC Mobile v$version';
   }
 
   @override
@@ -3546,7 +3546,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String notifUpdateReadyBody(String version) {
-    return 'SpotiFLAC v$version завантажений. Натисніть щоб установити.';
+    return 'SpotiFLAC Mobile v$version завантажений. Натисніть щоб установити.';
   }
 
   @override

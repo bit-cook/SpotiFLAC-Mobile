@@ -5912,7 +5912,7 @@ abstract class AppLocalizations {
   /// Notification title while downloading an app update
   ///
   /// In en, this message translates to:
-  /// **'Downloading SpotiFLAC v{version}'**
+  /// **'Downloading SpotiFLAC Mobile v{version}'**
   String notifDownloadingUpdate(String version);
 
   /// Notification body showing update download progress
@@ -5930,7 +5930,7 @@ abstract class AppLocalizations {
   /// Notification body when app update is ready to install
   ///
   /// In en, this message translates to:
-  /// **'SpotiFLAC v{version} downloaded. Tap to install.'**
+  /// **'SpotiFLAC Mobile v{version} downloaded. Tap to install.'**
   String notifUpdateReadyBody(String version);
 
   /// Notification title when app update download fails

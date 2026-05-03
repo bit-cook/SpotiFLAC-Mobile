@@ -9,7 +9,7 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
-  String get appName => 'SpotiFLAC';
+  String get appName => 'SpotiFLAC Mobile';
 
   @override
   String get navHome => 'Home';
@@ -3473,7 +3473,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String notifDownloadingUpdate(String version) {
-    return 'Downloading SpotiFLAC v$version';
+    return 'Downloading SpotiFLAC Mobile v$version';
   }
 
   @override
@@ -3486,7 +3486,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String notifUpdateReadyBody(String version) {
-    return 'SpotiFLAC v$version downloaded. Tap to install.';
+    return 'SpotiFLAC Mobile v$version downloaded. Tap to install.';
   }
 
   @override
@@ -3788,7 +3788,7 @@ class AppLocalizationsPtPt extends AppLocalizationsPt {
   AppLocalizationsPtPt() : super('pt_PT');
 
   @override
-  String get appName => 'SpotiFLAC';
+  String get appName => 'SpotiFLAC Mobile';
 
   @override
   String get navHome => 'Início';
@@ -7204,7 +7204,7 @@ class AppLocalizationsPtPt extends AppLocalizationsPt {
 
   @override
   String notifDownloadingUpdate(String version) {
-    return 'Downloading SpotiFLAC v$version';
+    return 'Downloading SpotiFLAC Mobile v$version';
   }
 
   @override
@@ -7217,7 +7217,7 @@ class AppLocalizationsPtPt extends AppLocalizationsPt {
 
   @override
   String notifUpdateReadyBody(String version) {
-    return 'SpotiFLAC v$version downloaded. Tap to install.';
+    return 'SpotiFLAC Mobile v$version downloaded. Tap to install.';
   }
 
   @override

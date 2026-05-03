@@ -9,7 +9,7 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appName => 'SpotiFLAC';
+  String get appName => 'SpotiFLAC Mobile';
 
   @override
   String get navHome => 'Home';
@@ -3473,7 +3473,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String notifDownloadingUpdate(String version) {
-    return 'Downloading SpotiFLAC v$version';
+    return 'Downloading SpotiFLAC Mobile v$version';
   }
 
   @override
@@ -3486,7 +3486,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String notifUpdateReadyBody(String version) {
-    return 'SpotiFLAC v$version downloaded. Tap to install.';
+    return 'SpotiFLAC Mobile v$version downloaded. Tap to install.';
   }
 
   @override
@@ -3788,7 +3788,7 @@ class AppLocalizationsZhCn extends AppLocalizationsZh {
   AppLocalizationsZhCn() : super('zh_CN');
 
   @override
-  String get appName => 'SpotiFLAC';
+  String get appName => 'SpotiFLAC Mobile';
 
   @override
   String get navHome => '主页';
@@ -7170,7 +7170,7 @@ class AppLocalizationsZhCn extends AppLocalizationsZh {
 
   @override
   String notifDownloadingUpdate(String version) {
-    return 'Downloading SpotiFLAC v$version';
+    return 'Downloading SpotiFLAC Mobile v$version';
   }
 
   @override
@@ -7183,7 +7183,7 @@ class AppLocalizationsZhCn extends AppLocalizationsZh {
 
   @override
   String notifUpdateReadyBody(String version) {
-    return 'SpotiFLAC v$version downloaded. Tap to install.';
+    return 'SpotiFLAC Mobile v$version downloaded. Tap to install.';
   }
 
   @override
@@ -7266,7 +7266,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   AppLocalizationsZhTw() : super('zh_TW');
 
   @override
-  String get appName => 'SpotiFLAC';
+  String get appName => 'SpotiFLAC Mobile';
 
   @override
   String get navHome => 'Home';
@@ -10661,7 +10661,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String notifDownloadingUpdate(String version) {
-    return 'Downloading SpotiFLAC v$version';
+    return 'Downloading SpotiFLAC Mobile v$version';
   }
 
   @override
@@ -10674,7 +10674,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String notifUpdateReadyBody(String version) {
-    return 'SpotiFLAC v$version downloaded. Tap to install.';
+    return 'SpotiFLAC Mobile v$version downloaded. Tap to install.';
   }
 
   @override

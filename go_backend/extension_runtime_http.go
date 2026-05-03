@@ -17,6 +17,24 @@ type HTTPResponse struct {
 	Headers    map[string]string `json:"headers"`
 }
 
+const maxExtensionHTTPResponseBytes = 16 << 20
+
+func readExtensionHTTPResponseBody(resp *http.Response) ([]byte, error) {
+	body, err := io.ReadAll(
+		io.LimitReader(resp.Body, maxExtensionHTTPResponseBytes+1),
+	)
+	if err != nil {
+		return nil, err
+	}
+	if len(body) > maxExtensionHTTPResponseBytes {
+		return nil, fmt.Errorf(
+			"response body exceeds %d byte limit; use file.download for large media",
+			maxExtensionHTTPResponseBytes,
+		)
+	}
+	return body, nil
+}
+
 func (r *extensionRuntime) validateDomain(urlStr string) error {
 	parsed, err := url.Parse(urlStr)
 	if err != nil {
@@ -99,7 +117,7 @@ func (r *extensionRuntime) httpGet(call goja.FunctionCall) goja.Value {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readExtensionHTTPResponseBody(resp)
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
 			"error": err.Error(),
@@ -197,7 +215,7 @@ func (r *extensionRuntime) httpPost(call goja.FunctionCall) goja.Value {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readExtensionHTTPResponseBody(resp)
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
 			"error": err.Error(),
@@ -307,7 +325,7 @@ func (r *extensionRuntime) httpRequest(call goja.FunctionCall) goja.Value {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readExtensionHTTPResponseBody(resp)
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
 			"error": err.Error(),
@@ -433,7 +451,7 @@ func (r *extensionRuntime) httpMethodShortcut(method string, call goja.FunctionC
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readExtensionHTTPResponseBody(resp)
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
 			"error": err.Error(),

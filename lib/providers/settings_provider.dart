@@ -11,6 +11,7 @@ import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 
 const _settingsKey = 'app_settings';
+const _settingsCorruptBackupKey = 'app_settings_corrupt_backup';
 const _migrationVersionKey = 'settings_migration_version';
 const _currentMigrationVersion = 11;
 const _spotifyClientSecretKey = 'spotify_client_secret';
@@ -41,40 +42,56 @@ class SettingsNotifier extends Notifier<AppSettings> {
 
   Future<void> _loadSettings() async {
     final prefs = await _prefs;
-    final json = prefs.getString(_settingsKey);
-    if (json != null) {
-      final loaded = AppSettings.fromJson(
-        Map<String, dynamic>.from(jsonDecode(json) as Map),
-      );
-      final sanitizedDownloadFallbackExtensionIds =
-          _sanitizeDownloadFallbackExtensionIds(
-            loaded.downloadFallbackExtensionIds,
-          );
-      final sanitizedDefaultSearchTab = _normalizeDefaultSearchTab(
-        loaded.defaultSearchTab,
-      );
-      final sanitizedDefaultService = _sanitizeRetiredBuiltInProviderId(
-        loaded.defaultService,
-      );
-      final sanitizedSearchProvider = _sanitizeRetiredBuiltInProviderId(
-        loaded.searchProvider,
-      );
-      state = loaded.copyWith(
-        useExtensionProviders: true,
-        downloadFallbackExtensionIds: sanitizedDownloadFallbackExtensionIds,
-        clearDownloadFallbackExtensionIds:
-            loaded.downloadFallbackExtensionIds != null &&
-            sanitizedDownloadFallbackExtensionIds == null,
-        defaultSearchTab: sanitizedDefaultSearchTab,
-        defaultService: sanitizedDefaultService ?? '',
-        searchProvider: sanitizedSearchProvider,
-        clearSearchProvider:
-            loaded.searchProvider != null && sanitizedSearchProvider == null,
-      );
+    final rawSettings = prefs.getString(_settingsKey);
+    if (rawSettings != null) {
+      AppSettings? loaded;
+      try {
+        final decoded = jsonDecode(rawSettings);
+        if (decoded is! Map) {
+          throw const FormatException('settings root must be a JSON object');
+        }
+        loaded = AppSettings.fromJson(Map<String, dynamic>.from(decoded));
+      } catch (e, stack) {
+        _log.e('Failed to load settings, resetting to defaults: $e', e, stack);
+        try {
+          await prefs.setString(_settingsCorruptBackupKey, rawSettings);
+          await prefs.remove(_settingsKey);
+        } catch (backupError) {
+          _log.w('Failed to backup corrupt settings: $backupError');
+        }
+      }
 
-      await _runMigrations(prefs);
-      await _normalizeIosDownloadDirectoryIfNeeded();
-      await _normalizeSongLinkRegionIfNeeded();
+      if (loaded != null) {
+        final sanitizedDownloadFallbackExtensionIds =
+            _sanitizeDownloadFallbackExtensionIds(
+              loaded.downloadFallbackExtensionIds,
+            );
+        final sanitizedDefaultSearchTab = _normalizeDefaultSearchTab(
+          loaded.defaultSearchTab,
+        );
+        final sanitizedDefaultService = _sanitizeRetiredBuiltInProviderId(
+          loaded.defaultService,
+        );
+        final sanitizedSearchProvider = _sanitizeRetiredBuiltInProviderId(
+          loaded.searchProvider,
+        );
+        state = loaded.copyWith(
+          useExtensionProviders: true,
+          downloadFallbackExtensionIds: sanitizedDownloadFallbackExtensionIds,
+          clearDownloadFallbackExtensionIds:
+              loaded.downloadFallbackExtensionIds != null &&
+              sanitizedDownloadFallbackExtensionIds == null,
+          defaultSearchTab: sanitizedDefaultSearchTab,
+          defaultService: sanitizedDefaultService ?? '',
+          searchProvider: sanitizedSearchProvider,
+          clearSearchProvider:
+              loaded.searchProvider != null && sanitizedSearchProvider == null,
+        );
+
+        await _runMigrations(prefs);
+        await _normalizeIosDownloadDirectoryIfNeeded();
+        await _normalizeSongLinkRegionIfNeeded();
+      }
     }
 
     await _cleanupRetiredSpotifySettings();

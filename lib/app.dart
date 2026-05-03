@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
+import 'package:spotiflac_android/constants/app_info.dart';
 import 'package:spotiflac_android/screens/main_shell.dart';
 import 'package:spotiflac_android/screens/setup_screen.dart';
 import 'package:spotiflac_android/screens/tutorial_screen.dart';
@@ -105,7 +106,7 @@ class SpotiFLACApp extends ConsumerWidget {
     return DynamicColorWrapper(
       builder: (lightTheme, darkTheme, themeMode) {
         return MaterialApp.router(
-          title: 'SpotiFLAC',
+          title: AppInfo.appName,
           debugShowCheckedModeBanner: false,
           theme: lightTheme,
           darkTheme: darkTheme,

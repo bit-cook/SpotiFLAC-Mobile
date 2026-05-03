@@ -1,8 +1,10 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
+import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/screens/artist_screen.dart';
 import 'package:spotiflac_android/screens/album_screen.dart';
 import 'package:spotiflac_android/screens/home_tab.dart'
@@ -12,17 +14,148 @@ import 'package:spotiflac_android/utils/artist_utils.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 
 final _log = AppLogger('ClickableMetadata');
-const _deezerExtensionId = 'deezer';
 
-Future<List<Map<String, dynamic>>> _searchDeezerExtension(
+class _MetadataSearchResult {
+  final String providerId;
+  final List<Map<String, dynamic>> items;
+
+  const _MetadataSearchResult({required this.providerId, required this.items});
+}
+
+Future<_MetadataSearchResult?> _searchMetadataProviders(
+  BuildContext context,
   String query, {
   required String filter,
   int limit = 5,
-}) {
+  String? sourceProviderId,
+}) async {
+  final providerIds = _metadataSearchProviderCandidates(
+    context,
+    sourceProviderId: sourceProviderId,
+  );
+
+  for (final providerId in providerIds) {
+    try {
+      final items = await _searchMetadataProvider(
+        providerId,
+        query,
+        filter: filter,
+        limit: limit,
+      );
+      if (items.isNotEmpty) {
+        return _MetadataSearchResult(providerId: providerId, items: items);
+      }
+    } catch (e) {
+      _log.w(
+        'Metadata lookup failed for provider "$providerId", filter=$filter: $e',
+      );
+    }
+  }
+
+  return null;
+}
+
+Future<List<Map<String, dynamic>>> _searchMetadataProvider(
+  String providerId,
+  String query, {
+  required String filter,
+  required int limit,
+}) async {
+  if (isBuiltInSearchProvider(providerId)) {
+    final result = await PlatformBridge.searchProviderAll(
+      providerId,
+      query,
+      trackLimit: 0,
+      artistLimit: filter == 'artist' ? limit : 0,
+      filter: filter,
+    );
+    return _extractSearchItems(result, filter);
+  }
+
   return PlatformBridge.customSearchWithExtension(
-    _deezerExtensionId,
+    providerId,
     query,
     options: {'filter': filter, 'limit': limit},
+  );
+}
+
+List<Map<String, dynamic>> _extractSearchItems(
+  Map<String, dynamic> result,
+  String filter,
+) {
+  final key = switch (filter) {
+    'artist' => 'artists',
+    'album' => 'albums',
+    _ => '${filter}s',
+  };
+  final items = result[key];
+  if (items is! List) return const [];
+
+  return items
+      .whereType<Map<Object?, Object?>>()
+      .map((item) => Map<String, dynamic>.from(item))
+      .toList(growable: false);
+}
+
+List<String> _metadataSearchProviderCandidates(
+  BuildContext context, {
+  String? sourceProviderId,
+}) {
+  final container = ProviderScope.containerOf(context, listen: false);
+  final extensionState = container.read(extensionProvider);
+  final settings = container.read(settingsProvider);
+  final extensionNotifier = container.read(extensionProvider.notifier);
+  final candidates = <String>[];
+
+  void addProvider(String? providerId) {
+    final normalized = providerId?.trim();
+    if (normalized == null ||
+        normalized.isEmpty ||
+        candidates.contains(normalized) ||
+        !_canSearchMetadataProvider(normalized, extensionState)) {
+      return;
+    }
+    candidates.add(normalized);
+  }
+
+  addProvider(sourceProviderId);
+  addProvider(settings.searchProvider);
+
+  for (final providerId in extensionState.metadataProviderPriority) {
+    addProvider(providerId);
+  }
+  for (final providerId in extensionNotifier.getAllMetadataProviders()) {
+    addProvider(providerId);
+  }
+
+  final searchExtensions = extensionState.extensions
+      .where((ext) => ext.enabled && ext.hasCustomSearch)
+      .toList(growable: false);
+  for (final extension in searchExtensions.where(
+    (ext) => ext.searchBehavior?.primary == true,
+  )) {
+    addProvider(extension.id);
+  }
+  for (final extension in searchExtensions.where(
+    (ext) => ext.searchBehavior?.primary != true,
+  )) {
+    addProvider(extension.id);
+  }
+
+  for (final providerId in builtInSearchProviderIds) {
+    addProvider(providerId);
+  }
+
+  return candidates;
+}
+
+bool _canSearchMetadataProvider(
+  String providerId,
+  ExtensionState extensionState,
+) {
+  if (isBuiltInSearchProvider(providerId)) return true;
+  return extensionState.extensions.any(
+    (ext) => ext.enabled && ext.hasCustomSearch && ext.id == providerId,
   );
 }
 
@@ -54,14 +187,17 @@ Future<void> navigateToArtist(
 
   _showLoadingSnackBar(context, context.l10n.clickableLookingUpArtist);
   try {
-    final artistList = await _searchDeezerExtension(
+    final searchResult = await _searchMetadataProviders(
+      context,
       artistName,
       filter: 'artist',
       limit: 3,
+      sourceProviderId: extensionId,
     );
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
+    final artistList = searchResult?.items ?? const <Map<String, dynamic>>[];
     if (artistList.isEmpty) {
       _showUnavailable(context, context.l10n.trackArtist);
       return;
@@ -81,6 +217,10 @@ Future<void> navigateToArtist(
     final resolvedId = bestMatch['id'] as String? ?? '';
     final resolvedName = bestMatch['name'] as String? ?? artistName;
     final resolvedImage = bestMatch['images'] as String?;
+    final resolvedProviderId = _resolveResultProviderId(
+      bestMatch,
+      searchResult?.providerId,
+    );
 
     if (resolvedId.isEmpty) {
       _showUnavailable(context, context.l10n.trackArtist);
@@ -93,7 +233,7 @@ Future<void> navigateToArtist(
       artistId: resolvedId,
       artistName: resolvedName,
       coverUrl: resolvedImage ?? coverUrl,
-      extensionId: _deezerExtensionId,
+      extensionId: resolvedProviderId,
     );
   } catch (e) {
     _log.e('Failed to look up artist "$artistName": $e', e);
@@ -113,10 +253,7 @@ Future<void> navigateToAlbum(
 }) async {
   if (albumName.isEmpty) return;
 
-  if (albumId != null &&
-      albumId.isNotEmpty &&
-      albumId != 'unknown' &&
-      albumId != 'deezer:unknown') {
+  if (albumId != null && albumId.isNotEmpty && !_isUnknownResourceId(albumId)) {
     _pushAlbumScreen(
       context,
       albumId: albumId,
@@ -127,25 +264,23 @@ Future<void> navigateToAlbum(
     return;
   }
 
-  if (extensionId != null) {
-    _showUnavailable(context, 'Album');
-    return;
-  }
-
   _showLoadingSnackBar(context, 'Looking up album...');
   try {
     final query = artistName != null && artistName.isNotEmpty
         ? '$albumName $artistName'
         : albumName;
 
-    final albumList = await _searchDeezerExtension(
+    final searchResult = await _searchMetadataProviders(
+      context,
       query,
       filter: 'album',
       limit: 5,
+      sourceProviderId: extensionId,
     );
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
+    final albumList = searchResult?.items ?? const <Map<String, dynamic>>[];
     if (albumList.isEmpty) {
       _showUnavailable(context, 'Album');
       return;
@@ -165,6 +300,10 @@ Future<void> navigateToAlbum(
     final resolvedId = bestMatch['id'] as String? ?? '';
     final resolvedName = bestMatch['name'] as String? ?? albumName;
     final resolvedImage = bestMatch['images'] as String?;
+    final resolvedProviderId = _resolveResultProviderId(
+      bestMatch,
+      searchResult?.providerId,
+    );
 
     if (resolvedId.isEmpty) {
       _showUnavailable(context, 'Album');
@@ -177,7 +316,7 @@ Future<void> navigateToAlbum(
       albumId: resolvedId,
       albumName: resolvedName,
       coverUrl: resolvedImage ?? coverUrl,
-      extensionId: _deezerExtensionId,
+      extensionId: resolvedProviderId,
     );
   } catch (e) {
     _log.e('Failed to look up album "$albumName": $e', e);
@@ -194,11 +333,15 @@ void _pushArtistScreen(
   String? coverUrl,
   String? extensionId,
 }) {
+  final isExtension =
+      extensionId != null && !isBuiltInMetadataProvider(extensionId);
+  final resolvedProviderId = extensionId;
+
   _pushViaPreferredNavigator(
     context,
-    (context) => extensionId != null
+    (context) => isExtension && resolvedProviderId != null
         ? ExtensionArtistScreen(
-            extensionId: extensionId,
+            extensionId: resolvedProviderId,
             artistId: artistId,
             artistName: artistName,
             coverUrl: coverUrl,
@@ -207,6 +350,7 @@ void _pushArtistScreen(
             artistId: artistId,
             artistName: artistName,
             coverUrl: coverUrl,
+            extensionId: resolvedProviderId,
           ),
   );
 }
@@ -235,6 +379,7 @@ void _pushAlbumScreen(
             albumId: albumId,
             albumName: albumName,
             coverUrl: coverUrl,
+            extensionId: resolvedExtensionId,
             tracks: const [],
           ),
   );
@@ -289,9 +434,7 @@ void _showLoadingSnackBar(BuildContext context, String message) {
 }
 
 void _showUnavailable(BuildContext context, String type) {
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(
+  ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text(context.l10n.clickableInformationUnavailable(type))),
   );
 }
@@ -504,10 +647,29 @@ List<String> _parseArtistIds(String? rawArtistIds) {
 
 String? _normalizeArtistId(String? artistId) {
   final id = artistId?.trim();
-  if (id == null || id.isEmpty || id == 'unknown' || id == 'deezer:unknown') {
+  if (id == null || _isUnknownResourceId(id)) {
     return null;
   }
   return id;
+}
+
+bool _isUnknownResourceId(String id) {
+  final normalized = id.trim().toLowerCase();
+  return normalized.isEmpty ||
+      normalized == 'unknown' ||
+      normalized.endsWith(':unknown');
+}
+
+String? _resolveResultProviderId(
+  Map<String, dynamic> result,
+  String? fallbackProviderId,
+) {
+  final providerId = result['provider_id']?.toString().trim();
+  if (providerId != null && providerId.isNotEmpty) return providerId;
+  final source = result['source']?.toString().trim();
+  if (source != null && source.isNotEmpty) return source;
+  final fallback = fallbackProviderId?.trim();
+  return fallback != null && fallback.isNotEmpty ? fallback : null;
 }
 
 bool _canNavigateArtistDirectly({
@@ -515,8 +677,17 @@ bool _canNavigateArtistDirectly({
   required String? extensionId,
 }) {
   if (extensionId != null) return true;
-  if (artistId.startsWith('deezer:')) return true;
+  final providerPrefix = _resourceProviderPrefix(artistId);
+  if (providerPrefix != null && isBuiltInMetadataProvider(providerPrefix)) {
+    return true;
+  }
   return _spotifyArtistIdPattern.hasMatch(artistId);
+}
+
+String? _resourceProviderPrefix(String resourceId) {
+  final colonIndex = resourceId.indexOf(':');
+  if (colonIndex <= 0) return null;
+  return resourceId.substring(0, colonIndex).trim();
 }
 
 final RegExp _spotifyArtistIdPattern = RegExp(r'^[A-Za-z0-9]{22}$');

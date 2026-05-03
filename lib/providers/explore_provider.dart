@@ -110,6 +110,7 @@ class ExploreState {
   final bool isLoading;
   final String? error;
   final String? greeting;
+  final String? providerId;
   final List<ExploreSection> sections;
   final DateTime? lastFetched;
 
@@ -117,6 +118,7 @@ class ExploreState {
     this.isLoading = false,
     this.error,
     this.greeting,
+    this.providerId,
     this.sections = const [],
     this.lastFetched,
   });
@@ -127,6 +129,8 @@ class ExploreState {
     bool? isLoading,
     String? error,
     String? greeting,
+    String? providerId,
+    bool clearProviderId = false,
     List<ExploreSection>? sections,
     DateTime? lastFetched,
   }) {
@@ -134,6 +138,7 @@ class ExploreState {
       isLoading: isLoading ?? this.isLoading,
       error: error,
       greeting: greeting ?? this.greeting,
+      providerId: clearProviderId ? null : (providerId ?? this.providerId),
       sections: sections ?? this.sections,
       lastFetched: lastFetched ?? this.lastFetched,
     );
@@ -189,14 +194,54 @@ List<Map<String, Object?>> _normalizeExploreSectionsPayload(
   return sections;
 }
 
-List<Map<String, Object?>> _decodeExploreCacheSections(String rawCache) {
-  final decoded = jsonDecode(rawCache);
-  if (decoded is! Map) return const [];
-  return _normalizeExploreSectionsPayload(decoded['sections']);
+List<Map<String, Object?>> _withDefaultExploreProviderId(
+  List<Map<String, Object?>> normalizedSections,
+  String providerId,
+) {
+  final normalizedProviderId = providerId.trim();
+  if (normalizedProviderId.isEmpty) return normalizedSections;
+
+  return normalizedSections
+      .map((section) {
+        final rawItems = section['items'];
+        if (rawItems is! List) return section;
+
+        return <String, Object?>{
+          ...section,
+          'items': rawItems
+              .map((rawItem) {
+                if (rawItem is! Map) return rawItem;
+                final item = Map<String, Object?>.from(rawItem);
+                final itemProviderId =
+                    item['provider_id']?.toString().trim() ?? '';
+                if (itemProviderId.isEmpty) {
+                  item['provider_id'] = normalizedProviderId;
+                }
+                return item;
+              })
+              .toList(growable: false),
+        };
+      })
+      .toList(growable: false);
 }
 
-String _encodeExploreCacheSections(List<Map<String, Object?>> sections) {
-  return jsonEncode({'sections': sections});
+Map<String, Object?> _decodeExploreCache(String rawCache) {
+  final decoded = jsonDecode(rawCache);
+  if (decoded is! Map) {
+    return const {'provider_id': null, 'sections': <Map<String, Object?>>[]};
+  }
+
+  final providerId = decoded['provider_id']?.toString().trim();
+  var sections = _normalizeExploreSectionsPayload(decoded['sections']);
+  if (providerId != null && providerId.isNotEmpty) {
+    sections = _withDefaultExploreProviderId(sections, providerId);
+  }
+
+  return {'provider_id': providerId, 'sections': sections};
+}
+
+String _encodeExploreCache(Map<String, Object?> cachePayload) {
+  return jsonEncode(cachePayload);
 }
 
 List<ExploreSection> _buildExploreSectionsFromNormalizedPayload(
@@ -234,10 +279,24 @@ class ExploreNotifier extends Notifier<ExploreState> {
       final cachedTs = prefs.getInt(_cacheTsKey);
       if (cached == null || cached.isEmpty) return;
 
-      final normalizedSections = await compute(
-        _decodeExploreCacheSections,
-        cached,
-      );
+      final cachePayload = await compute(_decodeExploreCache, cached);
+      final providerId = cachePayload['provider_id']?.toString().trim();
+      final rawSections = cachePayload['sections'];
+      var normalizedSections = rawSections is List
+          ? rawSections
+                .whereType<Map<Object?, Object?>>()
+                .map((section) => Map<String, Object?>.from(section))
+                .toList(growable: false)
+          : const <Map<String, Object?>>[];
+      final resolvedProviderId = providerId?.isNotEmpty == true
+          ? providerId
+          : _resolveHomeFeedExtension()?.id;
+      if (resolvedProviderId != null && resolvedProviderId.isNotEmpty) {
+        normalizedSections = _withDefaultExploreProviderId(
+          normalizedSections,
+          resolvedProviderId,
+        );
+      }
       final sections = _buildExploreSectionsFromNormalizedPayload(
         normalizedSections,
       );
@@ -251,23 +310,51 @@ class ExploreNotifier extends Notifier<ExploreState> {
       _log.i('Restored ${sections.length} cached explore sections');
       state = ExploreState(
         greeting: _getLocalGreeting(),
+        providerId: resolvedProviderId,
         sections: sections,
         lastFetched: lastFetched,
       );
     } catch (e) {
       _log.w('Failed to restore explore cache: $e');
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(_cacheKey);
+        await prefs.remove(_cacheTsKey);
+        _log.d('Removed invalid explore cache');
+      } catch (clearError) {
+        _log.w('Failed to remove invalid explore cache: $clearError');
+      }
     }
+  }
+
+  Extension? _resolveHomeFeedExtension() {
+    final settings = ref.read(settingsProvider);
+    final preferredId = settings.homeFeedProvider;
+    final enabledHomeFeedExtensions = ref
+        .read(extensionProvider)
+        .extensions
+        .where((extension) => extension.enabled && extension.hasHomeFeed)
+        .toList(growable: false);
+
+    if (preferredId != null && preferredId.isNotEmpty) {
+      return enabledHomeFeedExtensions
+          .where((extension) => extension.id == preferredId)
+          .firstOrNull;
+    }
+
+    return enabledHomeFeedExtensions.firstOrNull;
   }
 
   Future<void> _saveToCache(
     List<Map<String, Object?>> normalizedSections,
+    String providerId,
   ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final encoded = await compute(
-        _encodeExploreCacheSections,
-        normalizedSections,
-      );
+      final encoded = await compute(_encodeExploreCache, {
+        'provider_id': providerId,
+        'sections': normalizedSections,
+      });
       await prefs.setString(_cacheKey, encoded);
       await prefs.setInt(_cacheTsKey, DateTime.now().millisecondsSinceEpoch);
       _log.d('Saved ${normalizedSections.length} explore sections to cache');
@@ -313,24 +400,7 @@ class ExploreNotifier extends Notifier<ExploreState> {
         'Extensions count: ${extState.extensions.length}, preferred home feed: $preferredId',
       );
 
-      Extension? targetExt;
-      for (final extension in extState.extensions) {
-        if (!extension.enabled || !extension.hasHomeFeed) {
-          continue;
-        }
-        if (preferredId != null &&
-            preferredId.isNotEmpty &&
-            extension.id == preferredId) {
-          targetExt = extension;
-          break;
-        }
-        if (targetExt == null || extension.id == 'spotify-web') {
-          targetExt = extension;
-          if (preferredId == null && extension.id == 'spotify-web') {
-            break;
-          }
-        }
-      }
+      final targetExt = _resolveHomeFeedExtension();
 
       if (targetExt == null) {
         _log.w('No extension with homeFeed capability found');
@@ -367,9 +437,13 @@ class ExploreNotifier extends Notifier<ExploreState> {
 
       final greeting = result['greeting'] as String?;
       final sectionsData = result['sections'] as List<dynamic>? ?? [];
-      final normalizedSections = await compute(
+      final normalizedSectionsWithoutProvider = await compute(
         _normalizeExploreSectionsPayload,
         sectionsData,
+      );
+      final normalizedSections = _withDefaultExploreProviderId(
+        normalizedSectionsWithoutProvider,
+        targetExt.id,
       );
       if (requestId != _homeFeedRequestId) return;
       final sections = _buildExploreSectionsFromNormalizedPayload(
@@ -391,11 +465,12 @@ class ExploreNotifier extends Notifier<ExploreState> {
       state = ExploreState(
         isLoading: false,
         greeting: localGreeting,
+        providerId: targetExt.id,
         sections: sections,
         lastFetched: DateTime.now(),
       );
 
-      _saveToCache(normalizedSections);
+      _saveToCache(normalizedSections, targetExt.id);
     } catch (e, stack) {
       _log.e('Error fetching home feed: $e', e, stack);
       if (requestId != _homeFeedRequestId) return;

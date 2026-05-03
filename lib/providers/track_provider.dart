@@ -449,7 +449,7 @@ class TrackNotifier extends Notifier<TrackState> {
           albumName: albumInfo['name'] as String?,
           coverUrl: normalizeRemoteHttpUrl(albumInfo['images']?.toString()),
         );
-        _preWarmCacheForTracks(tracks);
+        _preWarmCacheForTracks(tracks, service: providerId);
         return;
       case 'playlist':
         final playlistInfo = metadata['playlist_info'] as Map<String, dynamic>;
@@ -469,7 +469,7 @@ class TrackNotifier extends Notifier<TrackState> {
           playlistName: playlistName,
           coverUrl: coverUrl,
         );
-        _preWarmCacheForTracks(tracks);
+        _preWarmCacheForTracks(tracks, service: providerId);
         return;
       case 'artist':
         final artistInfo = metadata['artist_info'] as Map<String, dynamic>;
@@ -1054,7 +1054,7 @@ class TrackNotifier extends Notifier<TrackState> {
     );
   }
 
-  void _preWarmCacheForTracks(List<Track> tracks) {
+  void _preWarmCacheForTracks(List<Track> tracks, {String? service}) {
     if (tracks.isEmpty) return;
     final cacheRequests = <Map<String, String>>[];
     for (final track in tracks) {
@@ -1062,12 +1062,16 @@ class TrackNotifier extends Notifier<TrackState> {
       if (isrc == null || isrc.isEmpty) {
         continue;
       }
+      final effectiveService =
+          (track.source?.trim().isNotEmpty == true ? track.source : service)
+              ?.trim();
       cacheRequests.add({
         'isrc': isrc,
         'track_name': track.name,
         'artist_name': track.artistName,
         'spotify_id': track.id,
-        'service': 'tidal',
+        if (effectiveService != null && effectiveService.isNotEmpty)
+          'service': effectiveService,
       });
       if (cacheRequests.length >= _maxPreWarmTracksPerRequest) {
         break;

@@ -1,7 +1,7 @@
 {
   "@@locale": "uk",
   "@@last_modified": "2026-01-16",
-  "appName": "SpotiFLAC",
+  "appName": "SpotiFLAC Mobile",
   "@appName": {
     "description": "App name - DO NOT TRANSLATE"
   },
@@ -4473,7 +4473,7 @@
   "@notifLibraryScanStopped": {
     "description": "Notification body when library scan is cancelled"
   },
-  "notifDownloadingUpdate": "Завантаження SpotiFLAC v{version}",
+  "notifDownloadingUpdate": "Завантаження SpotiFLAC Mobile v{version}",
   "@notifDownloadingUpdate": {
     "description": "Notification title while downloading an app update",
     "placeholders": {
@@ -4501,7 +4501,7 @@
   "@notifUpdateReady": {
     "description": "Notification title when app update download is complete"
   },
-  "notifUpdateReadyBody": "SpotiFLAC v{version} завантажений. Натисніть щоб установити.",
+  "notifUpdateReadyBody": "SpotiFLAC Mobile v{version} завантажений. Натисніть щоб установити.",
   "@notifUpdateReadyBody": {
     "description": "Notification body when app update is ready to install",
     "placeholders": {

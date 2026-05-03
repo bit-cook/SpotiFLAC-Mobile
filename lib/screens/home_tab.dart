@@ -1896,14 +1896,38 @@ class _HomeTabState extends ConsumerState<HomeTab>
     }
   }
 
+  String? _providerIdForExploreItem(ExploreItem item) {
+    final itemProviderId = item.providerId?.trim();
+    if (itemProviderId != null && itemProviderId.isNotEmpty) {
+      return itemProviderId;
+    }
+
+    final feedProviderId = ref.read(exploreProvider).providerId?.trim();
+    if (feedProviderId != null && feedProviderId.isNotEmpty) {
+      return feedProviderId;
+    }
+
+    return null;
+  }
+
+  void _showMissingExploreProviderMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.extensionsNoHomeFeedExtensions)),
+    );
+  }
+
   void _navigateToExploreItem(ExploreItem item) async {
-    final extensionId = item.providerId ?? 'spotify-web';
+    final extensionId = _providerIdForExploreItem(item);
 
     switch (item.type) {
       case 'track':
         _showTrackBottomSheet(item);
         return;
       case 'album':
+        if (extensionId == null) {
+          _showMissingExploreProviderMessage();
+          return;
+        }
         Navigator.push(
           context,
           MaterialPageRoute<void>(
@@ -1917,6 +1941,10 @@ class _HomeTabState extends ConsumerState<HomeTab>
         );
         return;
       case 'playlist':
+        if (extensionId == null) {
+          _showMissingExploreProviderMessage();
+          return;
+        }
         Navigator.push(
           context,
           MaterialPageRoute<void>(
@@ -1930,6 +1958,10 @@ class _HomeTabState extends ConsumerState<HomeTab>
         );
         return;
       case 'artist':
+        if (extensionId == null) {
+          _showMissingExploreProviderMessage();
+          return;
+        }
         Navigator.push(
           context,
           MaterialPageRoute<void>(
@@ -2064,7 +2096,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
       isrc: null,
       releaseDate: item.releaseDate,
       coverUrl: item.coverUrl,
-      source: item.providerId ?? 'spotify-web',
+      source: _providerIdForExploreItem(item),
     );
 
     if (settings.askQualityBeforeDownload) {
@@ -2105,11 +2137,17 @@ class _HomeTabState extends ConsumerState<HomeTab>
 
   Future<void> _navigateToTrackAlbum(ExploreItem item) async {
     if (item.albumId != null && item.albumId!.isNotEmpty) {
+      final extensionId = _providerIdForExploreItem(item);
+      if (extensionId == null) {
+        _showMissingExploreProviderMessage();
+        return;
+      }
+
       Navigator.push(
         context,
         MaterialPageRoute<void>(
           builder: (context) => ExtensionAlbumScreen(
-            extensionId: item.providerId ?? 'spotify-web',
+            extensionId: extensionId,
             albumId: item.albumId!,
             albumName: item.albumName ?? 'Album',
             coverUrl: item.coverUrl,
