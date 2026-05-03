@@ -603,11 +603,13 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     if (hasResolvedSpecs && !isPlaceholderQualityLabel(item.quality)) {
       final needsComposerBackfill =
           normalizeOptionalString(item.composer) == null;
+      final needsDurationBackfill = item.duration == null || item.duration == 0;
       final needsTrackNumberBackfill = item.trackNumber == null;
       final needsTotalTracksBackfill = item.totalTracks == null;
       final needsDiscNumberBackfill = item.discNumber == null;
       final needsTotalDiscsBackfill = item.totalDiscs == null;
       return needsComposerBackfill ||
+          needsDurationBackfill ||
           needsTrackNumberBackfill ||
           needsTotalTracksBackfill ||
           needsDiscNumberBackfill ||
@@ -616,6 +618,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
 
     final needsComposerBackfill =
         normalizeOptionalString(item.composer) == null;
+    final needsDurationBackfill = item.duration == null || item.duration == 0;
     final needsTrackNumberBackfill = item.trackNumber == null;
     final needsTotalTracksBackfill = item.totalTracks == null;
     final needsDiscNumberBackfill = item.discNumber == null;
@@ -624,6 +627,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
         isPlaceholderQualityLabel(item.quality) ||
         normalizeOptionalString(item.quality) == null ||
         needsComposerBackfill ||
+        needsDurationBackfill ||
         needsTrackNumberBackfill ||
         needsTotalTracksBackfill ||
         needsDiscNumberBackfill ||
@@ -652,6 +656,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
         storedQuality: fallbackQuality,
       );
       final composer = normalizeOptionalString(result['composer']?.toString());
+      final duration = _readPositiveInt(result['duration']);
       final trackNumber = _readPositiveInt(result['track_number']);
       final totalTracks = _readPositiveInt(result['total_tracks']);
       final discNumber = _readPositiveInt(result['disc_number']);
@@ -661,6 +666,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
           bitDepth == null &&
           sampleRate == null &&
           composer == null &&
+          duration == null &&
           trackNumber == null &&
           totalTracks == null &&
           discNumber == null &&
@@ -673,6 +679,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
         'bitDepth': bitDepth,
         'sampleRate': sampleRate,
         'composer': composer,
+        'duration': duration,
         'trackNumber': trackNumber,
         'totalTracks': totalTracks,
         'discNumber': discNumber,
@@ -746,6 +753,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
         final resolvedComposer = normalizeOptionalString(
           probed['composer'] as String?,
         );
+        final resolvedDuration = probed['duration'] as int?;
         final resolvedTrackNumber = probed['trackNumber'] as int?;
         final resolvedTotalTracks = probed['totalTracks'] as int?;
         final resolvedDiscNumber = probed['discNumber'] as int?;
@@ -759,6 +767,8 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
             resolvedSampleRate != null && resolvedSampleRate != item.sampleRate;
         final composerChanged =
             resolvedComposer != null && resolvedComposer != item.composer;
+        final durationChanged =
+            resolvedDuration != null && resolvedDuration != item.duration;
         final trackNumberChanged =
             resolvedTrackNumber != null &&
             resolvedTrackNumber != item.trackNumber;
@@ -774,6 +784,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
             !bitDepthChanged &&
             !sampleRateChanged &&
             !composerChanged &&
+            !durationChanged &&
             !trackNumberChanged &&
             !totalTracksChanged &&
             !discNumberChanged &&
@@ -786,6 +797,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
           bitDepth: resolvedBitDepth,
           sampleRate: resolvedSampleRate,
           composer: resolvedComposer,
+          duration: resolvedDuration,
           trackNumber: resolvedTrackNumber,
           totalTracks: resolvedTotalTracks,
           discNumber: resolvedDiscNumber,
@@ -915,6 +927,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     int? totalTracks,
     int? discNumber,
     int? totalDiscs,
+    int? duration,
     String? composer,
   }) async {
     final index = state.items.indexWhere((item) => item.id == id);
@@ -929,6 +942,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
       totalTracks: totalTracks,
       discNumber: discNumber,
       totalDiscs: totalDiscs,
+      duration: duration,
       composer: composer,
     );
 
@@ -939,6 +953,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
         updated.totalTracks == current.totalTracks &&
         updated.discNumber == current.discNumber &&
         updated.totalDiscs == current.totalDiscs &&
+        updated.duration == current.duration &&
         updated.composer == current.composer) {
       return;
     }

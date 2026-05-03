@@ -470,6 +470,32 @@ class LibraryDatabase {
     });
   }
 
+  Future<void> updateAudioMetadata(
+    String id, {
+    int? duration,
+    int? bitDepth,
+    int? sampleRate,
+    int? bitrate,
+  }) async {
+    final values = <String, dynamic>{};
+    if (duration != null && duration > 0) {
+      values['duration'] = duration;
+    }
+    if (bitDepth != null && bitDepth > 0) {
+      values['bit_depth'] = bitDepth;
+    }
+    if (sampleRate != null && sampleRate > 0) {
+      values['sample_rate'] = sampleRate;
+    }
+    if (bitrate != null && bitrate > 0) {
+      values['bitrate'] = bitrate;
+    }
+    if (values.isEmpty) return;
+
+    final db = await database;
+    await db.update('library', values, where: 'id = ?', whereArgs: [id]);
+  }
+
   Future<void> delete(String id) async {
     final db = await database;
     await db.delete('library', where: 'id = ?', whereArgs: [id]);

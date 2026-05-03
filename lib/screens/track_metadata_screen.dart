@@ -398,6 +398,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
               needsTotalTracks ||
               needsDiscNumber ||
               needsTotalDiscs ||
+              needsDuration ||
               needsComposer ||
               (isPlaceholderQualityLabel(_quality) && resolvedQuality != null));
 
@@ -446,8 +447,15 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
               totalTracks: needsTotalTracks ? resolvedTotalTracks : null,
               discNumber: needsDiscNumber ? resolvedDiscNumber : null,
               totalDiscs: needsTotalDiscs ? resolvedTotalDiscs : null,
+              duration: needsDuration ? resolvedDuration : null,
               composer: needsComposer ? resolvedComposer : null,
             );
+      } else if (_isLocalItem && needsDuration) {
+        await LibraryDatabase.instance.updateAudioMetadata(
+          _localLibraryItem!.id,
+          duration: resolvedDuration,
+        );
+        await ref.read(localLibraryProvider.notifier).reloadFromStorage();
       }
     } catch (e) {
       _log.w('Failed to resolve audio metadata from file: $e');
