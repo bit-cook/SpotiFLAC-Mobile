@@ -459,7 +459,7 @@ object NativeDownloadFinalizer {
             if (!result.first || !File(output).exists()) {
                 throw IllegalStateException("HIGH conversion failed: ${result.second}")
             }
-            embedBasicMetadata(output, input, format)
+            embedBasicMetadata(context, output, input, format)
             replaceStatePath(context, input, state, output, deleteOld = true)
             adoptedOutput = true
         } finally {
@@ -492,7 +492,7 @@ object NativeDownloadFinalizer {
             if (!result.first || !File(output).exists()) {
                 throw IllegalStateException("container conversion failed: ${result.second}")
             }
-            embedBasicMetadata(output, input, "flac")
+            embedBasicMetadata(context, output, input, "flac")
             replaceStatePath(context, input, state, output, deleteOld = true)
             adoptedOutput = true
         } finally {
@@ -504,14 +504,14 @@ object NativeDownloadFinalizer {
     private fun finalizeMetadata(context: Context, input: FinalizeInput, state: FinalizeState) {
         if (!input.request.optBoolean("embed_metadata", false)) return
         if (!state.filePath.startsWith("content://")) {
-            embedBasicMetadata(state.filePath, input, formatForPath(state.filePath))
+            embedBasicMetadata(context, state.filePath, input, formatForPath(state.filePath))
             return
         }
 
         val tempPath = SafDownloadHandler.copyContentUriToTemp(context, state.filePath)
             ?: throw IllegalStateException("failed to copy SAF file for metadata")
         try {
-            embedBasicMetadata(tempPath, input, formatForPath(state.fileName.ifBlank { tempPath }))
+            embedBasicMetadata(context, tempPath, input, formatForPath(state.fileName.ifBlank { tempPath }))
             val tempFile = File(tempPath)
             val finalName = desiredFileName(input, state, normalizeExt(state.fileName.substringAfterLast('.', "")))
             val newUri = SafDownloadHandler.writeFileToSaf(
@@ -856,20 +856,40 @@ object NativeDownloadFinalizer {
         if (deleteOld && oldPath != localOutput) File(oldPath).delete()
     }
 
-    private fun embedBasicMetadata(path: String, input: FinalizeInput, format: String) {
+    private fun embedBasicMetadata(context: Context, path: String, input: FinalizeInput, format: String) {
         if (!input.request.optBoolean("embed_metadata", false)) return
-        val title = trackString(input, "name", input.request.optString("track_name", ""))
-        val artist = trackString(input, "artistName", input.request.optString("artist_name", ""))
-        val album = trackString(input, "albumName", input.request.optString("album_name", ""))
-        val albumArtist = trackString(input, "albumArtist", input.request.optString("album_artist", ""))
-        val date = trackString(input, "releaseDate", input.request.optString("release_date", ""))
-        val trackNumber = trackInt(input, "trackNumber", input.request.optInt("track_number", 0)).toString()
-        val discNumber = trackInt(input, "discNumber", input.request.optInt("disc_number", 0)).toString()
-        val isrc = trackString(input, "isrc", input.request.optString("isrc", ""))
-        val composer = trackString(input, "composer", input.request.optString("composer", ""))
-        val genre = input.result.optString("genre", "").ifBlank { input.request.optString("genre", "") }
-        val label = input.result.optString("label", "").ifBlank { input.request.optString("label", "") }
-        val copyright = input.result.optString("copyright", "").ifBlank { input.request.optString("copyright", "") }
+        val title = resultString(input, "title").ifBlank {
+            trackString(input, "name", requestString(input, "track_name"))
+        }
+        val artist = resultString(input, "artist").ifBlank {
+            trackString(input, "artistName", requestString(input, "artist_name"))
+        }
+        val album = resultString(input, "album").ifBlank {
+            trackString(input, "albumName", requestString(input, "album_name"))
+        }
+        val albumArtist = resultString(input, "album_artist").ifBlank {
+            trackString(input, "albumArtist", requestString(input, "album_artist"))
+        }
+        val date = resultString(input, "release_date").ifBlank {
+            resultString(input, "date").ifBlank {
+                trackString(input, "releaseDate", requestString(input, "release_date"))
+            }
+        }
+        val trackNumberValue = positiveOrNull(input.result.optInt("track_number", 0), trackInt(input, "trackNumber", input.request.optInt("track_number", 0))) ?: 0
+        val totalTracksValue = positiveOrNull(input.result.optInt("total_tracks", 0), trackInt(input, "totalTracks", input.request.optInt("total_tracks", 0))) ?: 0
+        val discNumberValue = positiveOrNull(input.result.optInt("disc_number", 0), trackInt(input, "discNumber", input.request.optInt("disc_number", 0))) ?: 0
+        val totalDiscsValue = positiveOrNull(input.result.optInt("total_discs", 0), trackInt(input, "totalDiscs", input.request.optInt("total_discs", 0))) ?: 0
+        val trackNumber = formatIndexTag(trackNumberValue, totalTracksValue)
+        val discNumber = formatIndexTag(discNumberValue, totalDiscsValue)
+        val isrc = resultString(input, "isrc").ifBlank {
+            trackString(input, "isrc", requestString(input, "isrc"))
+        }
+        val composer = resultString(input, "composer").ifBlank {
+            trackString(input, "composer", requestString(input, "composer"))
+        }
+        val genre = resultString(input, "genre").ifBlank { requestString(input, "genre") }
+        val label = resultString(input, "label").ifBlank { requestString(input, "label") }
+        val copyright = resultString(input, "copyright").ifBlank { requestString(input, "copyright") }
         val lyrics = resolveLyricsLrc(input)
         val shouldEmbedLyrics = input.request.optBoolean("embed_lyrics", false) &&
             (input.request.optString("lyrics_mode", "embed") == "embed" ||
@@ -877,30 +897,41 @@ object NativeDownloadFinalizer {
             lyrics.isNotBlank() &&
             lyrics != "[instrumental:true]"
         if (format == "flac") {
+            val coverFile = downloadCoverForMetadata(context, input)
             val fields = JSONObject()
                 .put("title", title)
                 .put("artist", artist)
                 .put("album", album)
                 .put("album_artist", albumArtist)
                 .put("date", date)
-                .put("track_number", trackNumber)
-                .put("disc_number", discNumber)
                 .put("isrc", isrc)
                 .put("composer", composer)
                 .put("genre", genre)
                 .put("label", label)
                 .put("copyright", copyright)
+            if (trackNumberValue > 0) fields.put("track_number", trackNumberValue.toString())
+            if (totalTracksValue > 0) fields.put("track_total", totalTracksValue.toString())
+            if (discNumberValue > 0) fields.put("disc_number", discNumberValue.toString())
+            if (totalDiscsValue > 0) fields.put("disc_total", totalDiscsValue.toString())
+            if (coverFile != null) fields.put("cover_path", coverFile.absolutePath)
             if (shouldEmbedLyrics) {
                 fields.put("lyrics", lyrics)
                 fields.put("unsyncedlyrics", lyrics)
             }
-            Gobackend.editFileMetadata(path, fields.toString())
+            try {
+                Gobackend.editFileMetadata(path, fields.toString())
+            } finally {
+                coverFile?.delete()
+            }
             return
         }
 
         val ext = normalizeExt(File(path).extension).ifBlank { ".tmp" }
         val inputFile = File(path)
         val temp = File(inputFile.parentFile, "${inputFile.nameWithoutExtension}_tagged$ext")
+        val isM4a = format == "m4a"
+        val coverFile = if (isM4a) downloadCoverForMetadata(context, input) else null
+        val labelKey = if (isM4a) "organization" else "label"
         val metadataArgs = listOf(
             "title" to title,
             "artist" to artist,
@@ -912,21 +943,29 @@ object NativeDownloadFinalizer {
             "isrc" to isrc,
             "composer" to composer,
             "genre" to genre,
-            "label" to label,
+            labelKey to label,
             "copyright" to copyright,
             "lyrics" to if (shouldEmbedLyrics) lyrics else "",
             "unsyncedlyrics" to if (shouldEmbedLyrics) lyrics else "",
         )
             .filter { it.second.isNotBlank() && it.second != "0" }
             .joinToString(" ") { "-metadata ${it.first}=${q(it.second)}" }
-        if (metadataArgs.isBlank()) return
+        if (metadataArgs.isBlank() && coverFile == null) return
         val mp3Flags = if (format == "mp3") "-id3v2_version 3 " else ""
         var adoptedTemp = false
         var originalDeleted = false
         try {
-            val result = runFFmpeg(
-                "-v error -hide_banner -i ${q(path)} -map 0 -c copy $metadataArgs $mp3Flags${q(temp.absolutePath)} -y"
-            )
+            val command = if (coverFile != null) {
+                "-v error -hide_banner -i ${q(path)} -i ${q(coverFile.absolutePath)} " +
+                    "-map 0:a -c:a copy -map_metadata 0 -map 1:v -c:v copy " +
+                    "-disposition:v:0 attached_pic " +
+                    "-metadata:s:v ${q("title=Album cover")} " +
+                    "-metadata:s:v ${q("comment=Cover (front)")} " +
+                    "$metadataArgs -f mp4 ${q(temp.absolutePath)} -y"
+            } else {
+                "-v error -hide_banner -i ${q(path)} -map 0 -c copy -map_metadata 0 $metadataArgs $mp3Flags${q(temp.absolutePath)} -y"
+            }
+            val result = runFFmpeg(command)
             if (result.first && temp.exists()) {
                 if (inputFile.delete()) {
                     originalDeleted = true
@@ -937,6 +976,39 @@ object NativeDownloadFinalizer {
             if (!adoptedTemp && !originalDeleted) {
                 temp.delete()
             }
+            coverFile?.delete()
+        }
+    }
+
+    private fun formatIndexTag(number: Int, total: Int): String {
+        if (number <= 0) return "0"
+        return if (total > 0) "$number/$total" else number.toString()
+    }
+
+    private fun downloadCoverForMetadata(context: Context, input: FinalizeInput): File? {
+        val coverUrl = resultString(input, "cover_url").ifBlank {
+            trackString(input, "coverUrl", requestString(input, "cover_url"))
+        }
+        if (coverUrl.isBlank()) return null
+
+        val safeItemId = input.itemId.ifBlank { "item" }.replace(Regex("[^A-Za-z0-9._-]"), "_")
+        val output = File.createTempFile("native_cover_${safeItemId}_", ".jpg", context.cacheDir)
+        return try {
+            Gobackend.downloadCoverToFile(
+                coverUrl,
+                output.absolutePath,
+                input.request.optBoolean("embed_max_quality_cover", true)
+            )
+            if (output.exists() && output.length() > 0L) {
+                output
+            } else {
+                output.delete()
+                null
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to download metadata cover: ${e.message}")
+            output.delete()
+            null
         }
     }
 
@@ -1318,8 +1390,8 @@ object NativeDownloadFinalizer {
         values.put("track_name", result.optString("title", "").ifBlank { trackString(input, "name", input.request.optString("track_name", "")) })
         values.put("artist_name", result.optString("artist", "").ifBlank { trackString(input, "artistName", input.request.optString("artist_name", "")) })
         values.put("album_name", result.optString("album", "").ifBlank { trackString(input, "albumName", input.request.optString("album_name", "")) })
-        values.put("album_artist", normalizeOptional(trackString(input, "albumArtist", input.request.optString("album_artist", ""))))
-        values.put("cover_url", normalizeOptional(result.optString("cover_url", "").ifBlank { trackString(input, "coverUrl", input.request.optString("cover_url", "")) }))
+        values.put("album_artist", normalizeOptional(resultString(input, "album_artist").ifBlank { trackString(input, "albumArtist", requestString(input, "album_artist")) }))
+        values.put("cover_url", normalizeOptional(resultString(input, "cover_url").ifBlank { trackString(input, "coverUrl", requestString(input, "cover_url")) }))
         values.put("file_path", state.filePath)
         values.put("storage_mode", input.request.optString("storage_mode", "app"))
         values.put("download_tree_uri", normalizeOptional(input.request.optString("saf_tree_uri", "")))
@@ -1335,12 +1407,12 @@ object NativeDownloadFinalizer {
         values.put("disc_number", positiveOrNull(result.optInt("disc_number", 0), trackInt(input, "discNumber", input.request.optInt("disc_number", 0))))
         values.put("total_discs", positiveOrNull(result.optInt("total_discs", 0), trackInt(input, "totalDiscs", input.request.optInt("total_discs", 0))))
         values.put("duration", trackInt(input, "duration", input.request.optInt("duration_ms", 0) / 1000))
-        values.put("release_date", normalizeOptional(result.optString("release_date", "").ifBlank { trackString(input, "releaseDate", input.request.optString("release_date", "")) }))
+        values.put("release_date", normalizeOptional(resultString(input, "release_date").ifBlank { resultString(input, "date").ifBlank { trackString(input, "releaseDate", requestString(input, "release_date")) } }))
         values.put("quality", state.quality)
         state.bitDepth?.let { values.put("bit_depth", it) }
         state.sampleRate?.let { values.put("sample_rate", it) }
         values.put("genre", normalizeOptional(result.optString("genre", "").ifBlank { input.request.optString("genre", "") }))
-        values.put("composer", normalizeOptional(result.optString("composer", "").ifBlank { trackString(input, "composer", input.request.optString("composer", "")) }))
+        values.put("composer", normalizeOptional(resultString(input, "composer").ifBlank { trackString(input, "composer", requestString(input, "composer")) }))
         values.put("label", normalizeOptional(result.optString("label", "").ifBlank { input.request.optString("label", "") }))
         values.put("copyright", normalizeOptional(result.optString("copyright", "").ifBlank { input.request.optString("copyright", "") }))
         return values
@@ -1543,7 +1615,13 @@ object NativeDownloadFinalizer {
     }
 
     private fun trackString(input: FinalizeInput, key: String, fallback: String): String =
-        input.track.optString(key, "").ifBlank { fallback }
+        cleanMetadataString(input.track.optString(key, "")).ifBlank { cleanMetadataString(fallback) }
+
+    private fun requestString(input: FinalizeInput, key: String): String =
+        cleanMetadataString(input.request.optString(key, ""))
+
+    private fun resultString(input: FinalizeInput, key: String): String =
+        cleanMetadataString(input.result.optString(key, ""))
 
     private fun trackInt(input: FinalizeInput, key: String, fallback: Int): Int {
         val value = input.track.optInt(key, 0)
@@ -1561,8 +1639,13 @@ object NativeDownloadFinalizer {
     }
 
     private fun normalizeOptional(value: String?): String? {
-        val trimmed = value?.trim().orEmpty()
+        val trimmed = cleanMetadataString(value)
         return trimmed.ifBlank { null }
+    }
+
+    private fun cleanMetadataString(value: String?): String {
+        val trimmed = value?.trim().orEmpty()
+        return if (trimmed.equals("null", ignoreCase = true)) "" else trimmed
     }
 
     private fun normalizeExt(ext: String?): String {

@@ -61,6 +61,7 @@ class DownloadService : Service() {
         private const val NATIVE_WORKER_PROGRESS_FILE = "native_download_worker_progress.json"
         private const val NATIVE_REPLAYGAIN_JOURNAL_FILE = "native_replaygain_journal.json"
         private const val NATIVE_WORKER_CONTRACT_VERSION = NativeDownloadFinalizer.NATIVE_WORKER_CONTRACT_VERSION
+        private const val NOTIFICATION_PERCENT_TOTAL = 10_000L
         private val NATIVE_WORKER_STATE_FILE_LOCK = Any()
         private val NATIVE_REPLAYGAIN_JOURNAL_FILE_LOCK = Any()
         
@@ -1111,9 +1112,21 @@ class DownloadService : Service() {
                 it.bytesReceived = bytesReceived
                 it.bytesTotal = bytesTotal
             }
-            lastProgress = bytesReceived
-            lastTotal = bytesTotal
-            updateNotification(bytesReceived, bytesTotal)
+            if (bytesTotal > 0L) {
+                lastProgress = bytesReceived
+                lastTotal = bytesTotal
+                updateNotification(bytesReceived, bytesTotal)
+            } else if (progressValue > 0.0) {
+                val percentProgress = (progressValue * NOTIFICATION_PERCENT_TOTAL).toLong()
+                    .coerceIn(0L, NOTIFICATION_PERCENT_TOTAL)
+                lastProgress = percentProgress
+                lastTotal = NOTIFICATION_PERCENT_TOTAL
+                updateNotification(percentProgress, NOTIFICATION_PERCENT_TOTAL)
+            } else {
+                lastProgress = 0L
+                lastTotal = 0L
+                updateNotification(0L, 0L)
+            }
         } catch (_: Exception) {
         }
     }
@@ -1284,6 +1297,9 @@ class DownloadService : Service() {
             "Preparing download..."
         } else if (currentArtistName.isNotEmpty() && queueCount <= 1) {
             currentArtistName
+        } else if (total == NOTIFICATION_PERCENT_TOTAL) {
+            val progressPercent = (progress * 100 / total).toInt()
+            "$progressPercent%"
         } else if (total > 0) {
             val progressPercent = (progress * 100 / total).toInt()
             val progressMB = progress / (1024.0 * 1024.0)
@@ -1303,7 +1319,7 @@ class DownloadService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
         
-        if (currentStatus == "preparing" && total <= 0) {
+        if ((currentStatus == "preparing" || currentStatus == "downloading") && total <= 0) {
             builder.setProgress(0, 0, true)
         } else if (total > 0) {
             builder.setProgress(100, (progress * 100 / total).toInt(), false)
