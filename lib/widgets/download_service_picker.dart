@@ -10,7 +10,7 @@ class DownloadServicePicker extends ConsumerStatefulWidget {
   final String? artistName;
   final String? coverUrl;
   final void Function(String quality, String service) onSelect;
-  final String? recommendedService; // Service to show as "(Recommended)"
+  final String? recommendedService;
 
   const DownloadServicePicker({
     super.key,

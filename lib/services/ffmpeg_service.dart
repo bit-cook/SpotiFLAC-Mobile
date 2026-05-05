@@ -1060,7 +1060,6 @@ class FFmpegService {
   /// Uses the FFmpeg `ebur128` audio filter to measure integrated loudness (LUFS)
   /// and true peak. ReplayGain reference level is -18 LUFS (≈ 89 dB SPL).
   ///
-  /// Returns a [ReplayGainResult] on success, or null if the scan fails.
   static Future<ReplayGainResult?> scanReplayGain(String filePath) async {
     // -nostats suppresses the interactive progress line.
     // ebur128=peak=true prints integrated loudness + true peak.
@@ -1079,7 +1078,6 @@ class FFmpegService {
     // because -f null always "fails" on some FFmpeg builds.
     final output = result.output;
 
-    // Parse integrated loudness: "I:        -14.0 LUFS"
     final integratedMatch = RegExp(
       r'I:\s+(-?\d+\.?\d*)\s+LUFS',
     ).allMatches(output);
@@ -1205,7 +1203,6 @@ class FFmpegService {
       }
     }
 
-    // Cleanup temp file on failure
     try {
       final tempFile = File(tempOutput);
       if (await tempFile.exists()) await tempFile.delete();
@@ -1332,7 +1329,6 @@ class FFmpegService {
         output.contains('incorrect codec parameters')) {
       _log.w('MP3 copy failed (codec mismatch), re-encoding with libmp3lame');
 
-      // Clean up failed temp file
       try {
         final tempFile = File(tempOutput);
         if (await tempFile.exists()) await tempFile.delete();
@@ -1353,7 +1349,6 @@ class FFmpegService {
         return await _finalizeMp3Embed(mp3Path, reencodeOutput);
       }
 
-      // Clean up re-encode temp file
       try {
         final tempFile = File(reencodeOutput);
         if (await tempFile.exists()) await tempFile.delete();
@@ -1363,7 +1358,6 @@ class FFmpegService {
       return null;
     }
 
-    // Clean up temp file for other failures
     try {
       final tempFile = File(tempOutput);
       if (await tempFile.exists()) await tempFile.delete();
@@ -1375,7 +1369,6 @@ class FFmpegService {
     return null;
   }
 
-  /// Build and execute FFmpeg arguments for MP3 metadata embedding.
   static Future<FFmpegResult> _runMp3Embed({
     required String mp3Path,
     required String tempOutput,
@@ -1775,7 +1768,6 @@ class FFmpegService {
   /// Unified audio format conversion with full metadata + cover preservation.
   /// Supports: FLAC/M4A/MP3/Opus -> MP3/Opus/ALAC/FLAC.
   /// ALAC and FLAC targets are lossless (bitrate parameter is ignored).
-  /// Returns the new file path on success, null on failure.
   static Future<String?> convertAudioFormat({
     required String inputPath,
     required String targetFormat,
@@ -1881,7 +1873,6 @@ class FFmpegService {
     return outputPath;
   }
 
-  /// Convert any audio format to ALAC (Apple Lossless) in an M4A container.
   /// Metadata and cover art are embedded in a single FFmpeg pass.
   static Future<String?> _convertToAlac({
     required String inputPath,
@@ -1954,7 +1945,6 @@ class FFmpegService {
     return outputPath;
   }
 
-  /// Convert any audio format to FLAC with metadata and cover art preservation.
   static Future<String?> _convertToFlac({
     required String inputPath,
     required Map<String, String> metadata,
@@ -2359,7 +2349,6 @@ class FFmpegService {
   /// [outputDir] is where individual track files will be saved
   /// [tracks] is the list of track split info from the Go CUE parser
   /// [albumMetadata] contains album-level metadata (artist, album, genre, date)
-  /// Returns list of output file paths on success, null on failure.
   static Future<List<String>?> splitCueToTracks({
     required String audioPath,
     required String outputDir,

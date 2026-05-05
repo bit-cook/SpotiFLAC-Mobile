@@ -717,7 +717,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     );
   }
 
-  // --- Language data (native names, always readable regardless of current locale) ---
   static const _allLanguages = [
     ('system', 'System Default', Icons.phone_android),
     ('en', 'English', Icons.language),
@@ -757,7 +756,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final shortestSide = MediaQuery.sizeOf(context).shortestSide;
-        // Match _StepLayout sizing exactly
         final iconPadding = (shortestSide * 0.06).clamp(16.0, 24.0);
         final iconSize = (shortestSide * 0.12).clamp(32.0, 48.0);
         final titleGap = (shortestSide * 0.06).clamp(16.0, 32.0);
@@ -766,7 +764,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 
         return Column(
           children: [
-            // Header: identical to _StepLayout (same padding, spacing, styles)
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
               child: Column(
@@ -805,7 +802,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 ],
               ),
             ),
-            // Language list (scrollable action area)
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 80),

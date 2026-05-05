@@ -556,7 +556,6 @@ class _LogEntryTile extends StatelessWidget {
   }
 }
 
-/// Summary card showing detected issues in logs
 class _LogSummaryCard extends StatelessWidget {
   final List<LogEntry> logs;
 

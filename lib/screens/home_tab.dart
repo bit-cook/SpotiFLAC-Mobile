@@ -1753,7 +1753,6 @@ class _HomeTabState extends ConsumerState<HomeTab>
     );
   }
 
-  /// Build YT Music "Quick picks" style swipeable pages section
   Widget _buildYTMusicQuickPicksSection(
     ExploreSection section,
     ColorScheme colorScheme,

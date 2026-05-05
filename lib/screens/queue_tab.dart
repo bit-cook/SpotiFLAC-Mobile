@@ -2162,7 +2162,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
         .createPlaylist(playlistName);
   }
 
-  /// Build a playlist cover thumbnail (custom cover > first track cover > icon fallback).
   /// Pass a finite [size] (e.g. 56) for list view, or `null` for grid view
   /// where the widget should expand to fill its parent.
   Widget _buildPlaylistCover(
@@ -2987,7 +2986,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     );
   }
 
-  /// Returns the visible collection entries, hiding Wishlist/Loved when empty.
   List<_CollectionEntry> _getVisibleCollectionEntries(
     LibraryCollectionsState collectionState,
   ) {
@@ -4483,7 +4481,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     }
   }
 
-  /// Show batch convert bottom sheet for selected tracks
   Future<void> _showBatchConvertSheet(
     BuildContext context,
     List<UnifiedLibraryItem> allItems,
@@ -5629,7 +5626,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     );
   }
 
-  /// Build cover image widget for unified library item.
   /// When [size] is provided, renders at fixed dimensions (list mode).
   /// When [size] is null, fills the parent container (grid mode).
   Widget _buildUnifiedCoverImage(

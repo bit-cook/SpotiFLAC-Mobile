@@ -347,7 +347,6 @@ class _ExtensionsPageState extends ConsumerState<ExtensionsPage> {
     return _getFriendlyErrorMessage(firstError);
   }
 
-  /// Parse error message to be more user-friendly
   String _getFriendlyErrorMessage(String? error) {
     if (error == null) return context.l10n.snackbarFailedToInstall;
 

@@ -741,7 +741,6 @@ class _LanguageSelector extends StatelessWidget {
     ('zh_TW', '繁體中文', Icons.language),
   ];
 
-  /// Get only languages that meet the translation threshold.
   /// Uses filteredLocaleCodes from supported_locales.dart (generated file).
   List<(String, String, IconData)> get _languages {
     return _allLanguages.where((lang) {

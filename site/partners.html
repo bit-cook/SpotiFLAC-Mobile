@@ -8,7 +8,6 @@
   <meta name="theme-color" content="#0a0a0a">
   <link rel="icon" href="icon.png" type="image/png">
 
-  <!-- Google Sans Flex -->
   <style>
     @font-face { font-family: 'Google Sans Flex'; font-style: normal; font-display: swap; font-weight: 400; src: url(https://cdn.jsdelivr.net/fontsource/fonts/google-sans-flex@latest/latin-400-normal.woff2) format('woff2'); }
     @font-face { font-family: 'Google Sans Flex'; font-style: normal; font-display: swap; font-weight: 500; src: url(https://cdn.jsdelivr.net/fontsource/fonts/google-sans-flex@latest/latin-500-normal.woff2) format('woff2'); }
@@ -18,7 +17,6 @@
   </style>
 
   <style>
-    /* ── M3 AMOLED surface ramp ── */
     :root {
       --green: #1DB954;
       --green-dim: #1aa34a;
@@ -47,7 +45,6 @@
     a { color: var(--green); text-decoration: none; }
     a:hover { text-decoration: underline; }
 
-    /* ── NAV ── */
     nav {
       position: fixed; top: 0; left: 0; right: 0; z-index: 100;
       background: rgba(18,18,18,.78);
@@ -85,14 +82,12 @@
       font-family: inherit; color: #555; line-height: 1.4; margin-left: 2px;
     }
 
-    /* ── PAGE HEADER ── */
     .page-header {
       padding: 100px 24px 40px; text-align: center;
     }
     .page-header h1 { font-size: 2rem; font-weight: 800; margin-bottom: 8px; }
     .page-header p { color: var(--text-dim); font-size: 1rem; max-width: 560px; margin: 0 auto; }
 
-    /* ── SECTIONS ── */
     section { padding: 40px 24px 60px; }
     .section-inner { max-width: var(--max-w); margin: auto; }
     .section-label {
@@ -102,7 +97,6 @@
     .section-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
     .section-sub { color: var(--text-dim); font-size: .95rem; margin-bottom: 32px; max-width: 600px; }
 
-    /* ── INFRA CARDS ── */
     .infra-grid {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
       gap: 12px;
@@ -132,7 +126,6 @@
     .infra-link:hover { color: var(--text); text-decoration: none; }
     .infra-link svg { width: 13px; height: 13px; fill: currentColor; }
 
-    /* ── FOOTER ── */
     footer {
       background: var(--surface);
       padding: 40px 24px; text-align: center;
@@ -143,7 +136,6 @@
     .footer-links a:hover { color: var(--text); }
     .footer-copy { color: #555; font-size: .8rem; }
 
-    /* ── DISCLAIMER ── */
     .disclaimer {
       max-width: var(--max-w); margin: 0 auto; padding: 0 24px 60px;
       text-align: center;
@@ -155,7 +147,6 @@
       background: var(--surface);
     }
 
-    /* ── MOBILE MENU ── */
     .nav-burger {
       display: none; width: 40px; height: 40px; border-radius: 12px;
       background: none; border: none; cursor: pointer;
@@ -223,7 +214,6 @@
     }
     .mobile-menu .mobile-icons a svg { width: 20px; height: 20px; fill: currentColor; }
 
-    /* ── MOBILE ── */
     @media (max-width: 640px) {
       .nav-links { display: none; }
       .nav-burger { display: flex; }
@@ -234,7 +224,6 @@
     }
   </style>
   <style>
-    /* ── SEARCH MODAL ── */
     .search-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,.6);
       z-index: 300; opacity: 0; pointer-events: none;
@@ -333,7 +322,6 @@
   </div>
 </nav>
 
-<!-- MOBILE MENU -->
 <div class="mobile-overlay" id="mobileOverlay" onclick="toggleMenu()"></div>
 <div class="mobile-menu" id="mobileMenu">
   <a href="index#features">Features</a>
@@ -358,7 +346,6 @@
   <p>The behind-the-scenes APIs and tools that power SpotiFLAC Mobile. We appreciate every one of them.</p>
 </div>
 
-<!-- INFRASTRUCTURE -->
 <section>
   <div class="section-inner">
     <div class="section-label">Infrastructure</div>
@@ -367,9 +354,7 @@
 
     <div class="infra-grid">
 
-      <!-- === TRACK LINKING === -->
 
-      <!-- Odesli / song.link (no GitHub — globe) -->
       <div class="infra-card">
         <div class="infra-icon" style="background: rgba(99,102,241,.1); color: #6366f1;">
           <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
@@ -384,7 +369,6 @@
         </div>
       </div>
 
-      <!-- I Don't Have Spotify (GitHub) -->
       <div class="infra-card">
         <div class="infra-icon" style="background: rgba(255,255,255,.08); color: #e8e8e8;">
           <svg viewBox="0 0 24 24"><path d="M12 .3a12 12 0 00-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.8-1.3-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.3 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.4 1.2a11.5 11.5 0 016 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0012 .3z"/></svg>
@@ -399,7 +383,6 @@
         </div>
       </div>
 
-      <!-- LRCLIB (GitHub) -->
       <div class="infra-card">
         <div class="infra-icon" style="background: rgba(255,255,255,.08); color: #e8e8e8;">
           <svg viewBox="0 0 24 24"><path d="M12 .3a12 12 0 00-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.8-1.3-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.3 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.4 1.2a11.5 11.5 0 016 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0012 .3z"/></svg>
@@ -414,7 +397,6 @@
         </div>
       </div>
 
-      <!-- Paxsenix (lyrics proxy) -->
       <div class="infra-card">
         <div class="infra-icon" style="background: rgba(59,130,246,.1); color: #3b82f6;">
           <svg viewBox="0 0 24 24"><path d="M12 2c2.4 0 4.6 1.1 6 3 1.4 1.9 1.8 4.3 1.2 6.6-.7 2.2-2.3 4-4.4 5v2.4h-6V17c-2.1-1-3.7-2.8-4.4-5C3.8 9.3 4.2 6.9 5.6 5 7 3.1 9.2 2 11.6 2H12zm-1 18h2v2h-2v-2zm-.2-5h2.4c1.9-.7 3.3-2.2 3.9-4.1.5-1.7.2-3.5-.8-4.9-1-1.4-2.6-2.2-4.3-2.2H12c-1.7 0-3.3.8-4.3 2.2-1 1.4-1.3 3.2-.8 4.9.6 1.9 2 3.4 3.9 4.1z"/></svg>
@@ -429,9 +411,7 @@
         </div>
       </div>
 
-      <!-- === QOBUZ & DEEZER API (Ruubiiiii) === -->
 
-      <!-- Ruubiiiii / MusicDL (GitHub) -->
       <div class="infra-card">
         <div class="infra-icon" style="background: rgba(255,255,255,.08); color: #e8e8e8;">
           <svg viewBox="0 0 24 24"><path d="M12 .3a12 12 0 00-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.8-1.3-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.3 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.4 1.2a11.5 11.5 0 016 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0012 .3z"/></svg>
@@ -446,9 +426,7 @@
         </div>
       </div>
 
-      <!-- === YOUTUBE AUDIO === -->
 
-      <!-- Cobalt (GitHub) -->
       <div class="infra-card">
         <div class="infra-icon" style="background: rgba(255,255,255,.08); color: #e8e8e8;">
           <svg viewBox="0 0 24 24"><path d="M12 .3a12 12 0 00-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.8-1.3-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.3 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.4 1.2a11.5 11.5 0 016 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0012 .3z"/></svg>
@@ -467,12 +445,10 @@
   </div>
 </section>
 
-<!-- DISCLAIMER -->
 <div class="disclaimer">
   <p>SpotiFLAC Mobile is not affiliated with, endorsed by, or connected to any of the services listed above. All trademarks and logos belong to their respective owners. This page is meant to acknowledge and appreciate the platforms that make this project possible.</p>
 </div>
 
-<!-- SEARCH MODAL -->
 <div class="search-overlay" id="searchOverlay" onclick="if(event.target===this)closeSearch()">
   <div class="search-modal">
     <div class="search-header">
@@ -491,7 +467,6 @@
   </div>
 </div>
 
-<!-- FOOTER -->
 <footer>
   <div class="footer-inner">
     <div class="footer-links">
@@ -518,7 +493,6 @@ document.getElementById('mobileMenu').addEventListener('click', function(e) {
 });
 </script>
 <script>
-/* ── DOCS SEARCH ── */
 (function() {
   var overlay = document.getElementById('searchOverlay');
   var input = document.getElementById('searchInput');

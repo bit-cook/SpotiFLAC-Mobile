@@ -61,7 +61,6 @@ class MetadataSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // ── Embedding ──────────────────────────────────────────────
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionDownload),
             ),
@@ -116,7 +115,6 @@ class MetadataSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // ── Providers ─────────────────────────────────────────────
             SliverToBoxAdapter(
               child: SettingsSectionHeader(
                 title: context.l10n.sectionMetadataProviders,
@@ -141,7 +139,6 @@ class MetadataSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // ── Deduplication ──────────────────────────────────────────
             SliverToBoxAdapter(
               child: SettingsSectionHeader(
                 title: context.l10n.sectionDuplicates,

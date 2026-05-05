@@ -166,7 +166,6 @@ class _RecentDonorsCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const donorNames = <String>[];
 
-    // Match SettingsGroup color logic
     final cardColor = isDark
         ? Color.alphaBlend(
             Colors.white.withValues(alpha: 0.08),

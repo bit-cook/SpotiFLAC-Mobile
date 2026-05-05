@@ -17,7 +17,6 @@
   </style>
 
   <style>
-    /* ── M3 AMOLED surface ramp ── */
     :root {
       --green: #1DB954;
       --green-dim: #1aa34a;
@@ -209,7 +208,6 @@
 
     .sidebar-toggle { display: none; }
 
-    /* ── MOBILE MENU BAR ── */
     .docs-menu-bar {
       display: none;
       position: sticky;
@@ -232,7 +230,6 @@
     .docs-menu-bar button:hover { color: var(--text); }
     .docs-menu-bar button svg { width: 16px; height: 16px; fill: currentColor; }
 
-    /* ── DOCS DRAWER ── */
     .docs-drawer-overlay {
       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,.5); z-index: 200;
@@ -436,7 +433,6 @@
       .docs-content table { display: block; overflow-x: auto; white-space: nowrap; }
     }
 
-    /* ── SEARCH MODAL ── */
     .search-trigger {
       display: flex; align-items: center; gap: 6px;
       background: rgba(255,255,255,.06);
@@ -580,7 +576,6 @@
   </div>
 </div>
 
-<!-- Mobile menu bar -->
 <div class="docs-menu-bar">
   <button onclick="openDrawer()">
     <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
@@ -593,7 +588,6 @@
   <button onclick="window.scrollTo({top:0,behavior:'smooth'})">Return to top</button>
 </div>
 
-<!-- Drawer overlay + sidebar -->
 <div class="docs-drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
 <div class="docs-drawer" id="docsDrawer">
   <div class="docs-drawer-header">
@@ -5516,7 +5510,6 @@ registerExtension({
   </aside>
 </div>
 
-<!-- Search modal -->
 <div class="search-overlay" id="searchOverlay" onclick="if(event.target===this)closeSearch()">
   <div class="search-modal">
     <div class="search-header">
@@ -5659,7 +5652,6 @@ window.addEventListener('hashchange', () => setTimeout(updateActiveState, 10));
 
 updateActiveState();
 
-/* ── SEARCH ── */
 (function() {
   const overlay = document.getElementById('searchOverlay');
   const input = document.getElementById('searchInput');

@@ -358,7 +358,6 @@ class _DisabledProviderItem extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  // Empty space aligned with numbered badge
                   const SizedBox(width: 28),
                   const SizedBox(width: 16),
                   Icon(info.icon, color: colorScheme.outline),

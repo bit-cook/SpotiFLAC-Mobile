@@ -8,7 +8,6 @@
   <meta name="theme-color" content="#0a0a0a">
   <link rel="icon" href="icon.png" type="image/png">
 
-  <!-- Google Sans Flex -->
   <style>
     @font-face { font-family: 'Google Sans Flex'; font-style: normal; font-display: swap; font-weight: 400; src: url(https://cdn.jsdelivr.net/fontsource/fonts/google-sans-flex@latest/latin-400-normal.woff2) format('woff2'); }
     @font-face { font-family: 'Google Sans Flex'; font-style: normal; font-display: swap; font-weight: 500; src: url(https://cdn.jsdelivr.net/fontsource/fonts/google-sans-flex@latest/latin-500-normal.woff2) format('woff2'); }
@@ -18,7 +17,6 @@
   </style>
 
   <style>
-    /* ── M3 AMOLED surface ramp ── */
     :root {
       --green: #1DB954;
       --green-dim: #1aa34a;
@@ -47,7 +45,6 @@
     a { color: var(--green); text-decoration: none; }
     a:hover { text-decoration: underline; }
 
-    /* ── NAV ── */
     nav {
       position: fixed; top: 0; left: 0; right: 0; z-index: 100;
       background: rgba(18,18,18,.78);
@@ -85,14 +82,12 @@
       font-family: inherit; color: #555; line-height: 1.4; margin-left: 2px;
     }
 
-    /* ── PAGE HEADER ── */
     .page-header {
       padding: 100px 24px 40px; text-align: center;
     }
     .page-header h1 { font-size: 2rem; font-weight: 800; margin-bottom: 8px; }
     .page-header p { color: var(--text-dim); font-size: 1rem; }
 
-    /* ── LATEST HERO ── */
     .latest-hero {
       max-width: var(--max-w); margin: 0 auto; padding: 0 24px 40px;
     }
@@ -138,7 +133,6 @@
     }
     .latest-changelog.show { display: block; }
 
-    /* ── OLDER RELEASES ── */
     .older-section {
       max-width: var(--max-w); margin: 0 auto; padding: 40px 24px 80px;
     }
@@ -147,7 +141,6 @@
       margin-bottom: 16px; padding-bottom: 12px;
     }
 
-    /* ── RELEASE CARDS ── */
     .release-card {
       background: var(--bg-card); border-radius: 16px;
       margin-bottom: 8px; transition: background .2s;
@@ -178,7 +171,6 @@
     .release-asset:hover { background: rgba(29,185,84,.15); text-decoration: none; }
     .release-asset-size { color: var(--text-dim); font-size: .72rem; }
 
-    /* ── CHANGELOG BODY ── */
     .release-body {
       font-size: .85rem; color: var(--text-dim); line-height: 1.7;
       max-height: 400px; overflow-y: auto;
@@ -193,7 +185,6 @@
     .release-body code { background: var(--bg-card-hover); padding: 2px 6px; border-radius: 4px; font-size: .8rem; }
     .release-body a { color: var(--green); }
 
-    /* ── FOOTER ── */
     footer {
       background: var(--surface);
       padding: 40px 24px; text-align: center;
@@ -204,7 +195,6 @@
     .footer-links a:hover { color: var(--text); }
     .footer-copy { color: #555; font-size: .8rem; }
 
-    /* ── LOADING ── */
     .loading { text-align: center; color: var(--text-dim); padding: 60px 0; }
     .loading-spinner {
       width: 32px; height: 32px; margin: 0 auto 12px;
@@ -217,7 +207,6 @@
       color: var(--text-dim); font-size: .9rem;
     }
 
-    /* ── MOBILE MENU ── */
     .nav-burger {
       display: none; width: 40px; height: 40px; border-radius: 12px;
       background: none; border: none; cursor: pointer;
@@ -285,7 +274,6 @@
     }
     .mobile-menu .mobile-icons a svg { width: 20px; height: 20px; fill: currentColor; }
 
-    /* ── MOBILE ── */
     @media (max-width: 640px) {
       .nav-links { display: none; }
       .nav-burger { display: flex; }
@@ -302,7 +290,6 @@
 
     .icon-svg { width: 20px; height: 20px; fill: currentColor; }
 
-    /* ── SEARCH MODAL ── */
     .search-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,.6);
       z-index: 300; opacity: 0; pointer-events: none;
@@ -402,7 +389,6 @@
   </div>
 </nav>
 
-<!-- MOBILE MENU -->
 <div class="mobile-overlay" id="mobileOverlay" onclick="toggleMenu()"></div>
 <div class="mobile-menu" id="mobileMenu">
   <a href="index#features">Features</a>
@@ -442,7 +428,6 @@
   </a>
 </div>
 
-<!-- SEARCH MODAL -->
 <div class="search-overlay" id="searchOverlay" onclick="if(event.target===this)closeSearch()">
   <div class="search-modal">
     <div class="search-header">
@@ -595,7 +580,6 @@ document.getElementById('mobileMenu').addEventListener('click', function(e) {
 });
 </script>
 <script>
-/* ── DOCS SEARCH ── */
 (function() {
   var overlay = document.getElementById('searchOverlay');
   var input = document.getElementById('searchInput');

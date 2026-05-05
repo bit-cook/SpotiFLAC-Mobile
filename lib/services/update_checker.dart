@@ -45,8 +45,6 @@ class UpdateChecker {
   static const String _allReleasesApiUrl =
       'https://api.github.com/repos/${AppInfo.githubRepo}/releases';
 
-  /// Check for updates based on channel preference
-  /// [channel] can be 'stable' or 'preview'
   static Future<UpdateInfo?> checkForUpdate({String channel = 'stable'}) async {
     if (!Platform.isAndroid) {
       return null;

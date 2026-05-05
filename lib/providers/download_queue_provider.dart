@@ -3598,11 +3598,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     return null;
   }
 
-  // ---------------------------------------------------------------------------
-  // Album ReplayGain: accumulate per-track data, compute & write album gain
-  // ---------------------------------------------------------------------------
-
-  /// Build a stable key for grouping tracks by album.
   String _albumRgKey(Track track) {
     if (track.albumId != null && track.albumId!.isNotEmpty) {
       return 'id:${track.albumId}';
@@ -3773,7 +3768,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             _log.w('SAF write-back failed for album RG: $filePath');
           }
         } finally {
-          // Clean up temp file regardless of SAF result.
           try {
             final tmp = File(tempPath!);
             if (await tmp.exists()) await tmp.delete();
@@ -4017,7 +4011,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     final isM4a = format == 'm4a';
     final isMp3 = format == 'mp3';
 
-    // ── Cover download ──────────────────────────────────────────────
     String? coverPath;
     var coverUrl = normalizeRemoteHttpUrl(track.coverUrl);
     if (coverUrl != null && coverUrl.isNotEmpty) {
@@ -4055,7 +4048,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
 
     try {
-      // ── Metadata map ────────────────────────────────────────────────
       final metadata = <String, String>{
         'TITLE': track.name,
         'ARTIST': track.artistName,
@@ -4099,7 +4091,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         metadata['COMPOSER'] = track.composer!;
       }
 
-      // ── Lyrics ──────────────────────────────────────────────────────
       final lyricsMode = settings.lyricsMode;
       final extensionState = ref.read(extensionProvider);
       final skipLyrics = _shouldSkipLyrics(
@@ -4160,7 +4151,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
       ReplayGainResult? scannedReplayGain;
 
-      // ── ReplayGain (MP3/Opus/M4A: scan before FFmpeg, add to metadata) ─
       if (settings.embedReplayGain && !isFlac) {
         try {
           final rgResult = await FFmpegService.scanReplayGain(filePath);
@@ -4178,7 +4168,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         }
       }
 
-      // ── FFmpeg embed (format-specific) ──────────────────────────────
       final validCover = coverPath != null && await File(coverPath).exists()
           ? coverPath
           : null;
@@ -4232,7 +4221,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         }
       }
 
-      // ── FLAC post-processing ────────────────────────────────────────
       if (isFlac) {
         if (settings.artistTagMode == artistTagModeSplitVorbis) {
           try {
@@ -7990,10 +7978,6 @@ class _NativeWorkerStartupTimeout implements Exception {
 final downloadQueueLookupProvider = Provider<DownloadQueueLookup>((ref) {
   return ref.watch(downloadQueueProvider.select((s) => s.lookup));
 });
-
-// ---------------------------------------------------------------------------
-// Album ReplayGain helpers
-// ---------------------------------------------------------------------------
 
 class _AlbumRgTrackEntry {
   String filePath;

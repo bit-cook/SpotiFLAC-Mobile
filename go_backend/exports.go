@@ -2529,7 +2529,6 @@ func ReEnrichFile(requestJSON string) (string, error) {
 	lower := strings.ToLower(req.FilePath)
 	isFlac := strings.HasSuffix(lower, ".flac")
 
-	// Download cover art to temp file
 	var coverTempPath string
 	var coverDataBytes []byte
 	if req.CoverURL != "" && req.shouldUpdateField("cover") {
@@ -2590,7 +2589,6 @@ func ReEnrichFile(requestJSON string) (string, error) {
 		}
 	}
 
-	// Fetch lyrics
 	if req.EmbedLyrics && req.shouldUpdateField("lyrics") {
 		client := NewLyricsClient()
 		durationSec := float64(req.DurationMs) / 1000.0

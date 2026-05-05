@@ -60,7 +60,6 @@ class LyricsSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // ── Lyrics Embedding ───────────────────────────────────────
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionLyrics),
             ),
@@ -112,7 +111,6 @@ class LyricsSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // ── Provider Options ───────────────────────────────────────
             if (settings.embedMetadata && settings.embedLyrics) ...[
               SliverToBoxAdapter(
                 child: SettingsSectionHeader(

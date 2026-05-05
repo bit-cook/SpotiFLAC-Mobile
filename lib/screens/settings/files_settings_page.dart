@@ -135,7 +135,6 @@ class _FilesSettingsPageState extends ConsumerState<FilesSettingsPage> {
               ),
             ),
 
-            // ── Download Location ──────────────────────────────────────
             SliverToBoxAdapter(
               child: SettingsSectionHeader(
                 title: context.l10n.setupDownloadLocationTitle,
@@ -159,7 +158,6 @@ class _FilesSettingsPageState extends ConsumerState<FilesSettingsPage> {
               ),
             ),
 
-            // ── Filename Formats ───────────────────────────────────────
             SliverToBoxAdapter(
               child: SettingsSectionHeader(
                 title: context.l10n.sectionFileSettings,
@@ -199,7 +197,6 @@ class _FilesSettingsPageState extends ConsumerState<FilesSettingsPage> {
               ),
             ),
 
-            // ── Folder Structure ───────────────────────────────────────
             SliverToBoxAdapter(
               child: SettingsSectionHeader(
                 title: context.l10n.downloadFolderOrganization,
@@ -318,7 +315,6 @@ class _FilesSettingsPageState extends ConsumerState<FilesSettingsPage> {
               ),
             ),
 
-            // ── Storage Access (Android 13+) ───────────────────────────
             if (Platform.isAndroid && _androidSdkVersion >= 33) ...[
               SliverToBoxAdapter(
                 child: SettingsSectionHeader(
@@ -378,8 +374,6 @@ class _FilesSettingsPageState extends ConsumerState<FilesSettingsPage> {
       ),
     );
   }
-
-  // ── Helpers ──────────────────────────────────────────────────────────────
 
   String _getAlbumFolderStructureLabel(String structure) {
     switch (structure) {

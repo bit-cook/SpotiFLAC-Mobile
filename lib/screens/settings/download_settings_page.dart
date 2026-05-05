@@ -74,7 +74,6 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
               ),
             ),
 
-            // ── Service ────────────────────────────────────────────────
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionService),
             ),
@@ -91,7 +90,6 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
               ),
             ),
 
-            // ── Audio Quality ──────────────────────────────────────────
             SliverToBoxAdapter(
               child: SettingsSectionHeader(
                 title: context.l10n.sectionAudioQuality,
@@ -117,7 +115,6 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
               ),
             ),
 
-            // ── Network & Performance ──────────────────────────────────
             SliverToBoxAdapter(
               child: SettingsSectionHeader(
                 title: context.l10n.sectionPerformance,
@@ -176,7 +173,6 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
               ),
             ),
 
-            // ── Fallback & Search ──────────────────────────────────────
             SliverToBoxAdapter(
               child: SettingsSectionHeader(
                 title: context.l10n.sectionSearchSource,
@@ -211,7 +207,6 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
               ),
             ),
 
-            // ── Misc ───────────────────────────────────────────────────
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionDownload),
             ),
@@ -611,8 +606,6 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
   }
 }
 
-// ── Private widgets (reused from original) ─────────────────────────────────
-
 class _BetaBadge extends StatelessWidget {
   const _BetaBadge();
 
@@ -896,7 +889,6 @@ class _ConcurrentChip extends StatelessWidget {
   }
 }
 
-// Imported from options_settings_page — search source selectors
 class _MetadataSourceSelector extends ConsumerWidget {
   const _MetadataSourceSelector();
 

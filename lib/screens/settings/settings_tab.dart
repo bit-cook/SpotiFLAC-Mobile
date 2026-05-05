@@ -61,7 +61,6 @@ class SettingsTab extends ConsumerWidget {
           ),
         ),
 
-        // ── Group 1: Appearance & Content ──────────────────────────────
         SliverToBoxAdapter(
           child: Builder(
             builder: (context) {
@@ -96,7 +95,6 @@ class SettingsTab extends ConsumerWidget {
           ),
         ),
 
-        // ── Group 2: Download ──────────────────────────────────────────
         SliverToBoxAdapter(
           child: Builder(
             builder: (context) {
@@ -139,7 +137,6 @@ class SettingsTab extends ConsumerWidget {
           ),
         ),
 
-        // ── Group 3: App ───────────────────────────────────────────────
         SliverToBoxAdapter(
           child: Builder(
             builder: (context) {

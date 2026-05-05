@@ -60,7 +60,6 @@ class AppSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // ── Updates ────────────────────────────────────────────────
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionApp),
             ),
@@ -97,7 +96,6 @@ class AppSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // ── Data ───────────────────────────────────────────────────
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionData),
             ),
@@ -122,7 +120,6 @@ class AppSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // ── Debug ──────────────────────────────────────────────────
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionDebug),
             ),

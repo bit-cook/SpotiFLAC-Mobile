@@ -116,7 +116,6 @@ func TestIsDomainAllowed(t *testing.T) {
 }
 
 func TestExtensionRuntime_NetworkSandbox(t *testing.T) {
-	// Create a mock extension with limited network permissions
 	ext := &loadedExtension{
 		ID: "test-ext",
 		Manifest: &ExtensionManifest{
@@ -253,7 +252,6 @@ func TestExtensionRuntime_UtilityFunctions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stringifyJSON failed: %v", err)
 	}
-	// JSON output may vary in order, just check it's valid
 	if result.String() == "" {
 		t.Error("Expected non-empty JSON string")
 	}
@@ -424,7 +422,6 @@ func TestExtensionRuntime_BindExtensionRequestCancelContext(t *testing.T) {
 }
 
 func TestExtensionRuntime_SSRFProtection(t *testing.T) {
-	// Create extension with limited network permissions
 	ext := &loadedExtension{
 		ID: "test-ext",
 		Manifest: &ExtensionManifest{

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Storage keys for theme settings persistence
 const String kThemeModeKey = 'theme_mode';
 const String kUseDynamicColorKey = 'use_dynamic_color';
 const String kSeedColorKey = 'seed_color';
@@ -13,7 +12,7 @@ class ThemeSettings {
   final ThemeMode themeMode;
   final bool useDynamicColor;
   final int seedColorValue;
-  final bool useAmoled; // Pure black background for OLED screens
+  final bool useAmoled;
 
   const ThemeSettings({
     this.themeMode = ThemeMode.system,

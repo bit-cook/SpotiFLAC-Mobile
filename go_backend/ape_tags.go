@@ -56,7 +56,6 @@ func ReadAPETags(filePath string) (*APETag, error) {
 		return nil, fmt.Errorf("file too small for APE tag")
 	}
 
-	// Try to find APE tag footer at the end of file.
 	// The footer is the last 32 bytes before any ID3v1 tag (128 bytes).
 	tag, err := readAPETagAtOffset(f, fileSize, fileSize-apeTagHeaderSize)
 	if err == nil {
@@ -255,7 +254,6 @@ func findExistingAPETagSize(filePath string) (int64, error) {
 
 		tagSize := int64(binary.LittleEndian.Uint32(footer[12:16]))
 
-		// Check if there's also a header (tagSize only covers items + footer)
 		hasHeader := (flags & (1 << 31)) != 0 // bit 31 = tag contains header
 		totalSize := tagSize
 		if hasHeader {
@@ -511,7 +509,6 @@ func apeKeysFromFields(fields map[string]string) map[string]struct{} {
 // deletion: the caller sends an empty value which is not serialized into
 // newItems, but the old value must still be dropped.
 func MergeAPEItems(existing, newItems []APETagItem, overrideKeys map[string]struct{}) []APETagItem {
-	// Build a set of keys being updated (upper-case for case-insensitive match)
 	combined := make(map[string]struct{}, len(newItems)+len(overrideKeys))
 	for k := range overrideKeys {
 		combined[strings.ToUpper(k)] = struct{}{}
@@ -539,7 +536,6 @@ func ReadAPETagsFromReader(r io.ReaderAt, fileSize int64) (*APETag, error) {
 		return nil, fmt.Errorf("file too small for APE tag")
 	}
 
-	// Try footer at end of file
 	footer := make([]byte, apeTagHeaderSize)
 	if _, err := r.ReadAt(footer, fileSize-apeTagHeaderSize); err != nil {
 		return nil, fmt.Errorf("failed to read APE footer: %w", err)

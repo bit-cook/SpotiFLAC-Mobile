@@ -125,7 +125,6 @@ class _LibraryTracksFolderScreenState
     return null;
   }
 
-  /// Returns true if [url] is a local file path rather than a network URL.
   bool _isCoverLocalPath(String url) {
     return !url.startsWith('http://') && !url.startsWith('https://');
   }
@@ -1301,7 +1300,6 @@ class _CollectionTrackTile extends ConsumerWidget {
     return null;
   }
 
-  /// Builds a cover image widget that handles both network URLs and local file paths.
   Widget _buildTrackCover(BuildContext context, String coverUrl, double size) {
     final isLocal =
         !coverUrl.startsWith('http://') && !coverUrl.startsWith('https://');
